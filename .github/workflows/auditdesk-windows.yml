@@ -53,8 +53,24 @@ jobs:
           Get-Content apps/desktop/.env.windows
       - name: Build unsigned Windows installer
         run: pnpm --filter @deepseek-ai/dsh-desktop run package:win:x64:unsigned
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AuditDesk-Windows-unsigned
+          path: apps/desktop/.desktop-build/targets/win-x64/unsigned-artifacts/*.exe
+          if-no-files-found: error
+      - name: Publish release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: windows-build-${{ github.run_number }}
+          name: AuditDesk Windows ${{ github.run_number }}
+          body: |
+            Automated unsigned Windows build of AuditDesk (AuditDesk 定制桌面端).
+            Build version: ${{ env.DSH_DESKTOP_BUILD_VERSION }}
+            Commit: ${{ github.sha }}
+          files: apps/desktop/.desktop-build/targets/win-x64/unsigned-artifacts/*.exe
       - name: Smoke install and launch
         continue-on-error: true
+        timeout-minutes: 8
         shell: pwsh
         run: |
           $installer = Get-ChildItem -Path apps/desktop/.desktop-build/targets/win-x64/unsigned-artifacts -Filter *.exe | Select-Object -First 1
@@ -73,18 +89,3 @@ jobs:
           Write-Host "running: pid=$($proc.Id) windowTitle=$($running.MainWindowTitle)"
           $uninstall = Get-ChildItem (Split-Path $exe.FullName) -Filter 'Uninstall AuditDesk.exe' -ErrorAction SilentlyContinue | Select-Object -First 1
           if ($uninstall) { Start-Process -FilePath $uninstall.FullName -ArgumentList '/S' -Wait }
-      - uses: actions/upload-artifact@v4
-        with:
-          name: AuditDesk-Windows-unsigned
-          path: apps/desktop/.desktop-build/targets/win-x64/unsigned-artifacts/*.exe
-          if-no-files-found: error
-      - name: Publish release asset
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: windows-build-${{ github.run_number }}
-          name: AuditDesk Windows ${{ github.run_number }}
-          body: |
-            Automated unsigned Windows build of AuditDesk (AuditDesk 定制桌面端).
-            Build version: ${{ env.DSH_DESKTOP_BUILD_VERSION }}
-            Commit: ${{ github.sha }}
-          files: apps/desktop/.desktop-build/targets/win-x64/unsigned-artifacts/*.exe
