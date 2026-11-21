@@ -251,12 +251,11 @@ ManifestDPIAware true
   ${EndIf}
   ; Standard uninstall-entry metadata read by inventory tools; the upstream template records it only under its private key.
   WriteRegStr SHELL_CONTEXT "${UNINSTALL_REGISTRY_KEY}" InstallLocation "$INSTDIR"
-  ; AuditDesk: best-effort install of the bundled audit plugins into the current user's desktop profile.
-  ; Failures (for example an offline machine without the npm store) leave the bundled installer script for manual use.
-  ${If} ${FileExists} "$INSTDIR\resources\audit-plugins\install-windows.ps1"
-    DetailPrint "AuditDesk: installing audit plugins..."
-    ExecWait 'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$INSTDIR\resources\audit-plugins\install-windows.ps1" -Profile desktop' $R9
-    DetailPrint "AuditDesk: audit plugins installer exit code $R9"
+  ; AuditDesk: provide one-click shortcuts for installing the bundled audit plugins.
+  ${If} ${FileExists} "$INSTDIR\resources\audit-plugins\install-plugins.cmd"
+    CreateShortCut "$DESKTOP\AuditDesk 安装审计插件.lnk" "$INSTDIR\resources\audit-plugins\install-plugins.cmd" "" "$INSTDIR\resources\audit-plugins\install-plugins.cmd" 0
+    CreateDirectory "$SMPROGRAMS\AuditDesk"
+    CreateShortCut "$SMPROGRAMS\AuditDesk\安装审计插件.lnk" "$INSTDIR\resources\audit-plugins\install-plugins.cmd" "" "$INSTDIR\resources\audit-plugins\install-plugins.cmd" 0
   ${EndIf}
   ${If} $0 == 1
     SetErrors

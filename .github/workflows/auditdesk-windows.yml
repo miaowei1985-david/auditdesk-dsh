@@ -87,6 +87,10 @@ jobs:
           $running = Get-Process -Id $proc.Id -ErrorAction SilentlyContinue
           if (-not $running) { throw 'AuditDesk process exited during startup' }
           Write-Host "running: pid=$($proc.Id) windowTitle=$($running.MainWindowTitle)"
+          $shortcutDesktop = Join-Path ([Environment]::GetFolderPath('Desktop')) 'AuditDesk 安装审计插件.lnk'
+          $shortcutStart = Join-Path ([Environment]::GetFolderPath('Programs')) 'AuditDesk\安装审计插件.lnk'
+          Write-Host "shortcut-desktop: $(Test-Path $shortcutDesktop)"
+          Write-Host "shortcut-startmenu: $(Test-Path $shortcutStart)"
           $pluginLog = Join-Path $env:TEMP 'auditdesk-plugins-install.log'
           if (Test-Path $pluginLog) {
             Write-Host '--- audit plugin install log (tail) ---'
