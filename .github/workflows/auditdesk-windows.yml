@@ -1,21 +1,28 @@
 name: AuditDesk Windows Build
 
-# 手工触发：在 Windows runner 上构建未签名的 AuditDesk 安装包并上传 artifact。
+# 手动触发，或推送 master 时自动构建未签名的 AuditDesk 安装包。
+# 产物同时上传为 Actions artifact 和 GitHub Release 附件（公开可下载）。
 on:
   workflow_dispatch:
     inputs:
       build_version:
-        description: '构建版本（形如 0.2.2-rc.5.20261122.1）'
-        required: true
+        description: '构建版本（留空则自动生成）'
+        required: false
         type: string
+  push:
+    branches: [master]
+    paths:
+      - '.github/workflows/auditdesk-windows.yml'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
     runs-on: windows-2025
     timeout-minutes: 90
+    env:
+      ELECTRON_MIRROR: https://npmmirror.com/mirrors/electron/
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -26,14 +33,30 @@ jobs:
           node-version: '24'
       - name: Install
         run: pnpm install --frozen-lockfile
+      - name: Resolve build version
+        shell: pwsh
+        run: |
+          $version = "${{ inputs.build_version }}"
+          if ([string]::IsNullOrWhiteSpace($version)) {
+            $date = (Get-Date).ToUniversalTime().AddHours(8).ToString('yyyyMMdd')
+            $version = "0.2.2-rc.5.$date.${{ github.run_number }}"
+          }
+          "DSH_DESKTOP_BUILD_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          Write-Host "build version: $version"
       - name: Build unsigned Windows installer
-        env:
-          ELECTRON_MIRROR: https://npmmirror.com/mirrors/electron/
-        run: >-
-          pnpm --filter @deepseek-ai/dsh-desktop run package:win:x64:unsigned --
-          --build-version "${{ inputs.build_version }}"
+        run: pnpm --filter @deepseek-ai/dsh-desktop run package:win:x64:unsigned
       - uses: actions/upload-artifact@v4
         with:
           name: AuditDesk-Windows-unsigned
           path: apps/desktop/.desktop-build/targets/win-x64/unsigned-artifacts/*.exe
           if-no-files-found: error
+      - name: Publish release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: windows-build-${{ github.run_number }}
+          name: AuditDesk Windows ${{ github.run_number }}
+          body: |
+            Automated unsigned Windows build of AuditDesk (AuditDesk 定制桌面端).
+            Build version: ${{ env.DSH_DESKTOP_BUILD_VERSION }}
+            Commit: ${{ github.sha }}
+          files: apps/desktop/.desktop-build/targets/win-x64/unsigned-artifacts/*.exe
