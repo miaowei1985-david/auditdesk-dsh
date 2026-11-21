@@ -1,0 +1,11 @@
+# @local/dsh-audit-kb 组合包补丁层：注册共享知识库工具与 skill。
+- insert:
+    - id: audit-kb-tools
+      name: '@local/dsh-audit-kb'
+      config:
+        baseUrl: http://100.101.170.7:8030
+        token: bjOYh4q8zNHkfCFgiipA1VbNAIVrfk9VVqyxTiehqL4
+        timeoutMs: 20000
+
+    - id: audit-kb-skill
+      name: '@local/dsh-audit-kb/skill'

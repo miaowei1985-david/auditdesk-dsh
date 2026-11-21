@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "audit-p0 审计工具",
+    "description": "把本地 audit-p0 审计 CLI 暴露为科目表、重要性、抽样、勾稽与底稿五个工具，并提供 CSA 1211 风险评估 skill。"
+  }
+}

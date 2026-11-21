@@ -1,0 +1,4 @@
+# 审计工作台：左侧栏增加「客户与项目」「知识库」两个全局面板入口。
+- insert:
+    - id: audit-workbench
+      name: '@local/dsh-audit-workbench'

@@ -1,0 +1,23 @@
+# @local/dsh-audit-p0 组合包补丁层。
+#
+# 安装本 bundle 后，profile 会把这两行插入插件树：
+#   - audit-p0-tools：Host 工具插件，注册 audit_tb / audit_materiality / audit_sample /
+#     audit_tieout / audit_run 五个工具；
+#   - audit-p0-skill：skill 插件，把包内 skills/audit-risk-assessment/SKILL.md 注册为运行时 skill。
+#
+# 行按包名引用，Node 模块解析才能从 profile 的 node_modules 找到本包（见 DSH 文档
+# docs/user/develop/basic/publish.zh.md“组合包 manifest”一节）。
+#
+# config 是整行替换语义：profile 或用户 patch 若要覆盖，需重述所有需要的字段。
+
+- insert:
+    - id: audit-p0-tools
+      name: '@local/dsh-audit-p0'
+      config:
+        repoPath: /Users/macbook/Documents/deepseek-harness/default-workspace/audit-p0
+        pythonPath: python3
+        dbPath: /Users/macbook/Documents/deepseek-harness/default-workspace/audit-p0/data/audit.db
+        timeoutMs: 120000
+
+    - id: audit-p0-skill
+      name: '@local/dsh-audit-p0/skill'

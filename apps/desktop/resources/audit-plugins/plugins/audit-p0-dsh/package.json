@@ -1,0 +1,35 @@
+{
+  "name": "@local/dsh-audit-p0",
+  "version": "0.1.0",
+  "private": true,
+  "description": "DSH bundle exposing the local audit-p0 Python CLI as five deterministic audit tools plus the CSA 1211 risk-assessment skill.",
+  "type": "module",
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./skill": "./skill.js",
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
+  },
+  "files": [
+    "index.js",
+    "skill.js",
+    "cordis.patch.yml",
+    "README.md",
+    "skills",
+    "locale/*.json"
+  ],
+  "engines": {
+    "dsh": ">=0.2.0 <0.3.0"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/dsh-error": "0.2.2-rc.5",
+    "@deepseek-ai/dsh-tools": "0.2.2-rc.5",
+    "@deepseek-ai/schemastery": "~3.19.0"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "audit-p0 audit tools",
+    "description": "Expose the local audit-p0 audit CLI as five tools for trial balance, materiality, sampling, tie-out, and workpapers, plus a CSA 1211 risk-assessment skill."
+  }
+}
