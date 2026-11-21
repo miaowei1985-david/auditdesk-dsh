@@ -12,6 +12,7 @@ $DshHome = if ($env:DSH_HOME) { $env:DSH_HOME } else { Join-Path $env:USERPROFIL
 function Find-Dsh {
   if ($env:DSH_BIN -and (Test-Path $env:DSH_BIN)) { return $env:DSH_BIN }
   $candidates = @(
+    (Join-Path (Split-Path -Parent $ScriptDir) "runtime\cli\bin\dsh.cmd"),
     (Join-Path $env:LOCALAPPDATA "Programs\AuditDesk\resources\runtime\cli\bin\dsh.cmd"),
     (Join-Path $env:PROGRAMFILES "AuditDesk\resources\runtime\cli\bin\dsh.cmd"),
     (Join-Path $env:LOCALAPPDATA "Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd"),
