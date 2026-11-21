@@ -55,6 +55,26 @@ jobs:
           Get-Content apps/desktop/.env.windows
       - name: Build unsigned Windows installer
         run: pnpm --filter @deepseek-ai/dsh-desktop run package:win:x64:unsigned
+      - name: Smoke install and launch
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem -Path apps/desktop/.desktop-build/targets/win-x64/unsigned-artifacts -Filter *.exe | Select-Object -First 1
+          Write-Host "installer: $($installer.FullName)"
+          Start-Process -FilePath $installer.FullName -ArgumentList '/S' -Wait
+          Start-Sleep -Seconds 15
+          $exe = Get-ChildItem "$env:LOCALAPPDATA\Programs" -Recurse -Filter 'AuditDesk.exe' -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $exe) { throw 'AuditDesk.exe not found after silent install' }
+          $vi = (Get-Item $exe.FullName).VersionInfo
+          Write-Host "installed: $($exe.FullName) product=$($vi.ProductName) fileVersion=$($vi.FileVersion)"
+          $env:DSH_HOME = Join-Path $env:TEMP 'auditdesk-smoke-home'
+          $proc = Start-Process -FilePath $exe.FullName -PassThru
+          Start-Sleep -Seconds 30
+          $running = Get-Process -Id $proc.Id -ErrorAction SilentlyContinue
+          if (-not $running) { throw 'AuditDesk process exited during startup' }
+          Write-Host "running: pid=$($proc.Id) windowTitle=$($running.MainWindowTitle)"
+          $uninstall = Get-ChildItem (Split-Path $exe.FullName) -Filter 'Uninstall AuditDesk.exe' -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($uninstall) { Start-Process -FilePath $uninstall.FullName -ArgumentList '/S' -Wait }
       - uses: actions/upload-artifact@v4
         with:
           name: AuditDesk-Windows-unsigned
