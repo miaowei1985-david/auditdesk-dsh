@@ -18,7 +18,6 @@ export function apply(ctx: ClientContext): void {
     name: 'conversation.hero.frame',
     id: 'pixel-whale',
   }, PixelWhale))
-  if (process.env.DSH_CLIENT_BUILD_PROFILE !== 'official') return
   ctx.slots.inject('sidebar.brand.mark', () =>
     ctx.slots.inject('sidebar.brand.name', function* () {
       yield ctx.slots.register({ name: 'sidebar.brand.mark' }, OfficialBrandMark)
