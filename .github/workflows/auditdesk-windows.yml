@@ -87,6 +87,20 @@ jobs:
           $running = Get-Process -Id $proc.Id -ErrorAction SilentlyContinue
           if (-not $running) { throw 'AuditDesk process exited during startup' }
           Write-Host "running: pid=$($proc.Id) windowTitle=$($running.MainWindowTitle)"
+          $pluginLog = Join-Path $env:TEMP 'auditdesk-plugins-install.log'
+          if (Test-Path $pluginLog) {
+            Write-Host '--- audit plugin install log (tail) ---'
+            Get-Content $pluginLog | Select-Object -Last 40
+          } else {
+            Write-Host '--- audit plugin install log missing ---'
+          }
+          $realProfilePkg = Join-Path $env:USERPROFILE '.dsh\profiles\desktop\package.json'
+          if (Test-Path $realProfilePkg) {
+            $realText = Get-Content $realProfilePkg -Raw
+            if ($realText -match 'dsh-audit-workbench') { Write-Host 'audit-plugins-real-profile: installed' } else { Write-Host 'audit-plugins-real-profile: profile present but plugins missing' }
+          } else {
+            Write-Host 'audit-plugins-real-profile: desktop profile not created'
+          }
           $profilePkg = Join-Path $env:DSH_HOME 'profiles\desktop\package.json'
           if (Test-Path $profilePkg) {
             $pkgText = Get-Content $profilePkg -Raw

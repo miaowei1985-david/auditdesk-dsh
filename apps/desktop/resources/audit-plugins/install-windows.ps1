@@ -4,6 +4,8 @@ param(
   [string]$Profile = "desktop"
 )
 $ErrorActionPreference = "Stop"
+$LogPath = Join-Path $env:TEMP "auditdesk-plugins-install.log"
+try { Start-Transcript -Path $LogPath -Force | Out-Null } catch { }
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $PluginSrc = Join-Path $ScriptDir "plugins"
@@ -55,3 +57,4 @@ foreach ($plugin in @("audit-workbench-dsh", "audit-p0-dsh")) {
   & $DshCmd plugin --profile $Profile add ("file:" + (Join-Path $TargetDir $plugin))
 }
 Write-Host "安装完成。请重启 AuditDesk，左侧应出现审计功能面板。"
+try { Stop-Transcript | Out-Null } catch { }
