@@ -1185,7 +1185,9 @@ window.__ModuleLoader__.load({
       const savedContext = (function () { try { return JSON.parse(localStorage.getItem('auditdesk.lastContext') || '{}') || {} } catch (e) { return {} } })()
       const companyState = React.useState(savedContext.company || null); const activeCompany = companyState[0]; const setActiveCompany = companyState[1]
       const projectState = React.useState(savedContext.project || null); const activeProject = projectState[0]; const setActiveProject = projectState[1]
-      const zoneState = React.useState(savedContext.zone || '概览'); const zone = zoneState[0]; const setZone = zoneState[1]
+      const roleCode = ((props.auth && props.auth.user && props.auth.user.role) || 'auditor')
+      const roleLanding = { auditor: '资料清单', manager: '审批状态', partner: '报告', 'kb-admin': '概览', admin: '概览' }[roleCode] || '概览'
+      const zoneState = React.useState(savedContext.zone || roleLanding); const zone = zoneState[0]; const setZone = zoneState[1]
       const recentState = React.useState(function () { try { return JSON.parse(localStorage.getItem('auditdesk.recentProjects') || '[]') || [] } catch (e) { return [] } })
       const recentProjects = recentState[0]; const setRecentProjects = recentState[1]
       React.useEffect(function () {
