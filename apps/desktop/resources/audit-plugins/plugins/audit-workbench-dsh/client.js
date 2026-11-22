@@ -1097,6 +1097,7 @@ window.__ModuleLoader__.load({
         return h('div', { style: { padding: '20px', maxWidth: '900px' } },
           h('div', { style: { fontSize: '14px', fontWeight: 600, marginBottom: '4px' } }, '审计报告'),
           h('div', { style: { fontSize: '12px', color: COLORS.muted, marginBottom: '12px' } }, '基于项目数据与底稿检查结果生成：检查清单 / 审计意见 / 报告初稿（AI 初稿，需人工复核）'),
+          props.completeness && !props.completeness.ready ? h('div', { style: { marginBottom: '10px', fontSize: '12px', color: '#b45309' } }, '⚠ 报告完整性未完成（' + props.completeness.ok_count + '/' + props.completeness.count + '）：建议先处理未完成项再定稿/出具。') : null,
           props.completeness ? h('div', { style: { marginBottom: '12px', padding: '10px 12px', borderRadius: '10px', border: '1px solid ' + (props.completeness.ready ? '#16a34a' : COLORS.line), fontSize: '12px' } },
             h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' } },
               h('div', { style: { fontWeight: 600 } }, '报告完整性（' + props.completeness.ok_count + '/' + props.completeness.count + '）'),
@@ -3477,6 +3478,10 @@ window.__ModuleLoader__.load({
         admin: { hint: '关注系统健康、备份与知识库更新，再进入项目抽查。', actions: [['系统状态', 'audit-system'], ['知识库（待审）', 'audit-kb']] },
       }[role] || { hint: '进入客户与项目查看进度。', actions: [['进入客户与项目', 'audit-companies']] }
       function goPanel(panelId) { try { if (props.ui && props.ui.layout) props.ui.layout.selectPanel(panelId) } catch (e) {} }
+      const pendingState = React.useState(0); const pendingTotal = pendingState[0]; const setPendingTotal = pendingState[1]
+      React.useEffect(function () {
+        api('/audit/approvals/pending-counts').then(function (d) { setPendingTotal((d && d.total) || 0) }).catch(function () {})
+      }, [])
       const state = React.useState(null); const dashboard = state[0]; const setDashboard = state[1]
       const loadingState = React.useState(false); const loading = loadingState[0]; const setLoading = loadingState[1]
       const errorState = React.useState(''); const error = errorState[0]; const setError = errorState[1]
@@ -3562,6 +3567,7 @@ window.__ModuleLoader__.load({
         h('div', { style: { marginBottom: '12px', padding: '10px 14px', borderRadius: '10px', border: '1px solid ' + COLORS.line, display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', fontSize: '12px' } },
           h('span', { style: { fontWeight: 600 } }, '我的工作台 · ' + roleLabel),
           h('span', { style: { color: COLORS.muted } }, roleHome.hint),
+          pendingTotal > 0 ? h('span', { style: { padding: '1px 8px', borderRadius: '9px', background: 'rgba(180,83,9,0.12)', color: '#b45309', fontSize: '11px' } }, '当前待审批 ' + pendingTotal + ' 项') : null,
           roleHome.actions.map(function (pair) {
             return h('button', { key: 'rh-' + pair[1], onClick: function () { goPanel(pair[1]) },
               style: { padding: '5px 10px', borderRadius: '7px', border: '1px solid ' + COLORS.accent, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, pair[0])
