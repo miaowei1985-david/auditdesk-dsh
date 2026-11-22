@@ -213,6 +213,10 @@ export function createElectronBuilderConfig(
         await writeMacOSAppUpdateConfig(resourcesDir, resolveMacOSAppUpdateFeed(context.packager.config.publish),
           context.packager.appInfo.updaterCacheDirName)
       }
+      // The prebuilt runtime CLI launchers name the upstream executable. Rebranded builds must point
+      // them at the packaged product binary, otherwise `dsh plugin ...` (used by the audit-plugin
+      // bootstrap and installers) fails with "MacOS/DeepSeek Harness: No such file or directory".
+      await patchRuntimeCliLaunchers(resourcesDir, context.packager.appInfo.productFilename)
       // The bundled runtime declares whichever version prepared it: the product version for an ordinary
       // release, and a rewritten one for installed-update qualification.
       await verifyDesktopRuntime(buildPaths.dsh,
