@@ -938,29 +938,55 @@ window.__ModuleLoader__.load({
           现场: { label: '现场', color: '#7c3aed', hint: '监盘/盘点' },
           程序: { label: '程序', color: '#6b7280', hint: '执行/判断' },
         }
+        const GROUP_ORDER = ['计划与风险评估', '货币资金', '应收账款', '存货', '固定资产与无形资产',
+          '应付及其他应付款', '应付职工薪酬', '应交税费', '借款与利息', '收入与成本',
+          '所有者权益', '特殊项目', '完成阶段', '数据核对', '控制测试', '评价与报告', '计划与范围']
+        function groupRank(category) {
+          const index = GROUP_ORDER.indexOf(category)
+          return index >= 0 ? index : 999  // 其他/未分类排最后
+        }
         function sourceBadge(source) {
           const meta = sourceStyle[source]
           if (!meta) return null
           return h('span', { title: meta.hint, style: { display: 'inline-block', marginLeft: '6px', padding: '0 6px', borderRadius: '6px', border: '1px solid ' + meta.color, color: meta.color, fontSize: '10px', lineHeight: '16px', whiteSpace: 'nowrap' } }, meta.label)
         }
+        // 负责人下拉：项目成员 + 保留已有自定义值
+        const memberNames = []
+        ;(props.members || []).forEach(function (m) {
+          const name = m && (m.name || m.username)
+          if (name && memberNames.indexOf(name) < 0) memberNames.push(name)
+        })
+        function ownerSelect(row) {
+          if (readOnly) return h('span', { style: { fontSize: '12px', color: row.owner ? 'inherit' : COLORS.muted } }, row.owner || '—')
+          const current = row.owner || ''
+          const options = [''].concat(memberNames)
+          if (current && options.indexOf(current) < 0) options.push(current)
+          return h('select', {
+            value: current,
+            onChange: function (e) { if (props.onUpdateProgramRow) props.onUpdateProgramRow(row.id, 'owner', e.target.value) },
+            style: { width: '100%', padding: '4px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' },
+          }, options.map(function (name) { return h('option', { key: 'owner-' + row.id + '-' + (name || 'none'), value: name }, name || '未指派') }))
+        }
+        const btnStyle = { padding: '6px 10px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11.5px', cursor: 'pointer', whiteSpace: 'nowrap' }
         return h('div', { style: { padding: '18px', maxWidth: '960px', height: '100%', overflow: 'auto', boxSizing: 'border-box' } },
-          h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' } },
-            h('div', null,
-              h('div', { style: { fontSize: '14px', fontWeight: 600 } }, '审计程序清单'),
-              h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '业务类型：' + (((props.project || {}).business_type) || '年报审计') + ' · 共 ' + rows.length + ' 项 · 更新执行状态与负责人后保存'),
-              h('div', { style: { display: 'flex', gap: '10px', flexWrap: 'wrap', margin: '4px 0 2px', fontSize: '11px', color: COLORS.muted } },
-                h('span', null, '数据来源：'),
-                ['账载', '外部', '现场', '程序'].map(function (src) {
-                  return h('span', { key: 'legend-' + src, style: { display: 'inline-flex', alignItems: 'center', gap: '4px' } },
-                    h('span', { style: { padding: '0 6px', borderRadius: '6px', border: '1px solid ' + sourceStyle[src].color, color: sourceStyle[src].color, fontSize: '10px', lineHeight: '16px' } }, sourceStyle[src].label),
-                    sourceStyle[src].hint)
-                }))),
-            h('div', { style: { display: 'flex', gap: '8px' } },
-              h('button', { onClick: function () { if (props.onExportPrograms) props.onExportPrograms() }, style: { padding: '8px 14px', borderRadius: '8px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '导出程序表（Word）'),
-              h('button', { onClick: function () { if (props.onExportProgramsXlsx) props.onExportProgramsXlsx() }, style: { padding: '8px 14px', borderRadius: '8px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '导出 Excel'),
-              readOnly ? null : h('button', { onClick: function () { if (props.onCompletePrograms) props.onCompletePrograms() }, style: { padding: '8px 14px', borderRadius: '8px', border: '1px solid ' + COLORS.accent, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '补全程序清单'),
-              readOnly ? null : h('button', { onClick: function () { if (props.onSavePrograms) props.onSavePrograms() }, style: { padding: '8px 14px', borderRadius: '8px', border: 0, background: COLORS.accent, color: '#fff', fontSize: '12px', cursor: 'pointer' } }, '保存程序清单'))),
-          props.importMessage ? h('div', { style: { fontSize: '12px', color: '#16a34a', marginBottom: '6px' } }, props.importMessage) : null,
+          h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', flexWrap: 'wrap' } },
+            h('div', { style: { minWidth: '240px' } },
+              h('div', { style: { fontSize: '15px', fontWeight: 600, marginBottom: '2px' } }, '审计程序清单'),
+              h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '业务类型：' + (((props.project || {}).business_type) || '年报审计') + ' · 共 ' + rows.length + ' 项')),
+            h('div', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' } },
+              h('button', { onClick: function () { if (props.onExportPrograms) props.onExportPrograms() }, style: btnStyle }, '导出 Word'),
+              h('button', { onClick: function () { if (props.onExportProgramsXlsx) props.onExportProgramsXlsx() }, style: btnStyle }, '导出 Excel'),
+              readOnly ? null : h('button', { onClick: function () { if (props.onCompletePrograms) props.onCompletePrograms() }, style: Object.assign({}, btnStyle, { border: '1px solid ' + COLORS.accent, color: COLORS.accent }) }, '补全程序清单'),
+              readOnly ? null : h('button', { onClick: function () { if (props.onSavePrograms) props.onSavePrograms() }, style: Object.assign({}, btnStyle, { border: 0, background: COLORS.accent, color: '#fff' }) }, '保存'))),
+          h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', margin: '8px 0 2px', fontSize: '11px', color: COLORS.muted } },
+            h('span', null, '数据来源：'),
+            ['账载', '外部', '现场', '程序'].map(function (src) {
+              return h('span', { key: 'legend-' + src, style: { display: 'inline-flex', alignItems: 'center', gap: '4px' } },
+                h('span', { style: { padding: '0 6px', borderRadius: '6px', border: '1px solid ' + sourceStyle[src].color, color: sourceStyle[src].color, fontSize: '10px', lineHeight: '16px' } }, sourceStyle[src].label),
+                sourceStyle[src].hint)
+            })),
+          h('div', { style: { fontSize: '11px', color: COLORS.muted, marginTop: '2px' } }, '提示：点状态可切换（待执行→进行中→已完成→不适用）；负责人从项目成员中选择；改完点「保存」。'),
+          props.importMessage ? h('div', { style: { fontSize: '12px', color: '#16a34a', margin: '6px 0' } }, props.importMessage) : null,
           rows.length ? (function () {
             const groups = []
             const seen = {}
@@ -968,24 +994,31 @@ window.__ModuleLoader__.load({
               const category = row.category || '其他'
               if (!seen[category]) { seen[category] = true; groups.push(category) }
             })
+            groups.sort(function (a, b) { return groupRank(a) - groupRank(b) || a.localeCompare(b, 'zh') })
             return groups.map(function (category) {
               const items = rows.filter(function (row) { return (row.category || '其他') === category })
               const done = items.filter(function (row) { return row.status === '已完成' }).length
               return h('div', { key: 'cat-' + category, style: { marginBottom: '14px' } },
-                h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', margin: '10px 0 4px', padding: '6px 10px', borderRadius: '8px', background: 'rgba(47,124,246,0.06)', fontSize: '13px', fontWeight: 600 } },
+                h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', margin: '12px 0 4px', padding: '6px 10px', borderRadius: '8px', background: 'rgba(47,124,246,0.06)', fontSize: '13px', fontWeight: 600 } },
                   h('span', null, category),
-                  h('span', { style: { fontSize: '11px', color: COLORS.muted, fontWeight: 400 } }, '_count_ 项 · 已完成 _done_'.replace('_count_', items.length).replace('_done_', done))),
+                  h('span', { style: { fontSize: '11px', color: COLORS.muted, fontWeight: 400 } }, items.length + ' 项 · 已完成 ' + done)),
+                h('div', { style: { display: 'grid', gridTemplateColumns: '34px minmax(0,1fr) 88px 128px minmax(0,1fr)', gap: '8px', alignItems: 'center', padding: '2px 0 4px', fontSize: '11px', color: COLORS.muted, borderBottom: '1px solid ' + COLORS.line } },
+                  h('span', null, '#'),
+                  h('span', null, '审计程序'),
+                  h('span', null, '状态'),
+                  h('span', null, '负责人'),
+                  h('span', null, '备注 / 证据')),
                 items.map(function (row) {
-                  return h('div', { key: 'prog-' + row.id, style: { display: 'grid', gridTemplateColumns: '36px 1fr 90px 120px 1fr', gap: '8px', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid ' + COLORS.line, fontSize: '12px' } },
+                  return h('div', { key: 'prog-' + row.id, style: { display: 'grid', gridTemplateColumns: '34px minmax(0,1fr) 88px 128px minmax(0,1fr)', gap: '8px', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid ' + COLORS.line, fontSize: '12px' } },
                     h('span', { style: { color: COLORS.muted } }, row.seq + '.'),
-                    h('span', null, row.name, sourceBadge(row.source)),
-                    h('span', { onClick: function () { if (!readOnly && props.onUpdateProgramRow) props.onUpdateProgramRow(row.id, 'status', cycle[(cycle.indexOf(row.status || '待执行') + 1) % cycle.length]) }, title: '点击切换状态', style: { cursor: 'pointer' } },
+                    h('span', { style: { minWidth: 0 } }, row.name, sourceBadge(row.source)),
+                    h('span', { onClick: function () { if (!readOnly && props.onUpdateProgramRow) props.onUpdateProgramRow(row.id, 'status', cycle[(cycle.indexOf(row.status || '待执行') + 1) % cycle.length]) }, title: '点击切换状态', style: { cursor: readOnly ? 'default' : 'pointer' } },
                       h(Badge, { tone: row.status === '已完成' ? 'ok' : row.status === '进行中' ? 'warn' : row.status === '不适用' ? 'muted' : 'bad' }, row.status || '待执行')),
-                    h('input', { value: row.owner || '', onChange: function (e) { if (props.onUpdateProgramRow) props.onUpdateProgramRow(row.id, 'owner', e.target.value) }, placeholder: '负责人', style: { padding: '4px 7px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }),
-                    h('input', { value: row.note || '', onChange: function (e) { if (props.onUpdateProgramRow) props.onUpdateProgramRow(row.id, 'note', e.target.value) }, placeholder: '备注/证据', style: { padding: '4px 7px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }))
+                    ownerSelect(row),
+                    h('input', { value: row.note || '', onChange: function (e) { if (props.onUpdateProgramRow) props.onUpdateProgramRow(row.id, 'note', e.target.value) }, placeholder: '备注/证据', style: { padding: '4px 7px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', minWidth: 0 } }))
                 }))
             })
-          })() : h('div', { style: { padding: '14px', fontSize: '12px', color: COLORS.muted } }, '暂无审计程序，保存后自动生成'),
+          })() : h('div', { style: { padding: '14px', fontSize: '12px', color: COLORS.muted } }, '暂无审计程序，点「补全程序清单」生成全量清单'),
           (props.programEvents || []).filter(function (event) { return event.old_status }).length ? h('div', { style: { marginTop: '16px', padding: '14px', borderRadius: '12px', border: '1px solid ' + COLORS.line } },
             h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' } },
               h('div', { style: { fontSize: '13px', fontWeight: 600 } }, '最近变更（' + (props.programEvents || []).filter(function (event) { return event.old_status }).length + '）'),
