@@ -2858,7 +2858,13 @@ window.__ModuleLoader__.load({
         h('button', { onClick: toggleExpiring, style: { marginTop: '3px', border: 0, background: 'transparent', color: COLORS.accent, fontSize: '10px', cursor: 'pointer', padding: 0 } }, (kbExpiring ? '收起' : '失效/到期提醒') + '（' + ((kbStatus.counts || {}).expired || 0) + '）'),
         kbExpiring && kbExpiring.items && kbExpiring.items.length ? h('div', { style: { marginTop: '2px', maxHeight: '120px', overflow: 'auto' } },
           kbExpiring.items.slice(0, 12).map(function (item, i) {
-            return h('div', { key: 'kbexp-' + (item.id || i), style: { padding: '1px 0', color: '#b45309' } }, '· ' + item.title + (item.expire ? '（' + item.expire + '）' : '（已失效）'))
+            return h('div', { key: 'kbexp-' + (item.id || i), style: { padding: '1px 0', color: '#b45309' } },
+              '· ' + item.title + (item.expire ? '（' + item.expire + '）' : '（已失效）'),
+              (item.replacements && item.replacements.length)
+                ? h('div', { style: { color: '#16a34a', paddingLeft: '10px' } }, item.replacements.map(function (rep) {
+                    return h('div', { key: 'rep-' + (rep.id || rep.title) }, '↳ 可能替代：' + rep.title + (rep.docno ? '（' + rep.docno + '）' : ''))
+                  }))
+                : null)
           })) : null,
         (kbStatus.apply || {}).running ? h('div', { style: { color: '#b45309', marginTop: '2px' } }, '正在' + ((kbStatus.apply || {}).action === 'approve' ? '发布并重建索引' : '处理审批') + '…（重建索引约 10 分钟）') : null,
         (kbStatus.apply || {}).error ? h('div', { style: { color: '#b91c1c', marginTop: '2px' } }, '上次审批异常：' + kbStatus.apply.error) : null) : null
