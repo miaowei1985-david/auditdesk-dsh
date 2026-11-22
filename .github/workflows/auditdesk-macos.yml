@@ -49,15 +49,16 @@ jobs:
           set -euo pipefail
           DMG=$(ls apps/desktop/.desktop-build/targets/mac-arm64/unsigned-artifacts/*.dmg | head -1)
           echo "dmg: $DMG"
-          hdiutil attach "$DMG" -nobrowse -quiet
-          VOL=$(ls -d /Volumes/AuditDesk* /Volumes/deepseek-harness* 2>/dev/null | head -1)
-          echo "volume: $VOL"
-          ls "$VOL"
-          APP=$(find "$VOL" -maxdepth 1 -name 'AuditDesk.app' | head -1)
-          test -n "$APP"
+          MOUNT=/tmp/auditdesk-dmg
+          rm -rf "$MOUNT"
+          mkdir -p "$MOUNT"
+          hdiutil attach "$DMG" -nobrowse -mountpoint "$MOUNT"
+          ls "$MOUNT"
+          APP="$MOUNT/AuditDesk.app"
+          test -d "$APP"
           rm -rf /Applications/AuditDesk.app
           cp -R "$APP" /Applications/AuditDesk.app
-          hdiutil detach "$VOL" -quiet || true
+          hdiutil detach "$MOUNT" -quiet || true
           xattr -cr /Applications/AuditDesk.app || true
           codesign --force --deep --sign - /Applications/AuditDesk.app || true
           sudo spctl --global-disable || true
