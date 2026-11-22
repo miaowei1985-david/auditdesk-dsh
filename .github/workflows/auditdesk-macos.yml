@@ -10,6 +10,11 @@ on:
       - 'apps/desktop/resources/**'
       - '.github/workflows/auditdesk-macos.yml'
   workflow_dispatch:
+    inputs:
+      runner:
+        description: 'Runner labels JSON（默认自托管；可填 ["macos-latest"] 用托管）'
+        required: false
+        default: '["self-hosted","macOS","ARM64","auditdesk"]'
 
 env:
   CI: '1'
@@ -25,7 +30,7 @@ permissions:
 jobs:
   build:
     name: build
-    runs-on: [self-hosted, macOS, ARM64, auditdesk]
+    runs-on: ${{ fromJSON(inputs.runner || '["self-hosted","macOS","ARM64","auditdesk"]') }}
     timeout-minutes: 60
     steps:
       - name: Checkout
