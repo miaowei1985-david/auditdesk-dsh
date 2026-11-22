@@ -2774,6 +2774,7 @@ window.__ModuleLoader__.load({
       const authUser = (props && props.auth && props.auth.user) || {}
       const isKbAdmin = ['kb-admin', 'admin'].indexOf(authUser.role) >= 0
       const kbStatusState = React.useState(null); const kbStatus = kbStatusState[0]; const setKbStatus = kbStatusState[1]
+      const kbExpiringState = React.useState(null); const kbExpiring = kbExpiringState[0]; const setKbExpiring = kbExpiringState[1]
       const pendingState = React.useState([]); const pendingDocs = pendingState[0]; const setPendingDocs = pendingState[1]
       const pendingMsgState = React.useState(''); const pendingMsg = pendingMsgState[0]; const setPendingMsg = pendingMsgState[1]
       const pendingBusyState = React.useState(false); const pendingBusy = pendingBusyState[0]; const setPendingBusy = pendingBusyState[1]
@@ -2781,6 +2782,10 @@ window.__ModuleLoader__.load({
         if (!isKbAdmin) return
         api('/kb/pending').then(function (d) { setPendingDocs((d && d.docs) || []) }).catch(function () {})
         api('/kb/admin/status').then(function (d) { setKbStatus(d) }).catch(function () {})
+      }
+      function toggleExpiring() {
+        if (kbExpiring) { setKbExpiring(null); return }
+        api('/kb/expiring', { days: 90 }).then(function (d) { setKbExpiring(d) }).catch(function () { setKbExpiring({ items: [], count: 0 }) })
       }
       function decidePending(id, decision) {
         setPendingBusy(true)
@@ -2850,6 +2855,11 @@ window.__ModuleLoader__.load({
           ' · 过期 ' + ((kbStatus.counts || {}).expired || 0) + ' · 索引 ' + (kbStatus.chunks || 0) + ' 块'),
         kbStatus.last_reviewed ? h('div', null, '最近发布：' + kbStatus.last_reviewed.title + '（' + kbStatus.last_reviewed.at + '）') : null,
         kbStatus.last_sync ? h('div', null, '最近巡检：' + (kbStatus.last_sync.at || '') + '，新增 ' + (kbStatus.last_sync.added || 0) + ' 篇') : null,
+        h('button', { onClick: toggleExpiring, style: { marginTop: '3px', border: 0, background: 'transparent', color: COLORS.accent, fontSize: '10px', cursor: 'pointer', padding: 0 } }, (kbExpiring ? '收起' : '失效/到期提醒') + '（' + ((kbStatus.counts || {}).expired || 0) + '）'),
+        kbExpiring && kbExpiring.items && kbExpiring.items.length ? h('div', { style: { marginTop: '2px', maxHeight: '120px', overflow: 'auto' } },
+          kbExpiring.items.slice(0, 12).map(function (item, i) {
+            return h('div', { key: 'kbexp-' + (item.id || i), style: { padding: '1px 0', color: '#b45309' } }, '· ' + item.title + (item.expire ? '（' + item.expire + '）' : '（已失效）'))
+          })) : null,
         (kbStatus.apply || {}).running ? h('div', { style: { color: '#b45309', marginTop: '2px' } }, '正在' + ((kbStatus.apply || {}).action === 'approve' ? '发布并重建索引' : '处理审批') + '…（重建索引约 10 分钟）') : null,
         (kbStatus.apply || {}).error ? h('div', { style: { color: '#b91c1c', marginTop: '2px' } }, '上次审批异常：' + kbStatus.apply.error) : null) : null
       const pendingBox = isKbAdmin && (pendingDocs.length > 0 || pendingMsg) ? h('div', { style: { padding: '10px 12px', borderBottom: '1px solid ' + COLORS.line, background: 'rgba(180,83,9,0.06)' } },
