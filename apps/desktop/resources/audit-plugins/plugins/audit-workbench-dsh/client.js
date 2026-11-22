@@ -794,9 +794,11 @@ window.__ModuleLoader__.load({
       if (props.zone === '审计底稿') {
         const toneOfWp = function (status) { return status === '已完成' || status === '已执行' || status === '已预填' || status === '已生成' ? 'ok' : status === '进行中' ? 'warn' : status === '不适用' ? 'muted' : 'bad' }
         const items = props.wp === null ? null : props.wp
-        const rows = items === null
+        const wpFilter = props.wpStatusFilter || 'all'
+        const visibleItems = items === null ? null : (wpFilter === 'all' ? items : items.filter(function (item) { return item.status === wpFilter }))
+        const rows = visibleItems === null
           ? [h('div', { key: 'loading', style: { padding: '14px', fontSize: '12px', color: COLORS.muted } }, '正在加载审计底稿…')]
-          : (items.length ? items.map(function (item) {
+          : (visibleItems.length ? visibleItems.map(function (item) {
               const generatedFile = item.note && /\.xlsx$/i.test(item.note)
               return h('div', { key: item.id, style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid ' + COLORS.line } },
                 h('div', { style: { display: 'flex', gap: '10px', alignItems: 'baseline', minWidth: 0 } },
@@ -830,7 +832,11 @@ window.__ModuleLoader__.load({
         return h('div', null,
           h(Section, null, h('div', { style: { fontSize: '13px' } }, '审计底稿（审计员产出）'), h('div', { style: { fontSize: '12px', color: COLORS.muted, marginTop: '2px' } }, '按事务所模板与索引号生成，点击状态可切换执行状态')),
           h('div', { style: { padding: '8px 14px 0', display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center', fontSize: '11px' } },
-            h('span', { style: { color: COLORS.muted } }, '底稿统计：共 ' + generated.length + ' 份'),
+            h('span', { style: { color: COLORS.muted } }, '底稿统计：共 ' + generated.length + ' 份 · 台账 ' + (items ? items.length : 0) + ' 项'),
+            h('select', { value: wpFilter, onChange: function (e) { if (props.onSetWpStatusFilter) props.onSetWpStatusFilter(e.target.value) },
+              style: { padding: '4px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px' } },
+              h('option', { value: 'all' }, '全部状态'),
+              ['已生成', '进行中', '待执行', '已完成', '不适用'].map(function (status) { return h('option', { key: 'wpf-' + status, value: status }, status) })),
             Object.keys(generatedStats).map(function (kind) {
               const active = (props.generatedKind || 'all') === kind
               return h('span', { key: 'stat-' + kind, title: '点击按类型过滤', onClick: function () { if (props.onSetGeneratedKind) props.onSetGeneratedKind(active ? 'all' : kind) },
@@ -853,6 +859,7 @@ window.__ModuleLoader__.load({
                 props.generating ? '生成中…' : '一键生成全部底稿（4 类）'),
               h('button', { onClick: function () { if (props.onExportWorkpapers) props.onExportWorkpapers() },
                 style: { padding: '8px 14px', borderRadius: '8px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '打包下载全部底稿（ZIP）'),
+              h('button', { onClick: function () { if (props.onExportWorkpaperList) props.onExportWorkpaperList() }, style: { padding: '8px 14px', borderRadius: '8px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '导出底稿台账（CSV）'),
               h('label', { style: { padding: '8px 14px', borderRadius: '8px', border: '1px solid ' + COLORS.line, color: COLORS.muted, fontSize: '12px', cursor: 'pointer' } },
                 '校验底稿包（ZIP）', h('input', { type: 'file', accept: '.zip', style: { display: 'none' }, onChange: function (e) { const f = e.target.files && e.target.files[0]; if (f && props.onVerifyWorkpapersZip) props.onVerifyWorkpapersZip(f); e.target.value = '' } })),
               props.wpsVerifyMessage ? h('span', { style: { fontSize: '11px', color: props.wpsVerifyMessage.indexOf('通过') >= 0 && props.wpsVerifyMessage.indexOf('未') < 0 ? '#16a34a' : '#b45309' } }, props.wpsVerifyMessage) : null,
@@ -1194,6 +1201,9 @@ window.__ModuleLoader__.load({
       const previewZoomState = React.useState(function () { try { const value = parseFloat(localStorage.getItem('auditdesk.previewZoom') || '1'); return Number.isFinite(value) && value >= 0.5 && value <= 3 ? value : 1 } catch (e) { return 1 } })
       const previewZoom = previewZoomState[0]; const setPreviewZoom = previewZoomState[1]
       React.useEffect(function () { try { localStorage.setItem('auditdesk.previewZoom', String(previewZoom)) } catch (e) {} }, [previewZoom])
+      const wpStatusFilterState = React.useState(function () { try { return localStorage.getItem('auditdesk.wp.statusFilter') || 'all' } catch (e) { return 'all' } })
+      const wpStatusFilter = wpStatusFilterState[0]; const setWpStatusFilter = wpStatusFilterState[1]
+      React.useEffect(function () { try { localStorage.setItem('auditdesk.wp.statusFilter', wpStatusFilter || 'all') } catch (e) {} }, [wpStatusFilter])
       const todoOverdueState = React.useState(function () { try { return localStorage.getItem('auditdesk.todo.overdueOnly') === '1' } catch (e) { return false } })
       const todoOverdueOnly = todoOverdueState[0]; const setTodoOverdueOnly = todoOverdueState[1]
       React.useEffect(function () { try { localStorage.setItem('auditdesk.todo.overdueOnly', todoOverdueOnly ? '1' : '0') } catch (e) {} }, [todoOverdueOnly])
@@ -2154,6 +2164,20 @@ window.__ModuleLoader__.load({
           })
           .catch(function () { setArchiveVerifyMessage('校验失败，请重试') })
       }
+      function exportWorkpaperListCsv() {
+        const rows = [['索引号', '底稿名称', '状态', '说明', '更新人', '更新时间']]
+        const wpList = Array.isArray(wp) ? wp : ((wp && wp.items) || [])
+        ;wpList.forEach(function (item) {
+          rows.push([item.code || '', item.name || '', item.status || '', item.note || '', item.updated_by || '', item.updated_at || ''])
+        })
+        const csv = '\ufeff' + rows.map(function (row) { return row.map(function (cell) { return '"' + String(cell).replace(/"/g, '""') + '"' }).join(',') }).join('\n')
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+        const url = URL.createObjectURL(blob)
+        const anchor = document.createElement('a')
+        anchor.href = url; anchor.download = '底稿台账_' + (activeProject || '') + '.csv'
+        document.body.appendChild(anchor); anchor.click(); anchor.remove()
+        URL.revokeObjectURL(url)
+      }
       function verifyWorkpapersZip(file) {
         if (!file) return
         setWpsVerifyMessage('正在校验底稿包…')
@@ -2400,7 +2424,7 @@ window.__ModuleLoader__.load({
         onAddMember: addProjectMember, onRemoveMember: removeProjectMember,
         generatedDate: generatedDate, onGeneratedDateChange: setGeneratedDate,
         onOpenWorkpaperIndex: openWorkpaperByIndex, onGenerateWorkpaper: generateWorkpaper,
-        onGenerateAll: generateAllWorkpapers, onExportWorkpapers: exportWorkpapersZip, reportVersionFilter: reportVersionFilter, onSetReportVersionFilter: setReportVersionFilter, approvalFilter: approvalFilter, onSetApprovalFilter: setApprovalFilter, onExportApprovals: exportApprovals, todoOverdueOnly: todoOverdueOnly, onSetTodoOverdueOnly: setTodoOverdueOnly, onJumpTodoZone: jumpTodoZone, onVerifyWorkpapersZip: verifyWorkpapersZip, wpsVerifyMessage: wpsVerifyMessage,
+        onGenerateAll: generateAllWorkpapers, onExportWorkpapers: exportWorkpapersZip, reportVersionFilter: reportVersionFilter, onSetReportVersionFilter: setReportVersionFilter, approvalFilter: approvalFilter, onSetApprovalFilter: setApprovalFilter, onExportApprovals: exportApprovals, todoOverdueOnly: todoOverdueOnly, onSetTodoOverdueOnly: setTodoOverdueOnly, wpStatusFilter: wpStatusFilter, onSetWpStatusFilter: setWpStatusFilter, onExportWorkpaperList: exportWorkpaperListCsv, onJumpTodoZone: jumpTodoZone, onVerifyWorkpapersZip: verifyWorkpapersZip, wpsVerifyMessage: wpsVerifyMessage,
         onDownloadWorkpaper: downloadGeneratedWorkpaper, onPreviewWorkpaper: previewGeneratedWorkpaper,
         newPbcName: newPbcName, onPbcNameChange: setNewPbcName, onAddPbc: addPbcItem,
         onDeletePbc: deletePbcItem, onUploadAttachment: uploadPbcAttachment,
