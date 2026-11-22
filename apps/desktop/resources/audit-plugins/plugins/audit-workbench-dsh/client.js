@@ -2720,12 +2720,14 @@ window.__ModuleLoader__.load({
     function KbPage(props) {
       const authUser = (props && props.auth && props.auth.user) || {}
       const isKbAdmin = ['kb-admin', 'admin'].indexOf(authUser.role) >= 0
+      const kbStatusState = React.useState(null); const kbStatus = kbStatusState[0]; const setKbStatus = kbStatusState[1]
       const pendingState = React.useState([]); const pendingDocs = pendingState[0]; const setPendingDocs = pendingState[1]
       const pendingMsgState = React.useState(''); const pendingMsg = pendingMsgState[0]; const setPendingMsg = pendingMsgState[1]
       const pendingBusyState = React.useState(false); const pendingBusy = pendingBusyState[0]; const setPendingBusy = pendingBusyState[1]
       function loadPending() {
         if (!isKbAdmin) return
         api('/kb/pending').then(function (d) { setPendingDocs((d && d.docs) || []) }).catch(function () {})
+        api('/kb/admin/status').then(function (d) { setKbStatus(d) }).catch(function () {})
       }
       function decidePending(id, decision) {
         setPendingBusy(true)
@@ -2786,6 +2788,17 @@ window.__ModuleLoader__.load({
             style: { flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: '8px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '13px' } }),
           h('button', { onClick: runSearch, disabled: searching, style: { padding: '8px 12px', borderRadius: '8px', border: 0, background: COLORS.accent, color: '#fff', fontSize: '13px', cursor: 'pointer' } }, searching ? '检索中' : '检索')),
         error ? h('div', { style: { fontSize: '12px', color: '#b91c1c', marginTop: '8px' } }, error) : null)
+      const statusBox = isKbAdmin && kbStatus ? h('div', { style: { padding: '8px 12px', borderBottom: '1px solid ' + COLORS.line, fontSize: '11px', color: COLORS.muted } },
+        h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
+          h('div', { style: { fontWeight: 600, color: COLORS.text } }, '知识库状态'),
+          h('button', { onClick: loadPending, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '10px', cursor: 'pointer' } }, '刷新')),
+        h('div', { style: { marginTop: '3px', lineHeight: 1.8 } },
+          '已发布 ' + ((kbStatus.counts || {}).approved || 0) + ' · 待审 ' + ((kbStatus.counts || {}).pending || 0) +
+          ' · 过期 ' + ((kbStatus.counts || {}).expired || 0) + ' · 索引 ' + (kbStatus.chunks || 0) + ' 块'),
+        kbStatus.last_reviewed ? h('div', null, '最近发布：' + kbStatus.last_reviewed.title + '（' + kbStatus.last_reviewed.at + '）') : null,
+        kbStatus.last_sync ? h('div', null, '最近巡检：' + (kbStatus.last_sync.at || '') + '，新增 ' + (kbStatus.last_sync.added || 0) + ' 篇') : null,
+        (kbStatus.apply || {}).running ? h('div', { style: { color: '#b45309', marginTop: '2px' } }, '正在' + ((kbStatus.apply || {}).action === 'approve' ? '发布并重建索引' : '处理审批') + '…（重建索引约 10 分钟）') : null,
+        (kbStatus.apply || {}).error ? h('div', { style: { color: '#b91c1c', marginTop: '2px' } }, '上次审批异常：' + kbStatus.apply.error) : null) : null
       const pendingBox = isKbAdmin && (pendingDocs.length > 0 || pendingMsg) ? h('div', { style: { padding: '10px 12px', borderBottom: '1px solid ' + COLORS.line, background: 'rgba(180,83,9,0.06)' } },
         h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' } },
           h('div', { style: { fontSize: '12px', fontWeight: 600, color: '#b45309' } }, '待审文档（' + pendingDocs.length + '）'),
@@ -2823,7 +2836,7 @@ window.__ModuleLoader__.load({
         })
       }
       const middle = h('div', { style: { width: '320px', borderRight: '1px solid ' + COLORS.line, display: 'flex', flexDirection: 'column', minHeight: 0, flexShrink: 0 } },
-        searchBox, pendingBox, h('div', { style: { flex: 1, overflow: 'auto', padding: '4px 8px' } }, listItems))
+        searchBox, statusBox, pendingBox, h('div', { style: { flex: 1, overflow: 'auto', padding: '4px 8px' } }, listItems))
       let right
       if (!doc) {
         right = h(Empty, null, '左侧检索或选择文档，这里显示条文全文与出处')
