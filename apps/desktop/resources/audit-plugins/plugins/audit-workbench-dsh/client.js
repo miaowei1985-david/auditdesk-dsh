@@ -1142,6 +1142,7 @@ window.__ModuleLoader__.load({
         } catch (e) {}
       }, [activeProject])
       const pendingCountsState = React.useState({}); const pendingCounts = pendingCountsState[0]; const setPendingCounts = pendingCountsState[1]
+      React.useEffect(function () { loadKbSync() }, [])
       React.useEffect(function () {
         refreshPendingCounts()
         const timer = setInterval(refreshPendingCounts, 60000)
@@ -2946,6 +2947,8 @@ window.__ModuleLoader__.load({
       const deleteBackupState = React.useState(''); const deleteBackupName = deleteBackupState[0]; const setDeleteBackupName = deleteBackupState[1]
       const restoreSummaryState = React.useState(null); const restoreSummary = restoreSummaryState[0]; const setRestoreSummary = restoreSummaryState[1]
       const backupVerifyState = React.useState(''); const backupVerifyMessage = backupVerifyState[0]; const setBackupVerifyMessage = backupVerifyState[1]
+      const kbSyncState = React.useState(null); const kbSync = kbSyncState[0]; const setKbSync = kbSyncState[1]
+      const kbSyncMsgState = React.useState(''); const kbSyncMsg = kbSyncMsgState[0]; const setKbSyncMsg = kbSyncMsgState[1]
       const sysEventState = React.useState(null); const sysEvent = sysEventState[0]; const setSysEvent = sysEventState[1]
       const sysEventsState = React.useState([]); const sysEvents = sysEventsState[0]; const setSysEvents = sysEventsState[1]
       const reportPushSettingsState = React.useState(null); const reportPushSettings = reportPushSettingsState[0]; const setReportPushSettings = reportPushSettingsState[1]
@@ -2960,7 +2963,7 @@ window.__ModuleLoader__.load({
         api('/audit/jobs').then(function (d) { setJobs(d.items || []) }).catch(function () {})
         if (isAdmin) {
           api('/audit/system/backups').then(function (d) { setBackups(d.items || []) }).catch(function () {})
-          api('/audit/system/settings').then(function (d) { setSettings(d.escalation || null); setBackupSettings(d.backup || null); setReportPushSettings(d.report_push || null) }).catch(function () {})
+          api('/audit/system/settings').then(function (d) { setSettings(d.escalation || null); setBackupSettings(d.backup || null); setReportPushSettings(d.report_push || null); setKbSync(d.kb_sync ? { config: d.kb_sync } : null) }).catch(function () {})
         }
       }
       React.useEffect(function () { load() }, [isAdmin])
@@ -3028,6 +3031,15 @@ window.__ModuleLoader__.load({
           .then(function (d) { setSysEvents(d.events || []) })
           .catch(function () { setSysEvents([]) })
       }
+      function loadKbSync() {
+        api('/kb/sync/status').then(function (d) { setKbSync(d) }).catch(function () {})
+      }
+      function runKbSync() {
+        setKbSyncMsg('已开始检查，可能需要几分钟…')
+        api('/kb/sync/run', null, { method: 'POST', body: {} })
+          .then(function (d) { setKbSyncMsg(d.started ? '已开始后台检查，稍后刷新查看结果' : (d.reason || '未启动')); loadKbSync() })
+          .catch(function (e) { setKbSyncMsg('检查失败：' + String(e)) })
+      }
       function runEscalationNow() {
         api('/audit/approvals/escalate', null, { method: 'POST', body: { days: 2 } })
           .then(function (d) { setMessage(d.escalated ? ('已升级 ' + d.escalated + ' 项超期审批') : ('超期 ' + (d.overdue || 0) + ' 项（今日已提醒）')); load() })
@@ -3063,9 +3075,9 @@ window.__ModuleLoader__.load({
           })
           .catch(function () { setBackupVerifyMessage('校验失败，请重试') })
       }
-      function saveSettings(next, nextBackup, nextReportPush) {
-        api('/audit/system/settings', null, { method: 'POST', body: { escalation: next, backup: nextBackup, report_push: nextReportPush } })
-          .then(function (d) { setSettings(d.escalation || null); setBackupSettings(d.backup || null); setReportPushSettings(d.report_push || null); setSettingsMessage('设置已保存') })
+      function saveSettings(next, nextBackup, nextReportPush, nextKbSync) {
+        api('/audit/system/settings', null, { method: 'POST', body: { escalation: next, backup: nextBackup, report_push: nextReportPush, kb_sync: nextKbSync } })
+          .then(function (d) { setSettings(d.escalation || null); setBackupSettings(d.backup || null); setReportPushSettings(d.report_push || null); setKbSync(d.kb_sync ? { config: d.kb_sync } : null); setSettingsMessage('设置已保存') })
           .catch(function () { setSettingsMessage('保存失败') })
       }
       function checkAutoBackup(force) {
@@ -3160,6 +3172,21 @@ window.__ModuleLoader__.load({
               h('div', { style: { display: 'flex', gap: '6px', marginTop: '4px' } },
                 h('button', { onClick: createBackup, style: { padding: '3px 8px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px', cursor: 'pointer' } }, '立即备份'),
                 h('button', { onClick: drillBackup, style: { padding: '3px 8px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px', cursor: 'pointer' } }, '恢复演练'))))) : null,
+        isAdmin ? h('div', { style: { marginBottom: '12px', padding: '14px', borderRadius: '12px', border: '1px solid ' + COLORS.line } },
+          h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' } },
+            h('div', { style: { fontSize: '13px', fontWeight: 600 } }, '知识库定时更新'),
+            h('div', { style: { display: 'flex', gap: '8px' } },
+              h('button', { onClick: loadKbSync, style: { padding: '5px 10px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px', cursor: 'pointer' } }, '刷新状态'),
+              h('button', { onClick: runKbSync, disabled: kbSync && kbSync.state && kbSync.state.running,
+                style: { padding: '5px 10px', borderRadius: '7px', border: 0, background: COLORS.accent, color: '#fff', fontSize: '11px', cursor: 'pointer', opacity: kbSync && kbSync.state && kbSync.state.running ? 0.6 : 1 } }, kbSync && kbSync.state && kbSync.state.running ? '检查中…' : '立即检查'))),
+          h('div', { style: { fontSize: '12px', color: COLORS.muted, lineHeight: 1.8 } },
+            '自动检查：' + (kbSync && kbSync.config && kbSync.config.auto ? ('每日 ' + kbSync.config.hour + ':00') : '已关闭')
+            + ' · 最近：' + ((kbSync && kbSync.last && kbSync.last.at) || '尚未运行')
+            + ' · 新增 ' + ((kbSync && kbSync.last && kbSync.last.added) || 0) + ' 篇'
+            + ' · 待审 ' + ((kbSync && (kbSync.pending_now ?? (kbSync.last && kbSync.last.pending))) || 0) + ' 篇'),
+          kbSync && kbSync.state && kbSync.state.results && kbSync.state.results.length ? h('div', { style: { marginTop: '6px', fontSize: '11px', color: COLORS.muted } },
+            kbSync.state.results.map(function (r, i) { return h('div', { key: 'kbs-' + i }, '· ' + r.source + '：' + (r.ok ? '成功' : '失败') + '（新增 ' + (r.added || 0) + '，' + (r.elapsed || 0) + 's）') })) : null,
+          kbSyncMsg ? h('div', { style: { marginTop: '6px', fontSize: '11px', color: '#b45309' } }, kbSyncMsg) : null) : null,
         isAdmin ? h('div', { style: { marginBottom: '12px', padding: '10px 14px', borderRadius: '12px', border: '1px solid ' + COLORS.line, display: 'flex', gap: '14px', flexWrap: 'wrap', fontSize: '12px', alignItems: 'center' } },
           h('span', { style: { fontWeight: 600 } }, '系统操作统计'),
           [['backup', '备份'], ['drill', '演练'], ['alert', '告警'], ['archive', '归档'], ['report_push', '报告推送']].map(function (pair) {
@@ -3210,7 +3237,18 @@ window.__ModuleLoader__.load({
               h('input', { type: 'number', min: 0, max: 23, value: reportPushSettings.hour || 8, onChange: function (e) { setReportPushSettings(Object.assign({}, reportPushSettings, { hour: Number(e.target.value) || 0 })) }, style: { width: '64px', padding: '4px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit' } }), '点') : null,
             reportPushSettings ? h('label', { style: { display: 'flex', gap: '6px', alignItems: 'center' } }, '失败重试',
               h('input', { type: 'number', min: 1, max: 10, value: reportPushSettings.retries || 3, onChange: function (e) { setReportPushSettings(Object.assign({}, reportPushSettings, { retries: Number(e.target.value) || 3 })) }, style: { width: '54px', padding: '4px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit' } }), '次') : null,
-            h('button', { onClick: function () { saveSettings(settings, backupSettings, reportPushSettings) }, style: { padding: '6px 12px', borderRadius: '7px', border: 0, background: COLORS.accent, color: '#fff', fontSize: '12px', cursor: 'pointer' } }, '保存推送设置'))) : null,
+            h('button', { onClick: function () { saveSettings(settings, backupSettings, reportPushSettings) }, style: { padding: '6px 12px', borderRadius: '7px', border: 0, background: COLORS.accent, color: '#fff', fontSize: '12px', cursor: 'pointer' } }, '保存推送设置')),
+          h('div', { style: { marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed ' + COLORS.line, display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', fontSize: '12px' } },
+            h('div', { style: { fontWeight: 600, width: '100%', marginBottom: '2px' } }, '知识库定时更新'),
+            h('label', { style: { display: 'flex', gap: '6px', alignItems: 'center' } },
+              h('input', { type: 'checkbox', checked: !!((kbSync && kbSync.config) || {}).auto,
+                onChange: function (e) { const cfg = Object.assign({}, (kbSync && kbSync.config) || {}, { auto: e.target.checked }); setKbSync(Object.assign({}, kbSync || {}, { config: cfg })) } }), '每日自动检查'),
+            h('label', { style: { display: 'flex', gap: '6px', alignItems: 'center' } }, '检查时间',
+              h('input', { type: 'number', min: 0, max: 23, value: ((kbSync && kbSync.config) || {}).hour || 6,
+                onChange: function (e) { const cfg = Object.assign({}, (kbSync && kbSync.config) || {}, { hour: Number(e.target.value) || 0 }); setKbSync(Object.assign({}, kbSync || {}, { config: cfg })) },
+                style: { width: '60px', padding: '4px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit' } }), '点'),
+            h('button', { onClick: function () { saveSettings(settings, backupSettings, reportPushSettings, (kbSync && kbSync.config) || kbSync) },
+              style: { padding: '6px 12px', borderRadius: '7px', border: 0, background: COLORS.accent, color: '#fff', fontSize: '12px', cursor: 'pointer' } }, '保存知识库设置'))) : null,
         isAdmin ? h('div', { style: { padding: '14px', borderRadius: '12px', border: '1px solid ' + COLORS.line } },
           h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' } },
             h('div', null,
