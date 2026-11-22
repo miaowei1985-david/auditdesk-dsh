@@ -2186,6 +2186,11 @@ window.__ModuleLoader__.load({
           }).catch(function () {})
       }
       function finalizeReport(versionId) {
+        try {
+          const ready = completeness && completeness.ready
+          const summary = completeness ? ('报告完整性 ' + completeness.ok_count + '/' + completeness.count) : '完整性未知'
+          if (!window.confirm('确认将报告定稿？定稿后不可修改。\n' + summary + (ready ? '' : '（仍有未完成项，可能被拦截）'))) return
+        } catch (e) {}
         fetch(BASE + '/audit/report/finalize', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'X-KB-Token': currentToken() },
@@ -2194,7 +2199,11 @@ window.__ModuleLoader__.load({
           return resp.json().then(function (data) {
             if (!resp.ok) {
               const detail = data && data.detail
-              const message = detail && detail.message ? detail.message + '（' + ((detail.items || []).length) + ' 项未完成）' : (typeof detail === 'string' ? detail : '定稿失败')
+              const items = (detail && detail.items) || []
+              const names = items.slice(0, 4).map(function (item) { return item.item || item.label || '' }).filter(Boolean)
+              const message = detail && detail.message
+                ? detail.message + '（' + items.length + ' 项未完成' + (names.length ? '：' + names.join('、') + (items.length > 4 ? '…' : '') : '') + '）'
+                : (typeof detail === 'string' ? detail : '定稿失败')
               setReport(function (prev) { return Object.assign({}, prev, { message: message }) })
               return null
             }
