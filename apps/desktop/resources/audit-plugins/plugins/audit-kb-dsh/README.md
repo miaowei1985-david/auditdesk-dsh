@@ -24,5 +24,7 @@ DSH 组合包：把事务所共享知识库（mini4pro:8030）暴露为模型工
 锚点是否在本轮检索结果中、片段是否为该锚点原文子串。skill 已要求：写条号/条款依据前必须核验，
 未通过不得引用，也不得改写后继续挂锚。
 
-自测脚本（无需 DSH 运行时，使用桩模块）：`test/selfcheck.mjs`，验证正常引用 PASS、
-编造引用 FAIL、伪造锚点 FAIL。
+自测脚本：
+
+- `node test/unit.mjs`：引用核验纯逻辑单元测试（无需网络/DSH）；
+- `KB_TOKEN=... node test/kb-api.mjs`：线上接口自测（anchor/条号/时效/search 与 doc 锚点一致）。
