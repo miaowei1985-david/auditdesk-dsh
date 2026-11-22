@@ -155,7 +155,10 @@ export function apply(ctx, config) {
           text: [
             `文档：${meta.title ?? ''}（${meta.code ?? ''}${meta.docno ? ` / ${meta.docno}` : ''}）`,
             `路径：${payload.doc ?? ''}，切块 ${chunks.length} 块。`,
-            ...chunks.slice(0, 8).map((c) => `- [${asRecord(c).section ?? ''} 第${asRecord(c).ord ?? ''}段] ${String(asRecord(c).text ?? '').slice(0, 200)}`),
+            ...chunks.slice(0, 8).map((c) => {
+              const chunk = asRecord(c)
+              return `- [${chunk.article_no_cn || `${chunk.section ?? ''} 第${chunk.ord ?? ''}段`}] 锚点:${chunk.anchor ?? '—'} ${String(chunk.text ?? '').slice(0, 200)}`
+            }),
             `提示：${REVIEW_NOTICE}`,
           ].join('\n'),
         }]
