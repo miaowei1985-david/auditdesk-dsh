@@ -15,6 +15,7 @@ env:
   CI: '1'
   HTTP_PROXY: http://127.0.0.1:7890
   HTTPS_PROXY: http://127.0.0.1:7890
+  NODE_USE_ENV_PROXY: '1'
   NO_PROXY: localhost,127.0.0.1,::1
   DSH_DESKTOP_AUTO_UPDATE_ENV: test
 
