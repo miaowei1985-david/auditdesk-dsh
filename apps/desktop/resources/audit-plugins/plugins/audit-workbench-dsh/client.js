@@ -1097,6 +1097,15 @@ window.__ModuleLoader__.load({
         return h('div', { style: { padding: '20px', maxWidth: '900px' } },
           h('div', { style: { fontSize: '14px', fontWeight: 600, marginBottom: '4px' } }, '审计报告'),
           h('div', { style: { fontSize: '12px', color: COLORS.muted, marginBottom: '12px' } }, '基于项目数据与底稿检查结果生成：检查清单 / 审计意见 / 报告初稿（AI 初稿，需人工复核）'),
+          props.completeness ? h('div', { style: { marginBottom: '12px', padding: '10px 12px', borderRadius: '10px', border: '1px solid ' + (props.completeness.ready ? '#16a34a' : COLORS.line), fontSize: '12px' } },
+            h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' } },
+              h('div', { style: { fontWeight: 600 } }, '报告完整性（' + props.completeness.ok_count + '/' + props.completeness.count + '）'),
+              h('span', { style: { color: props.completeness.ready ? '#16a34a' : '#b45309' } }, props.completeness.ready ? '可出具' : '存在未完成项')),
+            (props.completeness.items || []).map(function (item) {
+              return h('div', { key: 'cp-' + item.key, style: { display: 'flex', justifyContent: 'space-between', padding: '2px 0', color: COLORS.muted } },
+                h('span', null, (item.status === 'OK' ? '✓ ' : item.status === 'RISK' ? '✗ ' : '○ ') + item.label),
+                h('span', null, item.detail))
+            })) : null,
           report.message ? h('div', { style: { fontSize: '12px', color: '#b45309', marginBottom: '10px' } }, report.message) : null,
           h('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '16px' } },
             button('生成检查清单', function () { if (props.onLoadChecklist) props.onLoadChecklist() }),
@@ -1299,6 +1308,7 @@ window.__ModuleLoader__.load({
         } catch (e) {}
         reportVersionFilterRestored.current = true
       }, [activeProject])
+      const completenessState = React.useState(null); const completeness = completenessState[0]; const setCompleteness = completenessState[1]
       const misstatesState = React.useState({ items: [], uncorrected_count: 0, uncorrected_total: 0 }); const misstates = misstatesState[0]; const setMisstates = misstatesState[1]
       const clientCheckState = React.useState(null); const clientCheck = clientCheckState[0]; const setClientCheck = clientCheckState[1]
       const clientCheckMsgState = React.useState(''); const clientCheckMsg = clientCheckMsgState[0]; const setClientCheckMsg = clientCheckMsgState[1]
@@ -1380,6 +1390,8 @@ window.__ModuleLoader__.load({
           .catch(function () { if (!cancelled) setInventoryAttachments([]) })
         api('/audit/inventory-meta', { project: activeProject }).then(function (d) { if (!cancelled) setInventoryMeta(d.item || {}) })
           .catch(function () { if (!cancelled) setInventoryMeta({}) })
+        api('/audit/report/completeness', { project: activeProject }).then(function (d) { if (!cancelled) setCompleteness(d) })
+          .catch(function () { if (!cancelled) setCompleteness(null) })
         api('/audit/misstatements', { project: activeProject }).then(function (d) { if (!cancelled) setMisstates(d || { items: [] }) })
           .catch(function () { if (!cancelled) setMisstates({ items: [] }) })
         api('/audit/programs', { project: activeProject }).then(function (d) { if (!cancelled) setPrograms(d.items || []) })
@@ -2589,7 +2601,7 @@ window.__ModuleLoader__.load({
         onDownloadWorkpaper: downloadGeneratedWorkpaper, onPreviewWorkpaper: previewGeneratedWorkpaper,
         newPbcName: newPbcName, onPbcNameChange: setNewPbcName, onAddPbc: addPbcItem,
         onDeletePbc: deletePbcItem, onUploadAttachment: uploadPbcAttachment,
-        onDownloadAttachment: downloadPbcAttachment, onPreviewAttachment: openAttachmentPreview, onCheckAttachment: checkAttachment, clientCheck: clientCheck, clientCheckMsg: clientCheckMsg, onExportClientCheck: exportClientCheckReport, onAddMisstatement: addMisstatementFromFinding, misstates: misstates, onUpdateMisstatement: updateMisstatement,
+        onDownloadAttachment: downloadPbcAttachment, onPreviewAttachment: openAttachmentPreview, onCheckAttachment: checkAttachment, clientCheck: clientCheck, clientCheckMsg: clientCheckMsg, onExportClientCheck: exportClientCheckReport, onAddMisstatement: addMisstatementFromFinding, misstates: misstates, completeness: completeness, onUpdateMisstatement: updateMisstatement,
         onSubmitApproval: submitApproval, onDecideApproval: decideApproval,
         company: activeCompany, project: project,
         onStartChat: props.onStartChat, onCyclePbc: cyclePbc, onCycleWp: cycleWp,
