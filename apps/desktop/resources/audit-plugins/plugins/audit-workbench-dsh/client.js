@@ -391,7 +391,7 @@ window.__ModuleLoader__.load({
           return h('div', { style: { height: '6px', borderRadius: '3px', background: 'rgba(127,127,127,0.2)', marginTop: '8px', overflow: 'hidden' } },
             h('div', { style: { width: Math.max(0, Math.min(100, percent)) + '%', height: '100%', background: percent >= 100 ? '#16a34a' : COLORS.accent } }))
         }
-        return h('div', { style: { padding: '18px', maxWidth: '900px' } },
+        return h('div', { style: { padding: '18px', maxWidth: '960px', height: '100%', overflow: 'auto', boxSizing: 'border-box' } },
           h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' } },
             h('div', null,
               h('div', { style: { fontSize: '15px', fontWeight: 600, marginBottom: '4px' } }, props.company + ' / ' + (props.project ? props.project.name : '')),
@@ -469,7 +469,7 @@ window.__ModuleLoader__.load({
                 h('span', { style: { fontWeight: row[2] ? 600 : 400, color: row[2] ? '#b45309' : 'inherit' } }, row[1]))
             }))
         }
-        return h('div', { style: { padding: '18px', maxWidth: '960px' } },
+        return h('div', { style: { padding: '18px', maxWidth: '960px', height: '100%', overflow: 'auto', boxSizing: 'border-box' } },
           h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' } },
             h('div', null,
               h('div', { style: { fontSize: '14px', fontWeight: 600, marginBottom: '4px' } }, '风险评估与重要性'),
@@ -932,7 +932,7 @@ window.__ModuleLoader__.load({
       if (props.zone === '审计程序') {
         const rows = props.programs || []
         const cycle = ['待执行', '进行中', '已完成', '不适用']
-        return h('div', { style: { padding: '18px', maxWidth: '960px' } },
+        return h('div', { style: { padding: '18px', maxWidth: '960px', height: '100%', overflow: 'auto', boxSizing: 'border-box' } },
           h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' } },
             h('div', null,
               h('div', { style: { fontSize: '14px', fontWeight: 600 } }, '审计程序清单'),
@@ -940,17 +940,34 @@ window.__ModuleLoader__.load({
             h('div', { style: { display: 'flex', gap: '8px' } },
               h('button', { onClick: function () { if (props.onExportPrograms) props.onExportPrograms() }, style: { padding: '8px 14px', borderRadius: '8px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '导出程序表（Word）'),
               h('button', { onClick: function () { if (props.onExportProgramsXlsx) props.onExportProgramsXlsx() }, style: { padding: '8px 14px', borderRadius: '8px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '导出 Excel'),
+              readOnly ? null : h('button', { onClick: function () { if (props.onCompletePrograms) props.onCompletePrograms() }, style: { padding: '8px 14px', borderRadius: '8px', border: '1px solid ' + COLORS.accent, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '补全程序清单'),
               readOnly ? null : h('button', { onClick: function () { if (props.onSavePrograms) props.onSavePrograms() }, style: { padding: '8px 14px', borderRadius: '8px', border: 0, background: COLORS.accent, color: '#fff', fontSize: '12px', cursor: 'pointer' } }, '保存程序清单'))),
           props.importMessage ? h('div', { style: { fontSize: '12px', color: '#16a34a', marginBottom: '6px' } }, props.importMessage) : null,
-          rows.length ? rows.map(function (row) {
-            return h('div', { key: 'prog-' + row.id, style: { display: 'grid', gridTemplateColumns: '36px 1fr 90px 120px 1fr', gap: '8px', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid ' + COLORS.line, fontSize: '12px' } },
-              h('span', { style: { color: COLORS.muted } }, row.seq + '.'),
-              h('span', null, row.name),
-              h('span', { onClick: function () { if (!readOnly && props.onUpdateProgramRow) props.onUpdateProgramRow(row.id, 'status', cycle[(cycle.indexOf(row.status || '待执行') + 1) % cycle.length]) }, title: '点击切换状态', style: { cursor: 'pointer' } },
-                h(Badge, { tone: row.status === '已完成' ? 'ok' : row.status === '进行中' ? 'warn' : row.status === '不适用' ? 'muted' : 'bad' }, row.status || '待执行')),
-              h('input', { value: row.owner || '', onChange: function (e) { if (props.onUpdateProgramRow) props.onUpdateProgramRow(row.id, 'owner', e.target.value) }, placeholder: '负责人', style: { padding: '4px 7px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }),
-              h('input', { value: row.note || '', onChange: function (e) { if (props.onUpdateProgramRow) props.onUpdateProgramRow(row.id, 'note', e.target.value) }, placeholder: '备注/证据', style: { padding: '4px 7px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }))
-          }) : h('div', { style: { padding: '14px', fontSize: '12px', color: COLORS.muted } }, '暂无审计程序，保存后自动生成'),
+          rows.length ? (function () {
+            const groups = []
+            const seen = {}
+            rows.forEach(function (row) {
+              const category = row.category || '其他'
+              if (!seen[category]) { seen[category] = true; groups.push(category) }
+            })
+            return groups.map(function (category) {
+              const items = rows.filter(function (row) { return (row.category || '其他') === category })
+              const done = items.filter(function (row) { return row.status === '已完成' }).length
+              return h('div', { key: 'cat-' + category, style: { marginBottom: '14px' } },
+                h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', margin: '10px 0 4px', padding: '6px 10px', borderRadius: '8px', background: 'rgba(47,124,246,0.06)', fontSize: '13px', fontWeight: 600 } },
+                  h('span', null, category),
+                  h('span', { style: { fontSize: '11px', color: COLORS.muted, fontWeight: 400 } }, '_count_ 项 · 已完成 _done_'.replace('_count_', items.length).replace('_done_', done))),
+                items.map(function (row) {
+                  return h('div', { key: 'prog-' + row.id, style: { display: 'grid', gridTemplateColumns: '36px 1fr 90px 120px 1fr', gap: '8px', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid ' + COLORS.line, fontSize: '12px' } },
+                    h('span', { style: { color: COLORS.muted } }, row.seq + '.'),
+                    h('span', null, row.name),
+                    h('span', { onClick: function () { if (!readOnly && props.onUpdateProgramRow) props.onUpdateProgramRow(row.id, 'status', cycle[(cycle.indexOf(row.status || '待执行') + 1) % cycle.length]) }, title: '点击切换状态', style: { cursor: 'pointer' } },
+                      h(Badge, { tone: row.status === '已完成' ? 'ok' : row.status === '进行中' ? 'warn' : row.status === '不适用' ? 'muted' : 'bad' }, row.status || '待执行')),
+                    h('input', { value: row.owner || '', onChange: function (e) { if (props.onUpdateProgramRow) props.onUpdateProgramRow(row.id, 'owner', e.target.value) }, placeholder: '负责人', style: { padding: '4px 7px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }),
+                    h('input', { value: row.note || '', onChange: function (e) { if (props.onUpdateProgramRow) props.onUpdateProgramRow(row.id, 'note', e.target.value) }, placeholder: '备注/证据', style: { padding: '4px 7px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }))
+                }))
+            })
+          })() : h('div', { style: { padding: '14px', fontSize: '12px', color: COLORS.muted } }, '暂无审计程序，保存后自动生成'),
           (props.programEvents || []).filter(function (event) { return event.old_status }).length ? h('div', { style: { marginTop: '16px', padding: '14px', borderRadius: '12px', border: '1px solid ' + COLORS.line } },
             h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' } },
               h('div', { style: { fontSize: '13px', fontWeight: 600 } }, '最近变更（' + (props.programEvents || []).filter(function (event) { return event.old_status }).length + '）'),
@@ -1095,7 +1112,7 @@ window.__ModuleLoader__.load({
           return h('button', { onClick: onClick, disabled: disabled,
             style: { padding: '8px 14px', borderRadius: '8px', border: '1px solid ' + COLORS.accent, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, label)
         }
-        return h('div', { style: { padding: '20px', maxWidth: '900px' } },
+        return h('div', { style: { padding: '20px', maxWidth: '960px', height: '100%', overflow: 'auto', boxSizing: 'border-box' } },
           h('div', { style: { fontSize: '14px', fontWeight: 600, marginBottom: '4px' } }, '审计报告'),
           h('div', { style: { fontSize: '12px', color: COLORS.muted, marginBottom: '12px' } }, '基于项目数据与底稿检查结果生成：检查清单 / 审计意见 / 报告初稿（AI 初稿，需人工复核）'),
           h('div', { style: { marginBottom: '12px', padding: '10px 12px', borderRadius: '10px', border: '1px solid ' + COLORS.line, fontSize: '12px' } },
@@ -2299,6 +2316,12 @@ window.__ModuleLoader__.load({
           .then(function (d) { setPrograms(d.items || []); setImportMessage('审计程序清单已保存'); refreshWorkpapers() })
           .catch(function () {})
       }
+      function completePrograms() {
+        if (!activeProject) return
+        api('/audit/programs/complete', null, { method: 'POST', body: { project: activeProject } })
+          .then(function (d) { setPrograms(d.items || []); setImportMessage('已补全审计程序清单（+' + (d.added || 0) + ' 项）') })
+          .catch(function () {})
+      }
       function askAiNextSteps() {
         const project = (companies.filter(function (c) { return c.name === activeCompany })[0] || {}).projects || []
         const target = project.filter(function (p) { return p.id === activeProject })[0]
@@ -2680,7 +2703,7 @@ window.__ModuleLoader__.load({
         onOpenRename: openRenameDialog, onOpenDelete: function () { setMgmtError(''); setDeleteOpen(true) },
         onExportArchive: exportArchive, onVerifyArchiveFile: verifyArchiveFile, archiveVerifyMessage: archiveVerifyMessage, onEscalateApprovals: escalateApprovals, escalateMessage: escalateMessage, exporting: exporting,
         report: report, reportLoading: reportLoading, analysis: analysis, matHistory: matHistory,
-        importMessage: importMessage, onImportData: importProjectData, onImportFinancialStatements: importFinancialStatements, onValidateImportFile: validateImportFile, multiFile: multiFile, multiSheets: multiSheets, multiSheetIndex: multiSheetIndex, multiKind: multiKind, multiLoading: multiLoading, onChooseMultiSheetFile: chooseMultiSheetFile, onDownloadImportTemplate: downloadImportTemplate, onDownloadFinancialTemplate: downloadFinancialTemplate, onSetMultiSheetIndex: setMultiSheetIndex, onSetMultiKind: setMultiKind, onSubmitMultiSheet: submitMultiSheet, onGenerateTrialBalance: generateTrialBalance, onRefreshWorkpapers: refreshWorkpapers, confirmations: confirmations, inventoryCounts: inventoryCounts, inventoryAttachments: inventoryAttachments, inventoryMeta: inventoryMeta, onUpdateInventoryMeta: updateInventoryMeta, onSaveInventoryMeta: saveInventoryMeta, onExportInventorySummary: exportInventorySummary, onAskAiNextSteps: askAiNextSteps, onGenerateSubsequentEvents: generateSubsequentEvents, onGenerateGoingConcern: generateGoingConcern, onGenerateRelatedParties: generateRelatedParties, onGenerateContingencies: generateContingencies, onGenerateOpeningBalances: generateOpeningBalances, generatedKind: generatedKind, onSetGeneratedKind: setGeneratedKind, checklistKind: checklistKind, onSetChecklistKind: setChecklistKind, onGenerateChecklist: generateChecklist, programs: programs, onUpdateProgramRow: updateProgramRow, onSavePrograms: savePrograms, onExportPrograms: exportPrograms, programEvents: programEvents, onExportProgramsXlsx: exportProgramsXlsx, onExportProgramHistory: exportProgramHistory, onExportInventoryExceptions: exportInventoryExceptions, dataEvents: dataEvents, onUploadInventoryAttachment: uploadInventoryAttachment, onPreviewInventoryAttachment: previewInventoryAttachment, onUpdateInventoryRow: updateInventoryRow, onSaveInventoryCounts: saveInventoryCounts, onConfirmInventory: confirmInventory, onSyncConfirmations: syncConfirmations, onCycleConfirmation: cycleConfirmation, onReplyConfirmation: replyConfirmation, onExportConfirmationDifferences: exportConfirmationDifferences, onUploadConfirmationAttachment: uploadConfirmationAttachment, onDownloadConfirmationAttachment: downloadConfirmationAttachment, onPreviewConfirmationAttachment: previewConfirmationAttachment,
+        importMessage: importMessage, onImportData: importProjectData, onImportFinancialStatements: importFinancialStatements, onValidateImportFile: validateImportFile, multiFile: multiFile, multiSheets: multiSheets, multiSheetIndex: multiSheetIndex, multiKind: multiKind, multiLoading: multiLoading, onChooseMultiSheetFile: chooseMultiSheetFile, onDownloadImportTemplate: downloadImportTemplate, onDownloadFinancialTemplate: downloadFinancialTemplate, onSetMultiSheetIndex: setMultiSheetIndex, onSetMultiKind: setMultiKind, onSubmitMultiSheet: submitMultiSheet, onGenerateTrialBalance: generateTrialBalance, onRefreshWorkpapers: refreshWorkpapers, confirmations: confirmations, inventoryCounts: inventoryCounts, inventoryAttachments: inventoryAttachments, inventoryMeta: inventoryMeta, onUpdateInventoryMeta: updateInventoryMeta, onSaveInventoryMeta: saveInventoryMeta, onExportInventorySummary: exportInventorySummary, onAskAiNextSteps: askAiNextSteps, onGenerateSubsequentEvents: generateSubsequentEvents, onGenerateGoingConcern: generateGoingConcern, onGenerateRelatedParties: generateRelatedParties, onGenerateContingencies: generateContingencies, onGenerateOpeningBalances: generateOpeningBalances, generatedKind: generatedKind, onSetGeneratedKind: setGeneratedKind, checklistKind: checklistKind, onSetChecklistKind: setChecklistKind, onGenerateChecklist: generateChecklist, programs: programs, onUpdateProgramRow: updateProgramRow, onSavePrograms: savePrograms, onCompletePrograms: completePrograms, onExportPrograms: exportPrograms, programEvents: programEvents, onExportProgramsXlsx: exportProgramsXlsx, onExportProgramHistory: exportProgramHistory, onExportInventoryExceptions: exportInventoryExceptions, dataEvents: dataEvents, onUploadInventoryAttachment: uploadInventoryAttachment, onPreviewInventoryAttachment: previewInventoryAttachment, onUpdateInventoryRow: updateInventoryRow, onSaveInventoryCounts: saveInventoryCounts, onConfirmInventory: confirmInventory, onSyncConfirmations: syncConfirmations, onCycleConfirmation: cycleConfirmation, onReplyConfirmation: replyConfirmation, onExportConfirmationDifferences: exportConfirmationDifferences, onUploadConfirmationAttachment: uploadConfirmationAttachment, onDownloadConfirmationAttachment: downloadConfirmationAttachment, onPreviewConfirmationAttachment: previewConfirmationAttachment,
         onConfirmMateriality: confirmMateriality, onGenerateRiskDocx: generateRiskDocx,
         onLoadChecklist: loadReportChecklist, onLoadOpinion: loadReportOpinion,
         onGenerateDraft: generateReportDraft, onDownloadDraft: downloadReportDraft,
@@ -2935,7 +2958,7 @@ window.__ModuleLoader__.load({
             h('div', { style: { fontSize: '12px', color: COLORS.muted, marginTop: '4px', lineHeight: 1.6, maxHeight: '3.2em', overflow: 'hidden' } }, hit.text))
         })
       }
-      const middle = h('div', { style: { width: '320px', borderRight: '1px solid ' + COLORS.line, display: 'flex', flexDirection: 'column', minHeight: 0, flexShrink: 0 } },
+      const middle = h('div', { style: { width: '320px', borderRight: '1px solid ' + COLORS.line, display: 'flex', flexDirection: 'column', minHeight: 0, maxHeight: '100%', flexShrink: 0 } },
         searchBox, statusBox, pendingBox, h('div', { style: { flex: 1, overflow: 'auto', padding: '4px 8px' } }, listItems))
       let right
       if (!doc) {
@@ -3154,7 +3177,7 @@ window.__ModuleLoader__.load({
         return h(Empty, null, '仅管理员可访问用户管理（当前角色：' + role + '）')
       }
       const roleOptions = [['auditor', '审计员'], ['manager', '项目经理'], ['partner', '合伙人'], ['kb-admin', '管理员']]
-      return h('div', { style: { padding: '18px', maxWidth: '860px' } },
+      return h('div', { style: { padding: '18px', maxWidth: '960px', height: '100%', overflow: 'auto', boxSizing: 'border-box' } },
         h('div', { style: { fontSize: '15px', fontWeight: 600, marginBottom: '4px' } }, '用户管理'),
         h('div', { style: { fontSize: '12px', color: COLORS.muted, marginBottom: '12px' } }, '创建审计人员账号、分配角色与重置密码（管理员）'),
         message ? h('div', { style: { fontSize: '12px', color: '#16a34a', marginBottom: '8px' } }, message) : null,
@@ -3416,13 +3439,13 @@ window.__ModuleLoader__.load({
           hint ? h('div', { style: { fontSize: '11px', color: COLORS.muted, marginTop: '4px' } }, hint) : null)
       }
       if (!health) {
-        return h('div', { style: { padding: '18px' } },
+        return h('div', { style: { padding: '18px', maxWidth: '960px', height: '100%', overflow: 'auto', boxSizing: 'border-box' } },
           h('div', { style: { fontSize: '15px', fontWeight: 600, marginBottom: '8px' } }, '系统状态'),
           h('div', { style: { fontSize: '12px', color: COLORS.muted } }, loading ? '加载中…' : (error || '暂无数据')),
           h('button', { onClick: load, style: { marginTop: '10px', padding: '7px 12px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '刷新'))
       }
       const backupStatusText = (health.backup && health.backup.last_backup ? ('上次：' + (health.backup.last_backup_at || '-') + ' · 下次约 ' + Math.max(0, Math.ceil(((health.backup.next_due_seconds || 0) / 3600))) + ' 小时后 · 自动备份每 ' + (health.backup.interval_hours || 24) + ' 小时') : ('自动备份：每 ' + (((health.backup || {}).interval_hours) || 24) + ' 小时检查一次')) + ' · 共 ' + backups.length + ' 份 · 总占用 ' + formatBytes(backups.reduce(function (sum, item) { return sum + (item.size || 0) }, 0)) + ' · 保留最近 ' + (((health.backup || {}).keep) || 10) + ' 份' + (health.last_drill ? (' · 最近演练：' + (String(health.last_drill.status || '').indexOf('PASS') === 0 ? '通过' : '异常') + '（' + (health.last_drill.at || '') + '）') : '')
-      return h('div', { style: { padding: '18px', maxWidth: '980px' } },
+      return h('div', { style: { padding: '18px', maxWidth: '960px', height: '100%', overflow: 'auto', boxSizing: 'border-box' } },
         h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' } },
           h('div', null,
             h('div', { style: { fontSize: '15px', fontWeight: 600 } }, '系统状态'),
@@ -3726,7 +3749,7 @@ window.__ModuleLoader__.load({
       else if (sortBy === 'pbc') rows.sort(function (a, b) { return (a.pbc_percent || 0) - (b.pbc_percent || 0) })
       else if (sortBy === 'pending') rows.sort(function (a, b) { return (b.approval_pending || 0) - (a.approval_pending || 0) })
       const isManager = false
-      return h('div', { style: { padding: '18px', maxWidth: '1100px' } },
+      return h('div', { style: { padding: '18px', maxWidth: '960px', height: '100%', overflow: 'auto', boxSizing: 'border-box' } },
         h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' } },
           h('div', null,
             h('div', { style: { fontSize: '15px', fontWeight: 600 } }, '项目看板'),
@@ -3814,7 +3837,7 @@ window.__ModuleLoader__.load({
         return h('div', { style: { display: 'flex', justifyContent: 'space-between', gap: '10px', padding: '6px 0', borderBottom: '1px solid ' + COLORS.line, fontSize: '12px' } },
           h('span', { style: { color: COLORS.muted } }, label), h('span', null, String(value)))
       }
-      return h('div', { style: { padding: '18px', maxWidth: '820px' } },
+      return h('div', { style: { padding: '18px', maxWidth: '960px', height: '100%', overflow: 'auto', boxSizing: 'border-box' } },
         h('div', { style: { fontSize: '15px', fontWeight: 600, marginBottom: '10px' } }, '关于 AuditDesk'),
         h('div', { style: { padding: '14px', borderRadius: '12px', border: '1px solid ' + COLORS.line, marginBottom: '12px' } },
           row('客户端版本', CLIENT_VERSION + '（审计工作台插件）'),
@@ -3862,7 +3885,7 @@ window.__ModuleLoader__.load({
       const line = function (text) {
         return h('div', { style: { fontSize: '12px', lineHeight: 1.9 } }, text)
       }
-      return h('div', { style: { padding: '18px', maxWidth: '900px' } },
+      return h('div', { style: { padding: '18px', maxWidth: '960px', height: '100%', overflow: 'auto', boxSizing: 'border-box' } },
         h('div', { style: { fontSize: '15px', fontWeight: 600, marginBottom: '10px' } }, '使用指南'),
         section('快速开始（5 步）', h('div', null,
           line('1. 客户与项目 → + 新建项目：填写公司、项目名称、期间，选择业务类型（年报/专项/内控）。'),
