@@ -2096,6 +2096,11 @@ window.__ModuleLoader__.load({
           }).catch(function () {})
       }
       function exportReportPdf(versionId) {
+        if (completeness && !completeness.ready) {
+          try {
+            if (!window.confirm('报告完整性未完成（' + completeness.ok_count + '/' + completeness.count + '）：建议先处理未完成项再导出。仍要导出吗？')) return
+          } catch (e) {}
+        }
         fetch(BASE + '/audit/report/pdf', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'X-KB-Token': currentToken() },
@@ -2111,6 +2116,11 @@ window.__ModuleLoader__.load({
           }).catch(function () {})
       }
       function exportReportDocx(versionId) {
+        if (completeness && !completeness.ready) {
+          try {
+            if (!window.confirm('报告完整性未完成（' + completeness.ok_count + '/' + completeness.count + '）：建议先处理未完成项再导出。仍要导出吗？')) return
+          } catch (e) {}
+        }
         fetch(BASE + '/audit/report/docx', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'X-KB-Token': currentToken() },
