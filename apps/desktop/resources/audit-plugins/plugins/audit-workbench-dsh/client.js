@@ -345,6 +345,21 @@ window.__ModuleLoader__.load({
           .then(function (blob) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = '账龄分析.docx'; setTimeout(function(){ if (props.onRefreshWorkpapers) props.onRefreshWorkpapers() }, 300); document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url) }).catch(function () {})
       }
       if (props.zone === '概览') {
+        const role = ((props.auth && props.auth.user && props.auth.user.role) || 'auditor')
+        const roleName = { auditor: '审计员', manager: '项目经理', partner: '合伙人', 'kb-admin': '管理员', admin: '管理员' }[role] || role
+        const roleActions = {
+          auditor: [['资料清单', '资料清单'], ['审计底稿', '审计底稿'], ['审计程序', '审计程序'], ['审批状态', '审批状态']],
+          manager: [['审批状态', '审批状态'], ['审计底稿', '审计底稿'], ['报告', '报告'], ['风险评估', '风险评估']],
+          partner: [['报告', '报告'], ['审批状态', '审批状态'], ['风险评估', '风险评估'], ['项目概览', '概览']],
+          'kb-admin': [['审批状态', '审批状态'], ['审计底稿', '审计底稿'], ['报告', '报告'], ['资料清单', '资料清单']],
+          admin: [['审批状态', '审批状态'], ['审计底稿', '审计底稿'], ['报告', '报告'], ['资料清单', '资料清单']],
+        }[role] || [['资料清单', '资料清单'], ['审计底稿', '审计底稿']]
+        const quickBar = h('div', { style: { marginBottom: '12px', padding: '10px 12px', borderRadius: '10px', border: '1px solid ' + COLORS.line, display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', fontSize: '12px' } },
+          h('span', { style: { color: COLORS.muted } }, '当前角色：' + roleName + ' · 常用入口'),
+          roleActions.map(function (pair) {
+            return h('button', { key: 'role-' + pair[1], onClick: function () { if (props.onJumpZone) props.onJumpZone(pair[1]) },
+              style: { padding: '5px 10px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, pair[0])
+          }))
         const pbcItems = props.pbc || []
         const wpItems = props.wp || []
         const approvalItems = props.approvals || []
@@ -401,6 +416,7 @@ window.__ModuleLoader__.load({
                         style: { padding: '7px 12px', borderRadius: '8px', border: '1px solid #b45309', background: 'transparent', color: '#b45309', fontSize: '12px', cursor: 'pointer' } }, '归档项目（只读）')
                     : null))),
           props.archiveVerifyMessage ? h('div', { style: { fontSize: '12px', marginBottom: '8px', color: props.archiveVerifyMessage.indexOf('通过') >= 0 && props.archiveVerifyMessage.indexOf('未') < 0 ? '#16a34a' : '#b45309' } }, props.archiveVerifyMessage) : null,
+          quickBar,
           h('div', { style: { display: 'flex', gap: '10px', flexWrap: 'wrap' } },
             h('div', { style: { flex: '1 1 180px', minWidth: '180px', padding: '14px', borderRadius: '12px', border: '1px solid ' + COLORS.line, background: COLORS.bg } },
               h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '资料清单完成率'),
@@ -1142,7 +1158,6 @@ window.__ModuleLoader__.load({
         } catch (e) {}
       }, [activeProject])
       const pendingCountsState = React.useState({}); const pendingCounts = pendingCountsState[0]; const setPendingCounts = pendingCountsState[1]
-      React.useEffect(function () { loadKbSync() }, [])
       React.useEffect(function () {
         refreshPendingCounts()
         const timer = setInterval(refreshPendingCounts, 60000)
@@ -2487,7 +2502,7 @@ window.__ModuleLoader__.load({
         onAddMember: addProjectMember, onRemoveMember: removeProjectMember,
         generatedDate: generatedDate, onGeneratedDateChange: setGeneratedDate,
         onOpenWorkpaperIndex: openWorkpaperByIndex, onGenerateWorkpaper: generateWorkpaper,
-        onGenerateAll: generateAllWorkpapers, onExportWorkpapers: exportWorkpapersZip, reportVersionFilter: reportVersionFilter, onSetReportVersionFilter: setReportVersionFilter, approvalFilter: approvalFilter, onSetApprovalFilter: setApprovalFilter, onExportApprovals: exportApprovals, todoOverdueOnly: todoOverdueOnly, onSetTodoOverdueOnly: setTodoOverdueOnly, wpStatusFilter: wpStatusFilter, onSetWpStatusFilter: setWpStatusFilter, wpSearch: wpSearch, onSetWpSearch: setWpSearch, onExportWorkpaperList: exportWorkpaperListCsv, onJumpTodoZone: jumpTodoZone, onVerifyWorkpapersZip: verifyWorkpapersZip, wpsVerifyMessage: wpsVerifyMessage,
+        onGenerateAll: generateAllWorkpapers, onExportWorkpapers: exportWorkpapersZip, reportVersionFilter: reportVersionFilter, onSetReportVersionFilter: setReportVersionFilter, approvalFilter: approvalFilter, onSetApprovalFilter: setApprovalFilter, onExportApprovals: exportApprovals, todoOverdueOnly: todoOverdueOnly, onSetTodoOverdueOnly: setTodoOverdueOnly, wpStatusFilter: wpStatusFilter, onSetWpStatusFilter: setWpStatusFilter, wpSearch: wpSearch, onSetWpSearch: setWpSearch, onExportWorkpaperList: exportWorkpaperListCsv, onJumpTodoZone: jumpTodoZone, onJumpZone: function (name) { setZone(name) }, onVerifyWorkpapersZip: verifyWorkpapersZip, wpsVerifyMessage: wpsVerifyMessage,
         onDownloadWorkpaper: downloadGeneratedWorkpaper, onPreviewWorkpaper: previewGeneratedWorkpaper,
         newPbcName: newPbcName, onPbcNameChange: setNewPbcName, onAddPbc: addPbcItem,
         onDeletePbc: deletePbcItem, onUploadAttachment: uploadPbcAttachment,
@@ -2983,6 +2998,7 @@ window.__ModuleLoader__.load({
       const restoreSummaryState = React.useState(null); const restoreSummary = restoreSummaryState[0]; const setRestoreSummary = restoreSummaryState[1]
       const backupVerifyState = React.useState(''); const backupVerifyMessage = backupVerifyState[0]; const setBackupVerifyMessage = backupVerifyState[1]
       const kbSyncState = React.useState(null); const kbSync = kbSyncState[0]; const setKbSync = kbSyncState[1]
+      React.useEffect(function () { loadKbSync() }, [])
       const kbSyncMsgState = React.useState(''); const kbSyncMsg = kbSyncMsgState[0]; const setKbSyncMsg = kbSyncMsgState[1]
       const sysEventState = React.useState(null); const sysEvent = sysEventState[0]; const setSysEvent = sysEventState[1]
       const sysEventsState = React.useState([]); const sysEvents = sysEventsState[0]; const setSysEvents = sysEventsState[1]
