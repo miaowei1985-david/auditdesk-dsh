@@ -34,6 +34,14 @@ if (-not $DshCmd) {
 Write-Host "使用 dsh：$DshCmd"
 Write-Host "目标 profile：$Profile（DSH_HOME=$DshHome）"
 
+$DocSrc = Join-Path $ScriptDir "delivery-docs"
+if (Test-Path $DocSrc) {
+  $DocDest = Join-Path $DshHome "auditdesk-docs"
+  New-Item -ItemType Directory -Force -Path $DocDest | Out-Null
+  Copy-Item (Join-Path $DocSrc "*") $DocDest -Recurse -Force
+  Write-Host "交付文档已复制到：$DocDest"
+}
+
 $TargetDir = Join-Path $DshHome "plugins\auditdesk"
 New-Item -ItemType Directory -Force -Path $TargetDir | Out-Null
 foreach ($plugin in @("audit-workbench-dsh", "audit-kb-dsh", "audit-p0-dsh")) {

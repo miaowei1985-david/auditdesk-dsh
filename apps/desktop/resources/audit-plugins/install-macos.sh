@@ -34,6 +34,14 @@ fi
 echo "使用 dsh：${DSH_BIN_PATH}"
 echo "目标 profile：${PROFILE}（DSH_HOME=${DSH_HOME}）"
 
+DOC_SRC="$SCRIPT_DIR/delivery-docs"
+if [ -d "$DOC_SRC" ]; then
+  DOC_DEST="$DSH_HOME/auditdesk-docs"
+  mkdir -p "$DOC_DEST"
+  cp -R "$DOC_SRC"/. "$DOC_DEST"/
+  echo "交付文档已复制到：$DOC_DEST"
+fi
+
 TARGET_DIR="$DSH_HOME/plugins/auditdesk"
 mkdir -p "$TARGET_DIR"
 for plugin in audit-workbench-dsh audit-kb-dsh audit-p0-dsh; do
