@@ -73,14 +73,15 @@ export async function ensureAuditPlugins(profileDir: string, resourcesPath: stri
   for (const plugin of plugins.filter(item => needsInstall.includes(item.name))) {
     const spec = `file:${plugin.target}`
     if (process.platform === 'win32') {
-      // .cmd shims cannot be spawned directly; route through cmd.exe with quoted arguments.
-      const command = process.env.ComSpec ?? 'cmd.exe'
+      // .cmd shims cannot be spawned directly. Write a tiny batch file with fully
+      // quoted paths instead of relying on nested cmd.exe quoting.
+      const batchPath = join(targetRoot, `.install-${plugin.directory}-${Date.now()}.cmd`)
       try {
-        await run(command, ['/d', '/s', '/c', `"${dshCli}" plugin --profile desktop add "${spec}"`], {
-          env, timeout: 180_000, windowsHide: true,
-        })
+        writeFileSync(batchPath, `@echo off\r\ncall "${dshCli}" plugin --profile desktop add "${spec}"\r\n`, 'utf8')
+        await run(process.env.ComSpec ?? 'cmd.exe', ['/d', '/s', '/c', batchPath], { env, timeout: 180_000, windowsHide: true })
         log(`plugin add ok (win): ${plugin.name}`)
       } catch (error) { log(`plugin add failed (win): ${plugin.name}: ${String(error)}`); throw error }
+      finally { try { rmSync(batchPath, { force: true }) } catch { /* best effort */ } }
     } else {
       try {
         await run(dshCli, ['plugin', '--profile', 'desktop', 'add', spec], { env, timeout: 180_000, windowsHide: true })

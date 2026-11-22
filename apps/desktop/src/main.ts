@@ -687,16 +687,19 @@ async function main(): Promise<void> {
   const reconcileBackend = (): Promise<void> => {
     startup ??= (async () => {
       await navigateMain(applicationUrl)
-      await backend.start(async () => {
-        await manager.applyRelease()
-        const auditCli = join(process.resourcesPath, 'runtime', 'cli', 'bin', process.platform === 'win32' ? 'dsh.cmd' : 'dsh')
-        if (existsSync(auditCli)) {
-          try {
-            await ensureAuditPlugins(paths.profile, process.resourcesPath, auditCli)
-          } catch (error) {
-            console.warn('audit plugins: bootstrap failed; continuing without them', error)
-          }
+      // Prepare the Electron-owned profile and the bundled audit plugins before the
+      // Host starts, so the first render already has the audit panels (and Windows
+      // first-run does not need a second launch to install them).
+      await manager.applyRelease()
+      const auditCli = join(process.resourcesPath, 'runtime', 'cli', 'bin', process.platform === 'win32' ? 'dsh.cmd' : 'dsh')
+      if (existsSync(auditCli)) {
+        try {
+          await ensureAuditPlugins(paths.profile, process.resourcesPath, auditCli)
+        } catch (error) {
+          console.warn('audit plugins: bootstrap failed; continuing without them', error)
         }
+      }
+      await backend.start(async () => {
         await prepareHostEnvironment()
       })
       if (backend.host !== undefined) await openInitialWindow()
