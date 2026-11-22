@@ -21,7 +21,7 @@ permissions:
 jobs:
   build:
     name: build
-    runs-on: macos-latest
+    runs-on: [self-hosted, macOS, ARM64, auditdesk]
     timeout-minutes: 60
     steps:
       - name: Checkout
