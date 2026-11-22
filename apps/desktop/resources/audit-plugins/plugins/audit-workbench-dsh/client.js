@@ -247,6 +247,7 @@ window.__ModuleLoader__.load({
 
     function Zone(props) {
       const readOnly = Boolean(props.readOnly)
+      const tmpElementsState = React.useState({}); const tmpElements = tmpElementsState[0]; const setTmpElements = tmpElementsState[1]
       const matEditState = React.useState(false); const matEditing = matEditState[0]; const setMatEditing = matEditState[1]
       const matOverallState = React.useState(''); const matOverall = matOverallState[0]; const setMatOverall = matOverallState[1]
       const matPerfState = React.useState(''); const matPerf = matPerfState[0]; const setMatPerf = matPerfState[1]
@@ -1097,6 +1098,27 @@ window.__ModuleLoader__.load({
         return h('div', { style: { padding: '20px', maxWidth: '900px' } },
           h('div', { style: { fontSize: '14px', fontWeight: 600, marginBottom: '4px' } }, '审计报告'),
           h('div', { style: { fontSize: '12px', color: COLORS.muted, marginBottom: '12px' } }, '基于项目数据与底稿检查结果生成：检查清单 / 审计意见 / 报告初稿（AI 初稿，需人工复核）'),
+          h('div', { style: { marginBottom: '12px', padding: '10px 12px', borderRadius: '10px', border: '1px solid ' + COLORS.line, fontSize: '12px' } },
+            h('div', { style: { fontWeight: 600, marginBottom: '6px' } }, '报告要素'),
+            h('div', { style: { display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '6px' } },
+              h('span', { style: { color: COLORS.muted } }, '审计意见类型'),
+              h('select', { value: (props.reportElements || {}).opinion_type || '', onChange: function (e) { if (props.onSaveReportElements) props.onSaveReportElements({ opinion_type: e.target.value, emphasis: (props.reportElements || {}).emphasis || '', other_matters: (props.reportElements || {}).other_matters || '' }) },
+                style: { padding: '5px 8px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } },
+                h('option', { value: '' }, '未选择'),
+                h('option', { value: '标准无保留意见' }, '标准无保留意见'),
+                h('option', { value: '带强调事项段的无保留意见' }, '带强调事项段的无保留意见'),
+                h('option', { value: '保留意见' }, '保留意见'),
+                h('option', { value: '否定意见' }, '否定意见'),
+                h('option', { value: '无法表示意见' }, '无法表示意见')),
+              props.reportElementsMsg ? h('span', { style: { color: '#16a34a' } }, props.reportElementsMsg) : null),
+            h('div', { style: { marginBottom: '4px', color: COLORS.muted } }, '强调事项段'),
+            h('textarea', { value: (props.reportElements || {}).emphasis || '', rows: 2, onChange: function (e) { setTmpElements({ emphasis: e.target.value }) },
+              style: { width: '100%', marginBottom: '6px', padding: '6px 8px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }),
+            h('div', { style: { marginBottom: '4px', color: COLORS.muted } }, '其他事项段'),
+            h('textarea', { value: (props.reportElements || {}).other_matters || '', rows: 2, onChange: function (e) { setTmpElements({ other_matters: e.target.value }) },
+              style: { width: '100%', marginBottom: '6px', padding: '6px 8px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }),
+            h('button', { onClick: function () { if (props.onSaveReportElements) props.onSaveReportElements(Object.assign({}, props.reportElements || {}, tmpElements)) },
+              style: { padding: '5px 12px', borderRadius: '7px', border: 0, background: COLORS.accent, color: '#fff', fontSize: '11px', cursor: 'pointer' } }, '保存报告要素')),
           props.completeness && !props.completeness.ready ? h('div', { style: { marginBottom: '10px', fontSize: '12px', color: '#b45309' } }, '⚠ 报告完整性未完成（' + props.completeness.ok_count + '/' + props.completeness.count + '）：建议先处理未完成项再定稿/出具。') : null,
           props.completeness ? h('div', { style: { marginBottom: '12px', padding: '10px 12px', borderRadius: '10px', border: '1px solid ' + (props.completeness.ready ? '#16a34a' : COLORS.line), fontSize: '12px' } },
             h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' } },
@@ -1314,6 +1336,8 @@ window.__ModuleLoader__.load({
         reportVersionFilterRestored.current = true
       }, [activeProject])
       const completenessState = React.useState(null); const completeness = completenessState[0]; const setCompleteness = completenessState[1]
+      const reportElementsState = React.useState({}); const reportElements = reportElementsState[0]; const setReportElements = reportElementsState[1]
+      const reportElementsMsgState = React.useState(''); const reportElementsMsg = reportElementsMsgState[0]; const setReportElementsMsg = reportElementsMsgState[1]
       const misstatesState = React.useState({ items: [], uncorrected_count: 0, uncorrected_total: 0 }); const misstates = misstatesState[0]; const setMisstates = misstatesState[1]
       const clientCheckState = React.useState(null); const clientCheck = clientCheckState[0]; const setClientCheck = clientCheckState[1]
       const clientCheckMsgState = React.useState(''); const clientCheckMsg = clientCheckMsgState[0]; const setClientCheckMsg = clientCheckMsgState[1]
@@ -1397,6 +1421,8 @@ window.__ModuleLoader__.load({
           .catch(function () { if (!cancelled) setInventoryMeta({}) })
         api('/audit/report/completeness', { project: activeProject }).then(function (d) { if (!cancelled) setCompleteness(d) })
           .catch(function () { if (!cancelled) setCompleteness(null) })
+        api('/audit/report/elements', { project: activeProject }).then(function (d) { if (!cancelled) setReportElements((d && d.elements) || {}) })
+          .catch(function () { if (!cancelled) setReportElements({}) })
         api('/audit/misstatements', { project: activeProject }).then(function (d) { if (!cancelled) setMisstates(d || { items: [] }) })
           .catch(function () { if (!cancelled) setMisstates({ items: [] }) })
         api('/audit/programs', { project: activeProject }).then(function (d) { if (!cancelled) setPrograms(d.items || []) })
@@ -2409,6 +2435,16 @@ window.__ModuleLoader__.load({
             URL.revokeObjectURL(url)
           }).catch(function () {})
       }
+      function saveReportElements(next) {
+        if (!activeProject) return
+        api('/audit/report/elements', null, { method: 'POST', body: Object.assign({ project: activeProject }, next) })
+          .then(function (d) {
+            setReportElements((d && d.elements) || {})
+            setReportElementsMsg('已保存')
+            api('/audit/report/completeness', { project: activeProject }).then(setCompleteness).catch(function () {})
+          })
+          .catch(function (e) { setReportElementsMsg('保存失败：' + String(e)) })
+      }
       function loadMisstatements() {
         if (!activeProject) return
         api('/audit/misstatements', { project: activeProject }).then(function (d) { setMisstates(d || { items: [] }) }).catch(function () {})
@@ -2629,7 +2665,7 @@ window.__ModuleLoader__.load({
         onDownloadWorkpaper: downloadGeneratedWorkpaper, onPreviewWorkpaper: previewGeneratedWorkpaper,
         newPbcName: newPbcName, onPbcNameChange: setNewPbcName, onAddPbc: addPbcItem,
         onDeletePbc: deletePbcItem, onUploadAttachment: uploadPbcAttachment,
-        onDownloadAttachment: downloadPbcAttachment, onPreviewAttachment: openAttachmentPreview, onCheckAttachment: checkAttachment, clientCheck: clientCheck, clientCheckMsg: clientCheckMsg, onExportClientCheck: exportClientCheckReport, onAddMisstatement: addMisstatementFromFinding, misstates: misstates, completeness: completeness, onUpdateMisstatement: updateMisstatement,
+        onDownloadAttachment: downloadPbcAttachment, onPreviewAttachment: openAttachmentPreview, onCheckAttachment: checkAttachment, clientCheck: clientCheck, clientCheckMsg: clientCheckMsg, onExportClientCheck: exportClientCheckReport, onAddMisstatement: addMisstatementFromFinding, misstates: misstates, completeness: completeness, reportElements: reportElements, reportElementsMsg: reportElementsMsg, onSaveReportElements: saveReportElements, onUpdateMisstatement: updateMisstatement,
         onSubmitApproval: submitApproval, onDecideApproval: decideApproval,
         company: activeCompany, project: project,
         onStartChat: props.onStartChat, onCyclePbc: cyclePbc, onCycleWp: cycleWp,
