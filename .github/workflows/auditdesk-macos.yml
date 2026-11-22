@@ -85,9 +85,13 @@ jobs:
           PROFILE="$HOME/.dsh/profiles/desktop/package.json"
           echo "profile: $PROFILE"
           cat "$PROFILE" || true
-          test -f "$PROFILE"
-          grep -q 'dsh-audit-workbench' "$PROFILE"
-          grep -q 'dsh-audit-kb' "$PROFILE"
+          if ! grep -q 'dsh-audit-workbench' "$PROFILE" 2>/dev/null; then
+            echo "audit-plugin-bootstrap: FAILED"
+            cat "$HOME/.dsh/audit-plugins-bootstrap.log" 2>/dev/null || true
+            ls -la "$HOME/.dsh/plugins/auditdesk" 2>/dev/null || true
+            ls -la "/Applications/AuditDesk.app/Contents/Resources/audit-plugins/plugins" || true
+            exit 1
+          fi
           test -d "$HOME/.dsh/profiles/desktop/node_modules/@local/dsh-audit-kb"
           test -d "$HOME/.dsh/profiles/desktop/node_modules/@local/dsh-audit-workbench"
           echo "audit-plugin-bootstrap: ok"

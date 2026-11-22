@@ -1,10 +1,15 @@
 /** Install the bundled AuditDesk plugins into the Electron-owned desktop profile. */
 import { execFile } from 'node:child_process'
-import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { appendFileSync, cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 
 const run = promisify(execFile)
+let logPath = ''
+function log(message: string): void {
+  if (!logPath) return
+  try { appendFileSync(logPath, `${new Date().toISOString()} ${message}\n`) } catch { /* best effort */ }
+}
 const PLUGIN_NAMES = ['audit-workbench-dsh', 'audit-kb-dsh', 'audit-p0-dsh'] as const
 
 interface ProfileManifest {
@@ -38,6 +43,8 @@ export async function ensureAuditPlugins(profileDir: string, resourcesPath: stri
   }
 
   const dshHome = join(profileDir, '..', '..')
+  logPath = join(dshHome, 'audit-plugins-bootstrap.log')
+  log(`bootstrap start resources=${sourceRoot} profile=${profileDir}`)
   const targetRoot = join(dshHome, 'plugins', 'auditdesk')
   mkdirSync(targetRoot, { recursive: true })
 
@@ -46,8 +53,13 @@ export async function ensureAuditPlugins(profileDir: string, resourcesPath: stri
     const source = join(sourceRoot, directory)
     if (!existsSync(join(source, 'package.json'))) continue
     const target = join(targetRoot, directory)
-    rmSync(target, { recursive: true, force: true })
-    cpSync(source, target, { recursive: true })
+    try {
+      rmSync(target, { recursive: true, force: true })
+      cpSync(source, target, { recursive: true })
+    } catch (error) {
+      log(`copy ${directory} failed: ${String(error)}`)
+      throw error
+    }
     const pkg = JSON.parse(readFileSync(join(target, 'package.json'), 'utf8')) as { name?: string }
     if (typeof pkg.name === 'string') plugins.push({ directory, name: pkg.name, target })
   }
@@ -63,13 +75,38 @@ export async function ensureAuditPlugins(profileDir: string, resourcesPath: stri
     if (process.platform === 'win32') {
       // .cmd shims cannot be spawned directly; route through cmd.exe with quoted arguments.
       const command = process.env.ComSpec ?? 'cmd.exe'
-      await run(command, ['/d', '/s', '/c', `"${dshCli}" plugin --profile desktop add "${spec}"`], {
-        env, timeout: 180_000, windowsHide: true,
-      })
+      try {
+        await run(command, ['/d', '/s', '/c', `"${dshCli}" plugin --profile desktop add "${spec}"`], {
+          env, timeout: 180_000, windowsHide: true,
+        })
+        log(`plugin add ok (win): ${plugin.name}`)
+      } catch (error) { log(`plugin add failed (win): ${plugin.name}: ${String(error)}`); throw error }
     } else {
-      await run(dshCli, ['plugin', '--profile', 'desktop', 'add', spec], { env, timeout: 180_000, windowsHide: true })
+      try {
+        await run(dshCli, ['plugin', '--profile', 'desktop', 'add', spec], { env, timeout: 180_000, windowsHide: true })
+        log(`plugin add ok: ${plugin.name}`)
+      } catch (error) { log(`plugin add failed: ${plugin.name}: ${String(error)}`); throw error }
     }
   }
+
+  // Fallback: materialize packages into profile node_modules even if pnpm add failed,
+  // so bundle resolution still finds them on the next launch.
+  const modulesRoot = join(profileDir, 'node_modules')
+  manifest = readManifest(manifestPath)
+  for (const plugin of plugins) {
+    const destination = join(modulesRoot, ...plugin.name.split('/'))
+    if (existsSync(destination)) continue
+    try {
+      mkdirSync(join(destination, '..'), { recursive: true })
+      cpSync(plugin.target, destination, { recursive: true })
+      manifest.dependencies ??= {}
+      manifest.dependencies[plugin.name] = `file:${plugin.target}`
+      log(`fallback copied ${plugin.name} to profile node_modules`)
+    } catch (error) {
+      log(`fallback copy failed ${plugin.name}: ${String(error)}`)
+    }
+  }
+  writeManifest(manifestPath, manifest)
 
   manifest = readManifest(manifestPath)
   const bundles = manifest.dsh?.profile?.bundles ?? []
@@ -82,6 +119,7 @@ export async function ensureAuditPlugins(profileDir: string, resourcesPath: stri
   }
   const finalBundles = new Set(readManifest(manifestPath).dsh?.profile?.bundles ?? [])
   const present = names.every(name => finalBundles.has(name))
+  log(`bootstrap done present=${present} bundles=${[...finalBundles].join(',')}`)
   console.info(`audit plugins: ${present ? 'ready' : 'incomplete'} (${names.join(', ')})`)
   return present
 }
