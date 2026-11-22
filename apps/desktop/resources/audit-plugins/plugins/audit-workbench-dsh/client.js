@@ -1120,6 +1120,8 @@ window.__ModuleLoader__.load({
               style: { padding: '8px 14px', borderRadius: '8px', border: 0, background: '#2f7cf6', color: '#fff', fontSize: '12px', cursor: 'pointer' } }, '导出 Word（.docx）') : null,
             draft ? h('button', { onClick: function () { if (props.onExportPdf) props.onExportPdf(draft.version_id) },
               style: { padding: '8px 14px', borderRadius: '8px', border: 0, background: '#b91c1c', color: '#fff', fontSize: '12px', cursor: 'pointer' } }, '导出 PDF') : null,
+            h('button', { onClick: function () { if (props.onGenerateLetter) props.onGenerateLetter() },
+              style: { padding: '8px 14px', borderRadius: '8px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '生成管理层声明书'),
             h('button', { onClick: function () { if (props.onLoadVersions) props.onLoadVersions() },
               style: { padding: '8px 14px', borderRadius: '8px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '历史版本')),
           checklist.length ? h('div', { style: { marginBottom: '16px' } },
@@ -2137,6 +2139,19 @@ window.__ModuleLoader__.load({
             URL.revokeObjectURL(url)
           }).catch(function () {})
       }
+      function generateManagementLetter() {
+        if (!activeProject) return
+        fetch(BASE + '/audit/report/management-letter', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-KB-Token': currentToken() }, body: JSON.stringify({ project: activeProject }) })
+          .then(function (resp) { if (!resp.ok) throw new Error('HTTP ' + resp.status); return resp.blob() })
+          .then(function (blob) {
+            const url = URL.createObjectURL(blob)
+            const anchor = document.createElement('a')
+            anchor.href = url; anchor.download = '管理层声明书.docx'
+            document.body.appendChild(anchor); anchor.click(); anchor.remove()
+            URL.revokeObjectURL(url)
+            api('/audit/report/completeness', { project: activeProject }).then(setCompleteness).catch(function () {})
+          }).catch(function () {})
+      }
       function submitReportReview(versionId) {
         api('/audit/report/submit-review', null, { method: 'POST', body: { version_id: versionId } })
           .then(function () {
@@ -2603,7 +2618,7 @@ window.__ModuleLoader__.load({
         onLoadChecklist: loadReportChecklist, onLoadOpinion: loadReportOpinion,
         onGenerateDraft: generateReportDraft, onDownloadDraft: downloadReportDraft,
         onLoadVersions: loadReportVersions, onDownloadVersion: downloadVersion,
-        onExportDocx: exportReportDocx, onExportPdf: exportReportPdf, onSubmitReview: submitReportReview, onFinalizeReport: finalizeReport,
+        onExportDocx: exportReportDocx, onExportPdf: exportReportPdf, onGenerateLetter: generateManagementLetter, onSubmitReview: submitReportReview, onFinalizeReport: finalizeReport,
         generated: generated, generating: generating, generateMessage: generateMessage,
         reviewerName: reviewerName, onReviewerNameChange: setReviewerName,
         members: members, newMemberName: newMemberName, onNewMemberNameChange: setNewMemberName,
