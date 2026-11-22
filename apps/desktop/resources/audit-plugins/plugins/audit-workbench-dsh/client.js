@@ -467,7 +467,10 @@ window.__ModuleLoader__.load({
                 h('option', { value: 'related' }, '关联方交易检查表'),
                 h('option', { value: 'contingencies' }, '或有事项检查表'),
                 h('option', { value: 'opening' }, '期初余额审计程序表'),
-                h('option', { value: 'policies' }, '会计政策与估计检查表')),
+                h('option', { value: 'policies' }, '会计政策与估计检查表'),
+                h('option', { value: 'fixed_assets' }, '固定资产审计底稿'),
+                h('option', { value: 'payroll' }, '应付职工薪酬审计底稿'),
+                h('option', { value: 'taxes' }, '应交税费审计底稿')),
               h('button', { onClick: function () { if (props.onGenerateChecklist) props.onGenerateChecklist() },
                 style: { padding: '8px 14px', borderRadius: '8px', border: '1px solid ' + COLORS.accent, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '生成检查表（Word）'),
               h('button', { onClick: function () { if (props.onGenerateRiskDocx) props.onGenerateRiskDocx() },
@@ -815,7 +818,7 @@ window.__ModuleLoader__.load({
             }) : [h('div', { key: 'empty', style: { padding: '14px', fontSize: '12px', color: COLORS.muted } }, '暂无底稿，先从模板生成')])
         const generated = props.generated === null ? [] : props.generated
         const generatedStats = generated.reduce(function (acc, item) { const kind = item.kind || 'other'; acc[kind] = (acc[kind] || 0) + 1; return acc }, {})
-        const KIND_LABELS = { currency: '货币资金', receivable: '应收账款', inventory: '存货', revenue: '营业收入成本', trial_balance: '试算平衡', subsequent_events: '期后事项', going_concern: '持续经营', related_parties: '关联方交易', contingencies: '或有事项', opening_balances: '期初余额', accounting_policies: '会计政策与估计' }
+        const KIND_LABELS = { currency: '货币资金', receivable: '应收账款', inventory: '存货', revenue: '营业收入成本', trial_balance: '试算平衡', subsequent_events: '期后事项', going_concern: '持续经营', related_parties: '关联方交易', contingencies: '或有事项', opening_balances: '期初余额', accounting_policies: '会计政策与估计', fixed_assets: '固定资产', payroll: '应付职工薪酬', taxes: '应交税费' }
         const kindOptions = Array.from(new Set(generated.map(function (item) { return item.kind }))).filter(Boolean)
         const filteredGenerated = props.generatedKind && props.generatedKind !== 'all' ? generated.filter(function (item) { return item.kind === props.generatedKind }) : generated
         const generatedRows = filteredGenerated.map(function (item) {
@@ -1754,6 +1757,54 @@ window.__ModuleLoader__.load({
             refreshWorkpapers()
           }).catch(function () {})
       }
+      function generateFixedAssets() {
+        if (!activeProject) return
+        fetch(BASE + '/audit/workpapers/fixed-assets', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-KB-Token': currentToken() },
+          body: JSON.stringify({ project: activeProject }),
+        }).then(function (resp) { if (!resp.ok) throw new Error('HTTP ' + resp.status); return resp.blob() })
+          .then(function (blob) {
+            const url = URL.createObjectURL(blob)
+            const anchor = document.createElement('a')
+            anchor.href = url; anchor.download = '固定资产底稿.docx'
+            document.body.appendChild(anchor); anchor.click(); anchor.remove()
+            URL.revokeObjectURL(url)
+            refreshWorkpapers()
+          }).catch(function () {})
+      }
+      function generatePayroll() {
+        if (!activeProject) return
+        fetch(BASE + '/audit/workpapers/payroll', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-KB-Token': currentToken() },
+          body: JSON.stringify({ project: activeProject }),
+        }).then(function (resp) { if (!resp.ok) throw new Error('HTTP ' + resp.status); return resp.blob() })
+          .then(function (blob) {
+            const url = URL.createObjectURL(blob)
+            const anchor = document.createElement('a')
+            anchor.href = url; anchor.download = '应付职工薪酬底稿.docx'
+            document.body.appendChild(anchor); anchor.click(); anchor.remove()
+            URL.revokeObjectURL(url)
+            refreshWorkpapers()
+          }).catch(function () {})
+      }
+      function generateTaxes() {
+        if (!activeProject) return
+        fetch(BASE + '/audit/workpapers/taxes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-KB-Token': currentToken() },
+          body: JSON.stringify({ project: activeProject }),
+        }).then(function (resp) { if (!resp.ok) throw new Error('HTTP ' + resp.status); return resp.blob() })
+          .then(function (blob) {
+            const url = URL.createObjectURL(blob)
+            const anchor = document.createElement('a')
+            anchor.href = url; anchor.download = '应交税费底稿.docx'
+            document.body.appendChild(anchor); anchor.click(); anchor.remove()
+            URL.revokeObjectURL(url)
+            refreshWorkpapers()
+          }).catch(function () {})
+      }
       function generateChecklist() {
         const map = {
           subsequent: generateSubsequentEvents,
@@ -1762,6 +1813,9 @@ window.__ModuleLoader__.load({
           contingencies: generateContingencies,
           opening: generateOpeningBalances,
           policies: generateAccountingPolicies,
+          fixed_assets: generateFixedAssets,
+          payroll: generatePayroll,
+          taxes: generateTaxes,
         }
         const handler = map[checklistKind] || generateSubsequentEvents
         if (handler) handler()
