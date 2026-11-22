@@ -75,7 +75,6 @@ jobs:
             Commit: ${{ github.sha }}
           files: apps/desktop/.desktop-build/targets/win-x64/unsigned-artifacts/*.exe
       - name: Smoke install and launch
-        continue-on-error: true
         timeout-minutes: 8
         shell: pwsh
         run: |
@@ -114,7 +113,14 @@ jobs:
           $profilePkg = Join-Path $env:DSH_HOME 'profiles\desktop\package.json'
           if (Test-Path $profilePkg) {
             $pkgText = Get-Content $profilePkg -Raw
-            if ($pkgText -match 'dsh-audit-workbench') { Write-Host 'audit-plugins: installed into desktop profile' } else { throw 'audit plugins missing from temp desktop profile' }
+            if ($pkgText -match 'dsh-audit-workbench') { Write-Host 'audit-plugins: installed into desktop profile' } else {
+              Write-Host '--- bootstrap log ---'
+              $bootLog = Join-Path $env:DSH_HOME 'audit-plugins-bootstrap.log'
+              if (Test-Path $bootLog) { Get-Content $bootLog | Select-Object -Last 30 } else { Write-Host 'bootstrap log missing' }
+              Write-Host '--- app log ---'
+              Get-ChildItem (Join-Path $env:TEMP 'auditdesk-smoke-home') -Recurse -Filter '*.log' -ErrorAction SilentlyContinue | Select-Object -First 5 | ForEach-Object { Write-Host $_.FullName; Get-Content $_.FullName | Select-Object -Last 20 }
+              throw 'audit plugins missing from temp desktop profile'
+            }
             else { Write-Host 'audit-plugins: profile present but plugins missing' }
           } else {
             Write-Host 'audit-plugins: desktop profile not created'
