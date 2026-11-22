@@ -2862,7 +2862,7 @@ window.__ModuleLoader__.load({
               '· ' + item.title + (item.expire ? '（' + item.expire + '）' : '（已失效）'),
               (item.replacements && item.replacements.length)
                 ? h('div', { style: { color: '#16a34a', paddingLeft: '10px' } }, item.replacements.map(function (rep) {
-                    return h('div', { key: 'rep-' + (rep.id || rep.title) }, '↳ 可能替代：' + rep.title + (rep.docno ? '（' + rep.docno + '）' : ''))
+                    return h('div', { key: 'rep-' + (rep.id || rep.title), onClick: function () { if (rep.filename) openDoc(rep.filename) }, title: '点击查看新版本全文', style: { cursor: 'pointer', textDecoration: 'underline' } }, '↳ 可能替代：' + rep.title + (rep.docno ? '（' + rep.docno + '）' : ''))
                   }))
                 : null)
           })) : null,
