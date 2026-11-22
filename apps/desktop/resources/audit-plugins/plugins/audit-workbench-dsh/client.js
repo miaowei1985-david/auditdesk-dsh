@@ -3465,7 +3465,18 @@ window.__ModuleLoader__.load({
         h('path', { d: 'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z' }))
     }
 
-    function DashboardPage() {
+    function DashboardPage(props) {
+      const authUser = (props && props.auth && props.auth.user) || {}
+      const role = authUser.role || 'auditor'
+      const roleLabel = { auditor: '审计员', manager: '项目经理', partner: '合伙人', 'kb-admin': '管理员', admin: '管理员' }[role] || role
+      const roleHome = {
+        auditor: { hint: '今天先看我的项目与底稿进度，再处理资料清单待补项。', actions: [['进入客户与项目', 'audit-companies'], ['知识库检索', 'audit-kb']] },
+        manager: { hint: '优先处理「我的待办」中的审批，再复核底稿与报告。', actions: [['进入客户与项目（审批）', 'audit-companies'], ['知识库', 'audit-kb']] },
+        partner: { hint: '关注报告复核与定稿、重要性确认与归档。', actions: [['进入客户与项目（报告）', 'audit-companies'], ['系统状态', 'audit-system']] },
+        'kb-admin': { hint: '关注知识库更新审批、用户与备份，再进入项目抽查。', actions: [['系统状态', 'audit-system'], ['知识库（待审）', 'audit-kb']] },
+        admin: { hint: '关注系统健康、备份与知识库更新，再进入项目抽查。', actions: [['系统状态', 'audit-system'], ['知识库（待审）', 'audit-kb']] },
+      }[role] || { hint: '进入客户与项目查看进度。', actions: [['进入客户与项目', 'audit-companies']] }
+      function goPanel(panelId) { try { if (props.ui && props.ui.layout) props.ui.layout.selectPanel(panelId) } catch (e) {} }
       const state = React.useState(null); const dashboard = state[0]; const setDashboard = state[1]
       const loadingState = React.useState(false); const loading = loadingState[0]; const setLoading = loadingState[1]
       const errorState = React.useState(''); const error = errorState[0]; const setError = errorState[1]
@@ -3548,6 +3559,13 @@ window.__ModuleLoader__.load({
             h('button', { onClick: exportDashboardPdf, style: { padding: '7px 12px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '导出 PDF'),
             h('button', { onClick: load, style: { padding: '7px 12px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, loading ? '刷新中…' : '刷新'))),
         error ? h('div', { style: { fontSize: '12px', color: '#b91c1c', marginBottom: '8px' } }, error) : null,
+        h('div', { style: { marginBottom: '12px', padding: '10px 14px', borderRadius: '10px', border: '1px solid ' + COLORS.line, display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', fontSize: '12px' } },
+          h('span', { style: { fontWeight: 600 } }, '我的工作台 · ' + roleLabel),
+          h('span', { style: { color: COLORS.muted } }, roleHome.hint),
+          roleHome.actions.map(function (pair) {
+            return h('button', { key: 'rh-' + pair[1], onClick: function () { goPanel(pair[1]) },
+              style: { padding: '5px 10px', borderRadius: '7px', border: '1px solid ' + COLORS.accent, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, pair[0])
+          })),
         showGuide ? h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', padding: '10px 14px', borderRadius: '10px', background: 'rgba(47,124,246,0.08)', border: '1px solid ' + COLORS.accent, marginBottom: '12px', fontSize: '12px' } },
           h('span', null, '第一次使用？侧栏「使用指南」有 5 步上手流程：新建项目 → 导入数据 → 执行程序 → 报告 → 归档。'),
           h('button', { onClick: dismissGuide, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '知道了')) : null,
@@ -3705,7 +3723,7 @@ window.__ModuleLoader__.load({
         }
         function AuditCompaniesPage(props) { return h(CompaniesPage, { onStartChat: onStartChat, ui: ctx, auth: props.auth }) }
         const panels = [
-          { id: 'audit-dashboard', label: '项目看板', icon: DashboardIcon, page: withAuth(DashboardPage), order: 29 },
+          { id: 'audit-dashboard', label: '项目看板', icon: DashboardIcon, page: withAuth(function (p) { return h(DashboardPage, Object.assign({}, p, { ui: ctx })) }), order: 29 },
           { id: 'audit-guide', label: '使用指南', icon: GuideIcon, page: withAuth(GuidePage), order: 35 },
           { id: 'audit-about', label: '关于', icon: AboutIcon, page: withAuth(AboutPage), order: 36 },
           { id: 'audit-companies', label: '客户与项目', icon: CompaniesIcon, page: withAuth(AuditCompaniesPage), order: 30 },
