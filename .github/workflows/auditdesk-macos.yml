@@ -1,0 +1,97 @@
+name: AuditDesk macOS Build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: auditdesk-macos-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI: '1'
+  DSH_DESKTOP_AUTO_UPDATE_ENV: test
+
+jobs:
+  build:
+    name: build
+    runs-on: macos-14
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.28.5
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build unsigned macOS app
+        run: pnpm package:mac:arm64:unsigned
+        working-directory: apps/desktop
+
+      - name: Verify bundle contents
+        run: |
+          APP="apps/desktop/.desktop-build/targets/mac-arm64/unsigned-artifacts/mac-arm64/AuditDesk.app"
+          test -d "$APP"
+          test -d "$APP/Contents/Resources/audit-plugins/plugins"
+          test -x "$APP/Contents/Resources/runtime/cli/bin/dsh"
+          ls "$APP/Contents/Resources/audit-plugins/plugins"
+          echo "bundle-ok"
+
+      - name: Install and launch smoke
+        run: |
+          set -euo pipefail
+          DMG=$(ls apps/desktop/.desktop-build/targets/mac-arm64/unsigned-artifacts/*.dmg | head -1)
+          echo "dmg: $DMG"
+          hdiutil attach "$DMG" -nobrowse -quiet
+          VOL=$(ls -d /Volumes/AuditDesk* /Volumes/deepseek-harness* 2>/dev/null | head -1)
+          echo "volume: $VOL"
+          ls "$VOL"
+          APP=$(find "$VOL" -maxdepth 1 -name 'AuditDesk.app' | head -1)
+          test -n "$APP"
+          rm -rf /Applications/AuditDesk.app
+          cp -R "$APP" /Applications/AuditDesk.app
+          hdiutil detach "$VOL" -quiet || true
+          xattr -cr /Applications/AuditDesk.app || true
+          codesign --force --deep --sign - /Applications/AuditDesk.app || true
+          sudo spctl --global-disable || true
+          open -a /Applications/AuditDesk.app || true
+          sleep 25
+          if pgrep -f '/Applications/AuditDesk.app/Contents/MacOS/AuditDesk' >/dev/null; then
+            echo "launch: ok"
+          else
+            echo "launch: failed"
+            log show --last 2m --predicate 'process == "AuditDesk"' | tail -50 || true
+            exit 1
+          fi
+          mkdir -p artifacts
+          screencapture -x artifacts/macos-desktop.png || true
+          cp -R /Applications/AuditDesk.app/Contents/Resources/audit-plugins artifacts/audit-plugins
+          pkill -f '/Applications/AuditDesk.app/Contents/MacOS/AuditDesk' || true
+
+      - name: Upload DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: auditdesk-macos-unsigned-dmg
+          path: apps/desktop/.desktop-build/targets/mac-arm64/unsigned-artifacts/*.dmg
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload smoke screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: auditdesk-macos-smoke
+          path: artifacts
+          if-no-files-found: ignore
+          retention-days: 7
