@@ -14,6 +14,8 @@ on:
     paths:
       - 'apps/desktop/resources/audit-plugins/**'
       - 'apps/desktop/scripts/electron-builder-config.mjs'
+      - 'apps/desktop/src/**'
+      - 'apps/desktop/resources/**'
       - '.github/workflows/auditdesk-windows.yml'
 
 permissions:
@@ -112,7 +114,7 @@ jobs:
           $profilePkg = Join-Path $env:DSH_HOME 'profiles\desktop\package.json'
           if (Test-Path $profilePkg) {
             $pkgText = Get-Content $profilePkg -Raw
-            if ($pkgText -match 'dsh-audit-workbench') { Write-Host 'audit-plugins: installed into desktop profile' }
+            if ($pkgText -match 'dsh-audit-workbench') { Write-Host 'audit-plugins: installed into desktop profile' } else { throw 'audit plugins missing from temp desktop profile' }
             else { Write-Host 'audit-plugins: profile present but plugins missing' }
           } else {
             Write-Host 'audit-plugins: desktop profile not created'

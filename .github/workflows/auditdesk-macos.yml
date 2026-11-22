@@ -6,6 +6,8 @@ on:
     paths:
       - 'apps/desktop/resources/audit-plugins/**'
       - 'apps/desktop/scripts/electron-builder-config.mjs'
+      - 'apps/desktop/src/**'
+      - 'apps/desktop/resources/**'
       - '.github/workflows/auditdesk-macos.yml'
   workflow_dispatch:
 
@@ -80,6 +82,15 @@ jobs:
           fi
           mkdir -p artifacts
           screencapture -x artifacts/macos-desktop.png || true
+          PROFILE="$HOME/.dsh/profiles/desktop/package.json"
+          echo "profile: $PROFILE"
+          cat "$PROFILE" || true
+          test -f "$PROFILE"
+          grep -q 'dsh-audit-workbench' "$PROFILE"
+          grep -q 'dsh-audit-kb' "$PROFILE"
+          test -d "$HOME/.dsh/profiles/desktop/node_modules/@local/dsh-audit-kb"
+          test -d "$HOME/.dsh/profiles/desktop/node_modules/@local/dsh-audit-workbench"
+          echo "audit-plugin-bootstrap: ok"
           cp -R /Applications/AuditDesk.app/Contents/Resources/audit-plugins artifacts/audit-plugins
           pkill -f '/Applications/AuditDesk.app/Contents/MacOS/AuditDesk' || true
 

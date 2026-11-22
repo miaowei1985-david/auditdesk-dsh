@@ -50,17 +50,15 @@ for plugin in audit-workbench-dsh audit-kb-dsh audit-p0-dsh; do
 done
 
 PROFILE_DIR="$DSH_HOME/profiles/$PROFILE"
-mkdir -p "$PROFILE_DIR"
 if [ ! -f "$PROFILE_DIR/package.json" ]; then
-  echo "初始化 profile ${PROFILE} ..."
-  DSH_HOME="$DSH_HOME" "$DSH_BIN_PATH" plugin --profile "$PROFILE" add "file:$TARGET_DIR/audit-kb-dsh"
-fi
-if [ ! -f "$PROFILE_DIR/package.json" ]; then
-  echo "无法初始化 profile：${PROFILE_DIR}/package.json 不存在"
-  exit 1
+  echo "profile 尚未初始化：请先启动一次 AuditDesk 并完全退出，再重新运行本脚本。" >&2
+  exit 2
 fi
 
-for plugin in audit-workbench-dsh audit-p0-dsh; do
+for plugin in audit-kb-dsh audit-workbench-dsh audit-p0-dsh; do
   DSH_HOME="$DSH_HOME" "$DSH_BIN_PATH" plugin --profile "$PROFILE" add "file:$TARGET_DIR/$plugin"
 done
+NODE_BIN="$SCRIPT_DIR/../runtime/bin/node"
+[ -x "$NODE_BIN" ] || NODE_BIN="$(command -v node)"
+"$NODE_BIN" "$SCRIPT_DIR/enable-bundles.mjs" "$PROFILE_DIR/package.json"
 echo "安装完成。请重启 AuditDesk 桌面端，左侧应出现「客户与项目 / 知识库 / 操作留痕 / 用户管理 / 系统状态」。"

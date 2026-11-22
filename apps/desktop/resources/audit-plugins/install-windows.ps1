@@ -51,18 +51,16 @@ foreach ($plugin in @("audit-workbench-dsh", "audit-kb-dsh", "audit-p0-dsh")) {
 }
 
 $ProfileDir = Join-Path $DshHome "profiles\$Profile"
-New-Item -ItemType Directory -Force -Path $ProfileDir | Out-Null
 $ProfileFile = Join-Path $ProfileDir "package.json"
 if (-not (Test-Path $ProfileFile)) {
-  Write-Host "初始化 profile $Profile ..."
-  & $DshCmd plugin --profile $Profile add ("file:" + (Join-Path $TargetDir "audit-kb-dsh"))
+  Write-Error "profile 尚未初始化：请先启动一次 AuditDesk 并完全退出，再重新运行本脚本。"
+  exit 2
 }
-if (-not (Test-Path $ProfileFile)) {
-  Write-Error "无法初始化 profile：$ProfileFile"
-  exit 1
-}
-foreach ($plugin in @("audit-workbench-dsh", "audit-p0-dsh")) {
+foreach ($plugin in @("audit-kb-dsh", "audit-workbench-dsh", "audit-p0-dsh")) {
   & $DshCmd plugin --profile $Profile add ("file:" + (Join-Path $TargetDir $plugin))
 }
-Write-Host "安装完成。请重启 AuditDesk，左侧应出现审计功能面板。"
+$NodeExe = Join-Path (Split-Path -Parent $ScriptDir) "runtime\bin\node.exe"
+if (-not (Test-Path $NodeExe)) { $NodeExe = "node" }
+& $NodeExe (Join-Path $ScriptDir "enable-bundles.mjs") $ProfileFile
+Write-Host "安装完成。请重启 AuditDesk，左侧应出现「客户与项目 / 知识库 / 操作留痕 / 用户管理 / 系统状态」。"
 try { Stop-Transcript | Out-Null } catch { }
