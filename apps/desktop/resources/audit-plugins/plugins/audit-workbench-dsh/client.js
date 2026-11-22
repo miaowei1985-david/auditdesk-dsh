@@ -812,7 +812,9 @@ window.__ModuleLoader__.load({
             (props.clientCheck.findings || []).slice(0, 12).map(function (f, i) {
               return h('div', { key: 'cc-' + i, style: { padding: '3px 0', borderTop: i ? '1px dashed ' + COLORS.line : 'none' } },
                 h('span', { style: { color: f.severity === 'high' ? '#b91c1c' : '#b45309', marginRight: '6px' } }, f.severity === 'high' ? '高' : '中'),
-                f.sheet + '!' + f.cell + '：' + f.message)
+                f.sheet + '!' + f.cell + '：' + f.message,
+                h('button', { onClick: function () { if (props.onAddMisstatement) props.onAddMisstatement(f) },
+                  style: { marginLeft: '8px', padding: '1px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '10px', cursor: 'pointer' } }, '记入未更正'))
             })) : null) : null
         const addForm = h('div', { style: { display: 'flex', gap: '6px', marginTop: '10px' } },
           h('input', { value: props.newPbcName || '', onChange: function (event) { if (props.onPbcNameChange) props.onPbcNameChange(event.target.value) },
@@ -1117,6 +1119,22 @@ window.__ModuleLoader__.load({
                 h('div', null, h('span', null, item.item), item.detail ? h('span', { style: { color: COLORS.muted, marginLeft: '8px' } }, item.detail) : null),
                 h(Badge, { tone: statusTone(item.status) }, item.status))
             })) : null,
+          (function () {
+            const mis = props.misstates || { items: [] }
+            const items = mis.items || []
+            if (!items.length) return null
+            return h('div', { style: { marginBottom: '16px', padding: '12px', borderRadius: '10px', border: '1px solid ' + COLORS.line } },
+              h('div', { style: { fontSize: '13px', fontWeight: 600, marginBottom: '4px' } }, '未更正错报汇总（' + (mis.uncorrected_count || items.length) + ' 项，合计 ' + (mis.uncorrected_total || 0) + '）'),
+              h('div', { style: { fontSize: '11px', color: '#b45309', marginBottom: '6px' } }, '报告出具前须逐项询问/调整；未处理项会进入报告检查清单。'),
+              items.slice(0, 12).map(function (item) {
+                return h('div', { key: 'mis-' + item.id, style: { padding: '5px 0', borderTop: '1px solid ' + COLORS.line, fontSize: '12px', display: 'flex', justifyContent: 'space-between', gap: '10px', alignItems: 'center' } },
+                  h('span', null, item.description + (item.source ? '（' + item.source + '）' : '') + ' · 金额 ' + (item.amount || 0)),
+                  h('span', { style: { display: 'flex', gap: '6px', alignItems: 'center' } },
+                    h(Badge, { tone: item.status === '已调整' ? 'ok' : item.status === '已询问' ? 'warn' : 'bad' }, item.status),
+                    item.status !== '已询问' ? h('button', { onClick: function () { if (props.onUpdateMisstatement) props.onUpdateMisstatement(item.id, '已询问') }, style: { padding: '1px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '10px', cursor: 'pointer' } }, '已询问') : null,
+                    item.status !== '已调整' ? h('button', { onClick: function () { if (props.onUpdateMisstatement) props.onUpdateMisstatement(item.id, '已调整') }, style: { padding: '1px 6px', borderRadius: '6px', border: '1px solid #16a34a', background: 'transparent', color: '#16a34a', fontSize: '10px', cursor: 'pointer' } }, '已调整') : null))
+              }))
+          })(),
           opinion ? h('div', { style: { marginBottom: '16px', padding: '12px', borderRadius: '10px', border: '1px solid ' + COLORS.line } },
             h('div', { style: { fontSize: '13px', fontWeight: 600, marginBottom: '4px' } }, '审计意见：' + (opinion.level || '')),
             h('div', { style: { fontSize: '12px', lineHeight: 1.7 } }, opinion.text || ''),
@@ -1281,6 +1299,7 @@ window.__ModuleLoader__.load({
         } catch (e) {}
         reportVersionFilterRestored.current = true
       }, [activeProject])
+      const misstatesState = React.useState({ items: [], uncorrected_count: 0, uncorrected_total: 0 }); const misstates = misstatesState[0]; const setMisstates = misstatesState[1]
       const clientCheckState = React.useState(null); const clientCheck = clientCheckState[0]; const setClientCheck = clientCheckState[1]
       const clientCheckMsgState = React.useState(''); const clientCheckMsg = clientCheckMsgState[0]; const setClientCheckMsg = clientCheckMsgState[1]
       const wpsVerifyState = React.useState(''); const wpsVerifyMessage = wpsVerifyState[0]; const setWpsVerifyMessage = wpsVerifyState[1]
@@ -1361,6 +1380,8 @@ window.__ModuleLoader__.load({
           .catch(function () { if (!cancelled) setInventoryAttachments([]) })
         api('/audit/inventory-meta', { project: activeProject }).then(function (d) { if (!cancelled) setInventoryMeta(d.item || {}) })
           .catch(function () { if (!cancelled) setInventoryMeta({}) })
+        api('/audit/misstatements', { project: activeProject }).then(function (d) { if (!cancelled) setMisstates(d || { items: [] }) })
+          .catch(function () { if (!cancelled) setMisstates({ items: [] }) })
         api('/audit/programs', { project: activeProject }).then(function (d) { if (!cancelled) setPrograms(d.items || []) })
           .catch(function () { if (!cancelled) setPrograms([]) })
         api('/audit/events', { project: activeProject, item_type: 'program', limit: 30 }).then(function (d) { if (!cancelled) setProgramEvents(d.events || []) })
@@ -2348,6 +2369,27 @@ window.__ModuleLoader__.load({
             URL.revokeObjectURL(url)
           }).catch(function () {})
       }
+      function loadMisstatements() {
+        if (!activeProject) return
+        api('/audit/misstatements', { project: activeProject }).then(function (d) { setMisstates(d || { items: [] }) }).catch(function () {})
+      }
+      function addMisstatementFromFinding(finding) {
+        if (!activeProject) return
+        api('/audit/misstatements/add', null, { method: 'POST', body: {
+          project: activeProject,
+          source: (finding.sheet || '') + '!' + (finding.cell || ''),
+          description: finding.message || '客户底稿核对差异',
+          amount: Math.abs(Number(finding.diff) || 0),
+          category: '未更正',
+        } }).then(function (d) {
+          setClientCheckMsg('已记入未更正错报：' + ((d.item && d.item.description) || '').slice(0, 40))
+          loadMisstatements()
+        }).catch(function (e) { setClientCheckMsg('记入失败：' + String(e)) })
+      }
+      function updateMisstatement(id, status) {
+        api('/audit/misstatements/update', null, { method: 'POST', body: { id: id, status: status } })
+          .then(loadMisstatements).catch(function () {})
+      }
       function checkAttachment(att) {
         if (!activeProject || !att) return
         setClientCheckMsg('正在核对 ' + att.filename + ' …')
@@ -2547,7 +2589,7 @@ window.__ModuleLoader__.load({
         onDownloadWorkpaper: downloadGeneratedWorkpaper, onPreviewWorkpaper: previewGeneratedWorkpaper,
         newPbcName: newPbcName, onPbcNameChange: setNewPbcName, onAddPbc: addPbcItem,
         onDeletePbc: deletePbcItem, onUploadAttachment: uploadPbcAttachment,
-        onDownloadAttachment: downloadPbcAttachment, onPreviewAttachment: openAttachmentPreview, onCheckAttachment: checkAttachment, clientCheck: clientCheck, clientCheckMsg: clientCheckMsg, onExportClientCheck: exportClientCheckReport,
+        onDownloadAttachment: downloadPbcAttachment, onPreviewAttachment: openAttachmentPreview, onCheckAttachment: checkAttachment, clientCheck: clientCheck, clientCheckMsg: clientCheckMsg, onExportClientCheck: exportClientCheckReport, onAddMisstatement: addMisstatementFromFinding, misstates: misstates, onUpdateMisstatement: updateMisstatement,
         onSubmitApproval: submitApproval, onDecideApproval: decideApproval,
         company: activeCompany, project: project,
         onStartChat: props.onStartChat, onCyclePbc: cyclePbc, onCycleWp: cycleWp,
