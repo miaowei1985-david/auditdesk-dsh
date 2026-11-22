@@ -2245,14 +2245,17 @@ window.__ModuleLoader__.load({
         if (!activeProject || exporting) return
         setExporting(true)
         fetch(BASE + '/audit/projects/archive-export?project=' + encodeURIComponent(activeProject), { headers: { 'X-KB-Token': currentToken() } })
-          .then(function (resp) { if (!resp.ok) throw new Error('HTTP ' + resp.status); return resp.blob() })
+          .then(function (resp) {
+            if (resp.ok) return resp.blob()
+            return resp.json().then(function (data) { throw new Error((data && data.detail) || ('HTTP ' + resp.status)) })
+          })
           .then(function (blob) {
             const url = URL.createObjectURL(blob)
             const anchor = document.createElement('a')
             anchor.href = url; anchor.download = activeProject + '_审计档案.zip'
             document.body.appendChild(anchor); anchor.click(); anchor.remove()
             URL.revokeObjectURL(url)
-          }).catch(function () {})
+          }).catch(function (e) { try { window.alert('导出归档包失败：' + String(e.message || e)) } catch (x) {} })
           .then(function () { setExporting(false) })
       }
       function archiveProject() {
