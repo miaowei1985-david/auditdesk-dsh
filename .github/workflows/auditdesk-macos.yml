@@ -9,6 +9,9 @@ env:
   CI: '1'
   DSH_DESKTOP_AUTO_UPDATE_ENV: test
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: build
@@ -83,6 +86,17 @@ jobs:
           path: apps/desktop/.desktop-build/targets/mac-arm64/unsigned-artifacts/*.dmg
           if-no-files-found: error
           retention-days: 7
+
+      - name: Publish release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: macos-build-${{ github.run_number }}
+          name: AuditDesk macOS ${{ github.run_number }}
+          body: |
+            AuditDesk macOS unsigned build (arm64).
+            DMG is ad-hoc signed for smoke testing; production distribution requires signing/notarization.
+          files: apps/desktop/.desktop-build/targets/mac-arm64/unsigned-artifacts/*.dmg
+          fail_on_unmatched_files: true
 
       - name: Upload smoke screenshot
         if: always()
