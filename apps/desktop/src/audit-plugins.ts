@@ -59,9 +59,16 @@ export async function ensureAuditPlugins(profileDir: string, resourcesPath: stri
   const needsInstall = names.filter(name => !installed.has(name))
   const env = { ...process.env, DSH_HOME: dshHome }
   for (const plugin of plugins.filter(item => needsInstall.includes(item.name))) {
-    await run(dshCli, ['plugin', '--profile', 'desktop', 'add', `file:${plugin.target}`], {
-      env, timeout: 180_000, windowsHide: true,
-    })
+    const spec = `file:${plugin.target}`
+    if (process.platform === 'win32') {
+      // .cmd shims cannot be spawned directly; route through cmd.exe with quoted arguments.
+      const command = process.env.ComSpec ?? 'cmd.exe'
+      await run(command, ['/d', '/s', '/c', `"${dshCli}" plugin --profile desktop add "${spec}"`], {
+        env, timeout: 180_000, windowsHide: true,
+      })
+    } else {
+      await run(dshCli, ['plugin', '--profile', 'desktop', 'add', spec], { env, timeout: 180_000, windowsHide: true })
+    }
   }
 
   manifest = readManifest(manifestPath)
