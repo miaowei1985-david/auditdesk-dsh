@@ -3218,7 +3218,9 @@ window.__ModuleLoader__.load({
       const backupVerifyState = React.useState(''); const backupVerifyMessage = backupVerifyState[0]; const setBackupVerifyMessage = backupVerifyState[1]
       const kbSyncState = React.useState(null); const kbSync = kbSyncState[0]; const setKbSync = kbSyncState[1]
       const kbAdminState = React.useState(null); const kbAdmin = kbAdminState[0]; const setKbAdmin = kbAdminState[1]
-      React.useEffect(function () { loadKbSync() }, [])
+      const auditEventsState = React.useState(null); const auditEvents = auditEventsState[0]; const setAuditEvents = auditEventsState[1]
+      const auditEventsMsgState = React.useState(''); const auditEventsMsg = auditEventsMsgState[0]; const setAuditEventsMsg = auditEventsMsgState[1]
+      React.useEffect(function () { loadKbSync(); loadAuditEvents() }, [])
       const kbSyncMsgState = React.useState(''); const kbSyncMsg = kbSyncMsgState[0]; const setKbSyncMsg = kbSyncMsgState[1]
       const sysEventState = React.useState(null); const sysEvent = sysEventState[0]; const setSysEvent = sysEventState[1]
       const sysEventsState = React.useState([]); const sysEvents = sysEventsState[0]; const setSysEvents = sysEventsState[1]
@@ -3305,6 +3307,24 @@ window.__ModuleLoader__.load({
       function loadKbSync() {
         api('/kb/admin/status').then(function (d) { setKbAdmin(d) }).catch(function () {})
         api('/kb/sync/status').then(function (d) { setKbSync(d) }).catch(function () {})
+      }
+      function loadAuditEvents() {
+        fetch('/api/audit/events?since=0').then(function (resp) {
+          if (!resp.ok) throw new Error('HTTP ' + resp.status)
+          return resp.json()
+        }).then(function (d) { setAuditEvents(d); setAuditEventsMsg('') })
+          .catch(function () { setAuditEvents(null); setAuditEventsMsg('AI 行为审计插件未启用') })
+      }
+      function exportAuditEvents() {
+        if (!auditEvents) return
+        const rows = [['时间', '事件', '模式', '参数摘要']].concat((auditEvents.recent || []).map(function (rec) {
+          return [new Date(rec.at).toISOString(), rec.event || '', rec.mode || '', JSON.stringify(rec.args || []).slice(0, 500)]
+        }))
+        const csv = rows.map(function (row) { return row.map(function (cell) { return '"' + String(cell).replace(/"/g, '""') + '"' }).join(',') }).join('\n')
+        const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' })
+        const url = URL.createObjectURL(blob); const a = document.createElement('a')
+        a.href = url; a.download = 'AI行为审计_' + new Date().toISOString().slice(0, 10) + '.csv'
+        document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url)
       }
       function runKbSync() {
         setKbSyncMsg('已开始检查，可能需要几分钟…')
@@ -3465,6 +3485,27 @@ window.__ModuleLoader__.load({
           kbSync && kbSync.state && kbSync.state.results && kbSync.state.results.length ? h('div', { style: { marginTop: '6px', fontSize: '11px', color: COLORS.muted } },
             kbSync.state.results.map(function (r, i) { return h('div', { key: 'kbs-' + i }, '· ' + r.source + '：' + (r.ok ? '成功' : '失败') + '（新增 ' + (r.added || 0) + '，' + (r.elapsed || 0) + 's）') })) : null,
           kbSyncMsg ? h('div', { style: { marginTop: '6px', fontSize: '11px', color: '#b45309' } }, kbSyncMsg) : null) : null,
+        isAdmin ? h('div', { style: { marginBottom: '12px', padding: '14px', borderRadius: '12px', border: '1px solid ' + COLORS.line } },
+          h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' } },
+            h('div', { style: { fontSize: '13px', fontWeight: 600 } }, 'AI 行为审计（事件流）'),
+            h('div', { style: { display: 'flex', gap: '8px' } },
+              h('button', { onClick: loadAuditEvents, style: { padding: '5px 10px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px', cursor: 'pointer' } }, '刷新'),
+              auditEvents ? h('button', { onClick: exportAuditEvents, style: { padding: '5px 10px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px', cursor: 'pointer' } }, '导出 CSV') : null)),
+          auditEventsMsg ? h('div', { style: { fontSize: '12px', color: '#b45309' } }, auditEventsMsg) : null,
+          auditEvents ? (function () {
+            const counts = auditEvents.counts || {}
+            const total = Object.keys(counts).reduce(function (sum, key) { return sum + (counts[key] || 0) }, 0)
+            const toolCount = Object.keys(counts).filter(function (key) { return key.indexOf('tools/') === 0 || key.indexOf('tool') >= 0 }).reduce(function (sum, key) { return sum + counts[key] }, 0)
+            const agentCount = Object.keys(counts).filter(function (key) { return key.indexOf('agent/') === 0 || key.indexOf('subagent') >= 0 }).reduce(function (sum, key) { return sum + counts[key] }, 0)
+            const recent = (auditEvents.recent || []).slice(-10).reverse()
+            return h('div', { style: { fontSize: '12px', color: COLORS.muted, lineHeight: 1.8 } },
+              '累计事件 ' + total + ' · 工具调用 ' + toolCount + ' · Agent/子代理 ' + agentCount + ' · 当前缓冲 ' + (auditEvents.recent || []).length + ' 条',
+              recent.length ? h('div', { style: { marginTop: '4px', maxHeight: '150px', overflow: 'auto' } }, recent.map(function (rec, i) {
+                return h('div', { key: 'ae-' + i, style: { display: 'flex', justifyContent: 'space-between', gap: '10px', padding: '1px 0' } },
+                  h('span', { style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, (rec.event || '') + ' · ' + String(JSON.stringify(rec.args || [])).slice(0, 80)),
+                  h('span', { style: { color: COLORS.muted } }, new Date(rec.at).toLocaleTimeString()))
+              })) : h('div', null, '暂无事件（运行一次对话/底稿生成后自动积累）'))
+          })() : null) : null,
         isAdmin ? h('div', { style: { marginBottom: '12px', padding: '10px 14px', borderRadius: '12px', border: '1px solid ' + COLORS.line, display: 'flex', gap: '14px', flexWrap: 'wrap', fontSize: '12px', alignItems: 'center' } },
           h('span', { style: { fontWeight: 600 } }, '系统操作统计'),
           [['backup', '备份'], ['drill', '演练'], ['alert', '告警'], ['archive', '归档'], ['report_push', '报告推送']].map(function (pair) {

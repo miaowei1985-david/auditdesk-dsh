@@ -1,0 +1,38 @@
+{
+  "name": "@qing3a/dsh-event-auditor",
+  "version": "0.1.0-auditdesk.1",
+  "description": "AuditDesk vendored dsh-event-auditor (patched for DSH 0.2.2-rc.5 settings API)",
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "files": [
+    "cordis.patch.yml",
+    "lib",
+    "src/client"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/dsh-host-webserver": "*"
+  },
+  "dependencies": {
+    "@deepseek-ai/schemastery": "^3.0.0"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/qing3a/dsh-event-auditor.git"
+  },
+  "keywords": [
+    "dsh",
+    "deepseek-harness",
+    "dsh-plugin",
+    "plugin",
+    "audit",
+    "events",
+    "harness"
+  ]
+}
