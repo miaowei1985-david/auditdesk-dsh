@@ -2191,25 +2191,44 @@ window.__ModuleLoader__.load({
           const summary = completeness ? ('报告完整性 ' + completeness.ok_count + '/' + completeness.count) : '完整性未知'
           if (!window.confirm('确认将报告定稿？定稿后不可修改。\n' + summary + (ready ? '' : '（仍有未完成项，可能被拦截）'))) return
         } catch (e) {}
-        fetch(BASE + '/audit/report/finalize', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-KB-Token': currentToken() },
-          body: JSON.stringify({ version_id: versionId }),
-        }).then(function (resp) {
-          return resp.json().then(function (data) {
-            if (!resp.ok) {
-              const detail = data && data.detail
-              const items = (detail && detail.items) || []
-              const names = items.slice(0, 4).map(function (item) { return item.item || item.label || '' }).filter(Boolean)
-              const message = detail && detail.message
-                ? detail.message + '（' + items.length + ' 项未完成' + (names.length ? '：' + names.join('、') + (items.length > 4 ? '…' : '') : '') + '）'
-                : (typeof detail === 'string' ? detail : '定稿失败')
-              setReport(function (prev) { return Object.assign({}, prev, { message: message }) })
-              return null
+        function send(extra) {
+          return fetch(BASE + '/audit/report/finalize', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-KB-Token': currentToken() },
+            body: JSON.stringify(Object.assign({ version_id: versionId }, extra || {})),
+          })
+        }
+        function success() {
+          setReport(function (prev) { return Object.assign({}, prev, { message: '报告已定稿' }) })
+          loadReportVersions()
+        }
+        function fail(data, status) {
+          const detail = data && data.detail
+          const items = (detail && detail.items) || []
+          const names = items.slice(0, 4).map(function (item) { return item.item || item.label || '' }).filter(Boolean)
+          const message = detail && detail.message
+            ? detail.message + '（' + items.length + ' 项' + (names.length ? '：' + names.join('、') + (items.length > 4 ? '…' : '') : '') + '）'
+            : (typeof detail === 'string' ? detail : '定稿失败')
+          setReport(function (prev) { return Object.assign({}, prev, { message: message }) })
+          if (status === 409 && items.length) {
+            const role = ((props.auth && props.auth.user && props.auth.user.role) || '')
+            if (['partner', 'kb-admin', 'admin'].indexOf(role) >= 0) {
+              let reason = ''
+              try { reason = window.prompt('存在风险/未完成事项，可由合伙人覆盖风险并定稿（需填写至少 8 个字的理由）：\n' + names.join('、'), '') || '' } catch (e) {}
+              if (reason.trim().length >= 8) {
+                send({ allow_risk: true, override_reason: reason.trim() }).then(function (resp) {
+                  return resp.json().then(function (data) {
+                    if (resp.ok) { success(); setReport(function (prev) { return Object.assign({}, prev, { message: '报告已定稿（合伙人覆盖风险）' }) }) }
+                    else { fail(data, resp.status) }
+                  })
+                }).catch(function () {})
+              }
             }
-            setReport(function (prev) { return Object.assign({}, prev, { message: '报告已定稿' }) })
-            loadReportVersions()
-            return data
+          }
+        }
+        send({}).then(function (resp) {
+          return resp.json().then(function (data) {
+            if (resp.ok) { success() } else { fail(data, resp.status) }
           })
         }).catch(function () {})
       }
