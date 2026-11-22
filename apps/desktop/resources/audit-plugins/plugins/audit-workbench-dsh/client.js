@@ -772,10 +772,13 @@ window.__ModuleLoader__.load({
           ? [h('div', { key: 'loading', style: { padding: '14px', fontSize: '12px', color: COLORS.muted } }, '正在加载资料清单…')]
           : (items.length ? items.map(function (item) {
               const attachments = (item.attachments || []).map(function (att) {
-                return h('span', { key: 'att-' + att.id, onClick: function () { if (props.onPreviewAttachment) props.onPreviewAttachment(att) },
-                  title: '点击预览',
-                  style: { display: 'inline-block', marginRight: '6px', marginTop: '4px', padding: '2px 8px', borderRadius: '8px', background: COLORS.bg, fontSize: '11px', cursor: 'pointer', color: COLORS.accent } },
-                  att.filename + ' ' + fmtSize(att.size))
+                return h('span', { key: 'att-' + att.id, style: { display: 'inline-flex', alignItems: 'center', gap: '4px', marginRight: '6px', marginTop: '4px' } },
+                  h('span', { onClick: function () { if (props.onPreviewAttachment) props.onPreviewAttachment(att) }, title: '点击预览',
+                    style: { padding: '2px 8px', borderRadius: '8px', background: COLORS.bg, fontSize: '11px', cursor: 'pointer', color: COLORS.accent } },
+                    att.filename + ' ' + fmtSize(att.size)),
+                  h('button', { onClick: function () { if (props.onCheckAttachment) props.onCheckAttachment(att) },
+                    title: '核对数字勾稽/公式/账面差异',
+                    style: { padding: '2px 6px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '10px', cursor: 'pointer' } }, '核对'))
               })
               return h('div', { key: item.id, style: { padding: '8px 0', borderBottom: '1px solid ' + COLORS.line } },
                 h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
@@ -800,6 +803,17 @@ window.__ModuleLoader__.load({
                     }, h(Badge, { tone: toneOf(item.status) }, item.status)))),
                 attachments.length ? h('div', null, attachments) : null)
             }) : [h('div', { key: 'empty', style: { padding: '14px', fontSize: '12px', color: COLORS.muted } }, '暂无资料清单，先新增应收资料')])
+        const checkPanel = props.clientCheckMsg ? h('div', { style: { marginTop: '10px', padding: '10px', borderRadius: '8px', border: '1px solid ' + COLORS.line, fontSize: '12px' } },
+          h('div', { style: { fontWeight: 600, marginBottom: '4px' } }, props.clientCheckMsg),
+          props.clientCheck ? h('button', { onClick: function () { if (props.onExportClientCheck) props.onExportClientCheck() },
+            style: { marginBottom: '6px', padding: '4px 10px', borderRadius: '7px', border: '1px solid ' + COLORS.accent, background: 'transparent', color: COLORS.accent, fontSize: '11px', cursor: 'pointer' } }, '导出核对记录（Word）') : null,
+          props.clientCheck ? h('div', null,
+            h('div', { style: { color: COLORS.muted, marginBottom: '6px' } }, '文件：' + (props.clientCheck.filename || '') + ' · 共 ' + ((props.clientCheck.summary || {}).total || 0) + ' 项（高 ' + ((props.clientCheck.summary || {}).high || 0) + ' / 中 ' + ((props.clientCheck.summary || {}).medium || 0) + '）'),
+            (props.clientCheck.findings || []).slice(0, 12).map(function (f, i) {
+              return h('div', { key: 'cc-' + i, style: { padding: '3px 0', borderTop: i ? '1px dashed ' + COLORS.line : 'none' } },
+                h('span', { style: { color: f.severity === 'high' ? '#b91c1c' : '#b45309', marginRight: '6px' } }, f.severity === 'high' ? '高' : '中'),
+                f.sheet + '!' + f.cell + '：' + f.message)
+            })) : null) : null
         const addForm = h('div', { style: { display: 'flex', gap: '6px', marginTop: '10px' } },
           h('input', { value: props.newPbcName || '', onChange: function (event) { if (props.onPbcNameChange) props.onPbcNameChange(event.target.value) },
             placeholder: '新增资料项名称（如：银行开户许可证）',
@@ -808,7 +822,7 @@ window.__ModuleLoader__.load({
             style: { padding: '7px 12px', borderRadius: '7px', border: 0, background: COLORS.accent, color: '#fff', fontSize: '12px', cursor: 'pointer' } }, '+ 新增资料项'))
         return h('div', null,
           h(Section, null, h('div', { style: { fontSize: '13px' } }, '应收资料清单（PBC）'), h('div', { style: { fontSize: '12px', color: COLORS.muted, marginTop: '2px' } }, '上传底表、点击状态切换；所有变更写入操作留痕')),
-          h('div', { style: { padding: '6px 14px' } }, rows, addForm), eventsBlock('pbc'))
+          h('div', { style: { padding: '6px 14px' } }, rows, checkPanel, addForm), eventsBlock('pbc'))
       }
       if (props.zone === '审计底稿') {
         const toneOfWp = function (status) { return status === '已完成' || status === '已执行' || status === '已预填' || status === '已生成' ? 'ok' : status === '进行中' ? 'warn' : status === '不适用' ? 'muted' : 'bad' }
@@ -1267,6 +1281,8 @@ window.__ModuleLoader__.load({
         } catch (e) {}
         reportVersionFilterRestored.current = true
       }, [activeProject])
+      const clientCheckState = React.useState(null); const clientCheck = clientCheckState[0]; const setClientCheck = clientCheckState[1]
+      const clientCheckMsgState = React.useState(''); const clientCheckMsg = clientCheckMsgState[0]; const setClientCheckMsg = clientCheckMsgState[1]
       const wpsVerifyState = React.useState(''); const wpsVerifyMessage = wpsVerifyState[0]; const setWpsVerifyMessage = wpsVerifyState[1]
       const generatedKindState = React.useState('all'); const generatedKind = generatedKindState[0]; const setGeneratedKind = generatedKindState[1]
       const checklistKindState = React.useState('subsequent'); const checklistKind = checklistKindState[0]; const setChecklistKind = checklistKindState[1]
@@ -2332,6 +2348,31 @@ window.__ModuleLoader__.load({
             URL.revokeObjectURL(url)
           }).catch(function () {})
       }
+      function checkAttachment(att) {
+        if (!activeProject || !att) return
+        setClientCheckMsg('正在核对 ' + att.filename + ' …')
+        setClientCheck(null)
+        api('/audit/pbc/check', null, { method: 'POST', body: { project: activeProject, attachment_id: att.id } })
+          .then(function (d) {
+            setClientCheck(d)
+            const summary = d.summary || {}
+            setClientCheckMsg('核对完成：发现 ' + (summary.total || 0) + ' 项（高风险 ' + (summary.high || 0) + '）')
+          })
+          .catch(function (e) { setClientCheckMsg('核对失败：' + String(e)) })
+      }
+      function exportClientCheckReport() {
+        if (!activeProject) return
+        fetch(BASE + '/audit/pbc/check/export', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-KB-Token': currentToken() }, body: JSON.stringify({ project: activeProject }) })
+          .then(function (resp) { if (!resp.ok) throw new Error('HTTP ' + resp.status); return resp.blob() })
+          .then(function (blob) {
+            const url = URL.createObjectURL(blob)
+            const anchor = document.createElement('a')
+            anchor.href = url; anchor.download = '客户底稿核对记录.docx'
+            document.body.appendChild(anchor); anchor.click(); anchor.remove()
+            URL.revokeObjectURL(url)
+            if (props.onRefreshWorkpapers) props.onRefreshWorkpapers()
+          }).catch(function (e) { setClientCheckMsg('导出失败：' + String(e)) })
+      }
       function openAttachmentPreview(att) {
         fetch(BASE + '/audit/pbc/preview?attachment_id=' + att.id, { headers: { 'X-KB-Token': currentToken() } })
           .then(function (resp) {
@@ -2506,7 +2547,7 @@ window.__ModuleLoader__.load({
         onDownloadWorkpaper: downloadGeneratedWorkpaper, onPreviewWorkpaper: previewGeneratedWorkpaper,
         newPbcName: newPbcName, onPbcNameChange: setNewPbcName, onAddPbc: addPbcItem,
         onDeletePbc: deletePbcItem, onUploadAttachment: uploadPbcAttachment,
-        onDownloadAttachment: downloadPbcAttachment, onPreviewAttachment: openAttachmentPreview,
+        onDownloadAttachment: downloadPbcAttachment, onPreviewAttachment: openAttachmentPreview, onCheckAttachment: checkAttachment, clientCheck: clientCheck, clientCheckMsg: clientCheckMsg, onExportClientCheck: exportClientCheckReport,
         onSubmitApproval: submitApproval, onDecideApproval: decideApproval,
         company: activeCompany, project: project,
         onStartChat: props.onStartChat, onCyclePbc: cyclePbc, onCycleWp: cycleWp,
