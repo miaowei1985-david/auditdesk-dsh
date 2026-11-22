@@ -3119,6 +3119,7 @@ window.__ModuleLoader__.load({
       const restoreSummaryState = React.useState(null); const restoreSummary = restoreSummaryState[0]; const setRestoreSummary = restoreSummaryState[1]
       const backupVerifyState = React.useState(''); const backupVerifyMessage = backupVerifyState[0]; const setBackupVerifyMessage = backupVerifyState[1]
       const kbSyncState = React.useState(null); const kbSync = kbSyncState[0]; const setKbSync = kbSyncState[1]
+      const kbAdminState = React.useState(null); const kbAdmin = kbAdminState[0]; const setKbAdmin = kbAdminState[1]
       React.useEffect(function () { loadKbSync() }, [])
       const kbSyncMsgState = React.useState(''); const kbSyncMsg = kbSyncMsgState[0]; const setKbSyncMsg = kbSyncMsgState[1]
       const sysEventState = React.useState(null); const sysEvent = sysEventState[0]; const setSysEvent = sysEventState[1]
@@ -3204,6 +3205,7 @@ window.__ModuleLoader__.load({
           .catch(function () { setSysEvents([]) })
       }
       function loadKbSync() {
+        api('/kb/admin/status').then(function (d) { setKbAdmin(d) }).catch(function () {})
         api('/kb/sync/status').then(function (d) { setKbSync(d) }).catch(function () {})
       }
       function runKbSync() {
@@ -3356,6 +3358,12 @@ window.__ModuleLoader__.load({
             + ' · 最近：' + ((kbSync && kbSync.last && kbSync.last.at) || '尚未运行')
             + ' · 新增 ' + ((kbSync && kbSync.last && kbSync.last.added) || 0) + ' 篇'
             + ' · 待审 ' + ((kbSync && (kbSync.pending_now ?? (kbSync.last && kbSync.last.pending))) || 0) + ' 篇'),
+          kbAdmin ? h('div', { style: { fontSize: '12px', color: COLORS.muted, lineHeight: 1.8, marginTop: '2px' } },
+            '已发布 ' + (((kbAdmin.counts || {}).approved) || 0) + ' · 待审 ' + (((kbAdmin.counts || {}).pending) || 0)
+            + ' · 过期 ' + (((kbAdmin.counts || {}).expired) || 0) + ' · 索引 ' + (kbAdmin.chunks || 0) + ' 块'
+            + (kbAdmin.last_reviewed ? ' · 最近发布：' + kbAdmin.last_reviewed.title + '（' + kbAdmin.last_reviewed.at + '）' : '')
+            + ((kbAdmin.apply && kbAdmin.apply.running) ? ' · 正在发布/重建索引…' : '')
+            + ((kbAdmin.apply && kbAdmin.apply.error) ? ' · 上次审批异常：' + kbAdmin.apply.error : '')) : null,
           kbSync && kbSync.state && kbSync.state.results && kbSync.state.results.length ? h('div', { style: { marginTop: '6px', fontSize: '11px', color: COLORS.muted } },
             kbSync.state.results.map(function (r, i) { return h('div', { key: 'kbs-' + i }, '· ' + r.source + '：' + (r.ok ? '成功' : '失败') + '（新增 ' + (r.added || 0) + '，' + (r.elapsed || 0) + 's）') })) : null,
           kbSyncMsg ? h('div', { style: { marginTop: '6px', fontSize: '11px', color: '#b45309' } }, kbSyncMsg) : null) : null,
