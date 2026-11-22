@@ -3927,6 +3927,132 @@ window.__ModuleLoader__.load({
         h('path', { d: 'M12 6.5A3.5 3.5 0 0 0 8.5 3H3v15h6a3 3 0 0 1 3 3V6.5zM12 6.5A3.5 3.5 0 0 1 15.5 3H21v15h-6a3 3 0 0 0-3 3V6.5z' }))
     }
 
+    // ---------- 审计程序库（底库模板管理） ----------
+    function ProgramCatalogPage(props) {
+      const auth = props.auth || {}
+      const role = (auth.user && auth.user.role) || ''
+      const canEdit = ['partner', 'kb-admin', 'admin'].indexOf(role) >= 0
+      const SOURCE_STYLE = {
+        账载: { color: '#2f7cf6', hint: '导科目余额表/序时账' },
+        外部: { color: '#b45309', hint: '收资料/发函' },
+        现场: { color: '#7c3aed', hint: '监盘/盘点' },
+        程序: { color: '#6b7280', hint: '执行/判断' },
+      }
+      const TYPES = ['年报审计', '专项审计', '内控审计']
+      const [businessType, setBusinessType] = React.useState('年报审计')
+      const [items, setItems] = React.useState([])
+      const [loading, setLoading] = React.useState(false)
+      const [msg, setMsg] = React.useState('')
+      const [err, setErr] = React.useState('')
+      const [editing, setEditing] = React.useState(null)
+      const [draft, setDraft] = React.useState({ category: '', name: '', source: '程序' })
+
+      function load(type) {
+        const target = type || businessType
+        setLoading(true); setErr('')
+        api('/audit/program-catalog', { business_type: target })
+          .then(function (d) { setItems(d.items || []) })
+          .catch(function (e) { setErr(String(e)) })
+          .then(function () { setLoading(false) })
+      }
+      React.useEffect(function () { load(businessType) }, [businessType])
+
+      function sourceBadge(source) {
+        const meta = SOURCE_STYLE[source]
+        if (!meta) return null
+        return h('span', { title: meta.hint, style: { display: 'inline-block', marginLeft: '6px', padding: '0 6px', borderRadius: '6px', border: '1px solid ' + meta.color, color: meta.color, fontSize: '10px', lineHeight: '16px', whiteSpace: 'nowrap' } }, source)
+      }
+      function startEdit(item) {
+        if (!canEdit) return
+        setEditing(item.id)
+        setDraft({ category: item.category || '', name: item.name || '', source: item.source || '程序' })
+        setMsg('')
+      }
+      function cancelEdit() { setEditing(null); setDraft({ category: '', name: '', source: '程序' }) }
+      function submitSave(id) {
+        if (!canEdit) return
+        if (!draft.name.trim()) { setErr('程序名称不能为空'); return }
+        const body = { business_type: businessType, category: draft.category.trim() || '其他', name: draft.name.trim(), source: draft.source || '程序' }
+        if (id) body.id = id
+        api('/audit/program-catalog/save', null, { method: 'POST', body: body })
+          .then(function () { setMsg(id ? '已保存修改' : '已新增程序'); cancelEdit(); load(businessType) })
+          .catch(function (e) { setErr(String(e)) })
+      }
+      function stopItem(item) {
+        if (!canEdit) return
+        try { if (!window.confirm('停用「' + item.name + '」？停用后新项目不再包含该程序（已有项目不受影响）。')) return } catch (e) {}
+        api('/audit/program-catalog/delete', null, { method: 'POST', body: { id: item.id } })
+          .then(function () { setMsg('已停用：' + item.name); load(businessType) })
+          .catch(function (e) { setErr(String(e)) })
+      }
+      function resetCatalog() {
+        if (!canEdit) return
+        try { if (!window.confirm('恢复「' + businessType + '」的内置默认程序库？当前自定义修改会被覆盖。')) return } catch (e) {}
+        api('/audit/program-catalog/reset', null, { method: 'POST', body: { business_type: businessType } })
+          .then(function () { setMsg('已恢复内置默认程序库'); load(businessType) })
+          .catch(function (e) { setErr(String(e)) })
+      }
+
+      const groups = []
+      const seen = {}
+      items.forEach(function (item) {
+        const category = item.category || '其他'
+        if (!seen[category]) { seen[category] = true; groups.push(category) }
+      })
+      const inputStyle = { padding: '5px 8px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' }
+      const smallBtn = { padding: '4px 9px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px', cursor: 'pointer' }
+
+      return h('div', { style: { padding: '18px', maxWidth: '960px', height: '100%', overflow: 'auto', boxSizing: 'border-box' } },
+        h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', flexWrap: 'wrap' } },
+          h('div', null,
+            h('div', { style: { fontSize: '15px', fontWeight: 600, marginBottom: '2px' } }, '审计程序库'),
+            h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '事务所底库模板：新项目按业务类型自动套用；改这里的程序会应用到之后新建或补全的项目')),
+          canEdit ? h('div', { style: { display: 'flex', gap: '6px' } },
+            h('button', { onClick: resetCatalog, style: Object.assign({}, smallBtn, { fontSize: '11.5px', padding: '6px 10px' }) }, '恢复默认'),
+            h('button', { onClick: function () { setEditing('new'); setDraft({ category: '', name: '', source: '程序' }) }, style: Object.assign({}, smallBtn, { fontSize: '11.5px', padding: '6px 10px', border: 0, background: COLORS.accent, color: '#fff' }) }, '+ 新增程序')) : null),
+        h('div', { style: { display: 'flex', gap: '6px', margin: '10px 0 4px', flexWrap: 'wrap' } },
+          TYPES.map(function (type) {
+            const active = type === businessType
+            return h('button', { key: 'type-' + type, onClick: function () { setBusinessType(type); cancelEdit() },
+              style: { padding: '5px 12px', borderRadius: '7px', border: '1px solid ' + (active ? COLORS.accent : COLORS.line), background: active ? 'rgba(47,124,246,0.08)' : 'transparent', color: active ? COLORS.accent : 'inherit', fontSize: '12px', cursor: 'pointer' } }, type)
+          }),
+          h('span', { style: { fontSize: '11px', color: COLORS.muted, alignSelf: 'center', marginLeft: '4px' } }, '共 ' + items.length + ' 项 · ' + groups.length + ' 个分类' + (loading ? ' · 加载中…' : ''))),
+        msg ? h('div', { style: { fontSize: '12px', color: '#16a34a', margin: '4px 0' } }, msg) : null,
+        err ? h('div', { style: { fontSize: '12px', color: '#b91c1c', margin: '4px 0' } }, err) : null,
+        editing === 'new' ? h('div', { style: { margin: '8px 0 12px', padding: '10px', borderRadius: '8px', border: '1px solid ' + COLORS.accent, display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' } },
+          h('input', { value: draft.category, onChange: function (e) { setDraft(Object.assign({}, draft, { category: e.target.value })) }, placeholder: '分类（如：货币资金）', style: Object.assign({}, inputStyle, { width: '160px' }) }),
+          h('input', { value: draft.name, onChange: function (e) { setDraft(Object.assign({}, draft, { name: e.target.value })) }, placeholder: '程序名称（必填）', style: Object.assign({}, inputStyle, { flex: 1, minWidth: '180px' }) }),
+          h('select', { value: draft.source, onChange: function (e) { setDraft(Object.assign({}, draft, { source: e.target.value })) }, style: inputStyle },
+            ['账载', '外部', '现场', '程序'].map(function (src) { return h('option', { key: 'new-src-' + src, value: src }, src) })),
+          h('button', { onClick: function () { submitSave(0) }, style: Object.assign({}, smallBtn, { border: 0, background: COLORS.accent, color: '#fff' }) }, '添加'),
+          h('button', { onClick: cancelEdit, style: smallBtn }, '取消')) : null,
+        groups.length ? groups.map(function (category) {
+          const groupItems = items.filter(function (item) { return (item.category || '其他') === category })
+          return h('div', { key: 'cat-' + category, style: { marginBottom: '14px' } },
+            h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', margin: '12px 0 4px', padding: '6px 10px', borderRadius: '8px', background: 'rgba(47,124,246,0.06)', fontSize: '13px', fontWeight: 600 } },
+              h('span', null, category),
+              h('span', { style: { fontSize: '11px', color: COLORS.muted, fontWeight: 400 } }, groupItems.length + ' 项')),
+            groupItems.map(function (item) {
+              if (editing === item.id) {
+                return h('div', { key: 'cat-item-' + item.id, style: { display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid ' + COLORS.line } },
+                  h('input', { value: draft.category, onChange: function (e) { setDraft(Object.assign({}, draft, { category: e.target.value })) }, placeholder: '分类', style: Object.assign({}, inputStyle, { width: '150px' }) }),
+                  h('input', { value: draft.name, onChange: function (e) { setDraft(Object.assign({}, draft, { name: e.target.value })) }, placeholder: '程序名称', style: Object.assign({}, inputStyle, { flex: 1, minWidth: '180px' }) }),
+                  h('select', { value: draft.source, onChange: function (e) { setDraft(Object.assign({}, draft, { source: e.target.value })) }, style: inputStyle },
+                    ['账载', '外部', '现场', '程序'].map(function (src) { return h('option', { key: 'edit-src-' + src, value: src }, src) })),
+                  h('button', { onClick: function () { submitSave(item.id) }, style: Object.assign({}, smallBtn, { border: 0, background: COLORS.accent, color: '#fff' }) }, '保存'),
+                  h('button', { onClick: cancelEdit, style: smallBtn }, '取消'))
+              }
+              return h('div', { key: 'cat-item-' + item.id, style: { display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 120px', gap: '8px', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid ' + COLORS.line, fontSize: '12px' } },
+                h('span', { style: { minWidth: 0 } }, item.name, sourceBadge(item.source)),
+                canEdit ? h('div', { style: { display: 'flex', gap: '6px', justifyContent: 'flex-end' } },
+                  h('button', { onClick: function () { startEdit(item) }, style: smallBtn }, '编辑'),
+                  h('button', { onClick: function () { stopItem(item) }, style: Object.assign({}, smallBtn, { color: '#b91c1c', border: '1px solid #b91c1c' }) }, '停用')) : h('span', { style: { fontSize: '11px', color: COLORS.muted, textAlign: 'right' } }, ''))
+            }))
+        }) : h('div', { style: { padding: '14px', fontSize: '12px', color: COLORS.muted } }, loading ? '加载中…' : '程序库为空，可「恢复默认」或新增程序'),
+        h('div', { style: { marginTop: '10px', fontSize: '11px', color: COLORS.muted, lineHeight: 1.8 } },
+          '说明：① 程序库修改只影响之后新建/补全的项目，已有项目清单不变；② 停用是逻辑删除，可随时「恢复默认」找回内置程序；③ 维护权限仅限合伙人/管理员。'))
+    }
+
     function GuidePage() {
       const section = function (title, children) {
         return h('div', { style: { marginBottom: '14px', padding: '14px', borderRadius: '12px', border: '1px solid ' + COLORS.line } },
@@ -3991,6 +4117,7 @@ window.__ModuleLoader__.load({
           { id: 'audit-kb', label: '知识库', icon: KbIcon, page: withAuth(KbPage), order: 31 },
           { id: 'audit-events', label: '操作留痕', icon: EventsIcon, page: withAuth(EventsPage), order: 32 },
           { id: 'audit-users', label: '用户管理', icon: UsersIcon, page: withAuth(UsersPage), order: 33 },
+          { id: 'audit-catalog', label: '程序库', icon: GuideIcon, page: withAuth(ProgramCatalogPage), order: 33.5 },
           { id: 'audit-system', label: '系统状态', icon: SystemIcon, page: withAuth(function (props) { return h(SystemPage, Object.assign({}, props, { ui: ctx })) }), order: 34 },
         ]
         panels.forEach(function (panel) {
