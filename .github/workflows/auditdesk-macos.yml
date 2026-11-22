@@ -80,6 +80,8 @@ jobs:
           xattr -cr /Applications/AuditDesk.app || true
           codesign --force --deep --sign - /Applications/AuditDesk.app || true
           sudo spctl --global-disable || true
+          pkill -f '/Applications/AuditDesk.app/Contents/MacOS/AuditDesk' || true
+          sleep 2
           open -a /Applications/AuditDesk.app || true
           sleep 25
           if pgrep -f '/Applications/AuditDesk.app/Contents/MacOS/AuditDesk' >/dev/null; then
