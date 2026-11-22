@@ -10,12 +10,26 @@
     "./skill": "./skill.js",
     "./package.json": "./package.json"
   },
-  "files": ["index.js", "skill.js", "cordis.patch.yml", "skills", "README.md"],
-  "engines": { "dsh": ">=0.2.0 <0.3.0" },
+  "files": [
+    "index.js",
+    "skill.js",
+    "cordis.patch.yml",
+    "skills",
+    "README.md",
+    "verify.js",
+    "test"
+  ],
+  "engines": {
+    "dsh": ">=0.2.0 <0.3.0"
+  },
   "peerDependencies": {
     "@deepseek-ai/dsh-error": "0.2.2-rc.5",
     "@deepseek-ai/dsh-tools": "0.2.2-rc.5",
     "@deepseek-ai/schemastery": "~3.19.0"
   },
-  "dsh": { "bundle": { "patch": "./cordis.patch.yml" } }
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
 }

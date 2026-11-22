@@ -6,6 +6,7 @@
 import { HarnessError } from '@deepseek-ai/dsh-error'
 import { defineTool, ToolArgsError } from '@deepseek-ai/dsh-tools'
 import Schema from '@deepseek-ai/schemastery'
+import { checkQuotes } from './verify.js'
 
 /** Cordis 插件名。 */
 export const name = 'audit-kb-tools'
@@ -56,6 +57,9 @@ function renderHits(payload) {
     lines.push(
       `${i + 1}. [${doc.code ?? '?'}] ${doc.title ?? ''}${doc.docno ? `（${doc.docno}）` : ''}`
       + `${doc.effective ? ` 生效:${doc.effective}` : ''}`
+      + `${hit.validity ? ` · ${hit.validity}` : ''}`
+      + `${hit.article_no_cn ? ` · ${hit.article_no_cn}` : ''}`
+      + `\n   锚点：${hit.anchor ?? '—'}${hit.heading_path ? `（${hit.heading_path}）` : ''}`
       + `\n   出处：${hit.ref ?? ''}\n   原文：${String(hit.text ?? '').slice(0, 240)}`,
     )
   }
@@ -95,6 +99,24 @@ export function apply(ctx, config) {
     timeoutMs: config.timeoutMs || 20000,
   }
 
+  // 本轮会话已返回过的锚点 → 原文，供 kb_verify_quotes 核对。
+  const anchors = new Map()
+  const remember = (payload) => {
+    const record = asRecord(payload)
+    const entries = [
+      ...asArray(record.hits).map((hit) => ({ anchor: hit.anchor, text: hit.text, ref: hit.ref, title: asRecord(hit.doc).title, article: hit.article_no_cn, validity: hit.validity })),
+      ...asArray(record.chunks).map((chunk) => ({ anchor: chunk.anchor, text: chunk.text, ref: record.doc, title: asRecord(record.meta).title, article: chunk.article_no_cn, validity: chunk.validity })),
+    ]
+    for (const entry of entries) {
+      if (!entry.anchor) continue
+      anchors.delete(entry.anchor)
+      anchors.set(entry.anchor, entry)
+    }
+    while (anchors.size > 400) {
+      anchors.delete(anchors.keys().next().value)
+    }
+  }
+
   ctx.tools.register(defineTool({
     name: 'kb_search',
     description: '在事务所共享知识库（审计准则/会计准则/税法/职业道德/法规）中做混合检索，返回带文档元数据与出处的条文段落。回答准则、法规、事务所制度类问题前必须先调用；不得凭记忆编造条款。' + REVIEW_NOTICE,
@@ -108,9 +130,11 @@ export function apply(ctx, config) {
     async execute(args) {
       const q = requireText(args.q, 'q')
       const topK = args.top_k === undefined ? 5 : Math.max(1, Math.min(20, Number(args.top_k)))
-      return await callApi(settings, '/kb/search', {
+      const result = await callApi(settings, '/kb/search', {
         q, top_k: topK, codes: args.codes ?? '', include_expired: args.include_expired ? 'true' : '',
       })
+      remember(result)
+      return result
     },
   }))
 
@@ -139,7 +163,50 @@ export function apply(ctx, config) {
     },
     async execute(args) {
       const doc = requireText(args.doc, 'doc')
-      return await callApi(settings, '/kb/doc', { doc })
+      const result = await callApi(settings, '/kb/doc', { doc })
+      remember(result)
+      return result
+    },
+  }))
+
+  ctx.tools.register(defineTool({
+    name: 'kb_verify_quotes',
+    description: '核对引用：传入本轮 kb_search / kb_get_doc 返回的锚点（anchor）与拟引用的原文片段，逐条校验锚点是否存在、片段是否为该段原文的子串。写「第 X 条」「条款依据」「应用指南段落」前必须先调用；ok=false 的不得作为依据，也不得把失败片段改写成概括后继续挂锚。' + REVIEW_NOTICE,
+    parameters: {
+      quotes: { type: 'string', required: true, description: 'JSON 数组，每项形如 {"anchor":"kb-xxxx","quote":"拟引用的原文片段"}。' },
+    },
+    output: {
+      schema: { type: 'json' },
+      render: (_args, value) => {
+        const payload = asRecord(value)
+        const results = asArray(payload.results)
+        const lines = [
+          `引用核验：${payload.passed ?? 0}/${results.length} 通过（可用锚点 ${payload.known ?? 0} 个）。`,
+          ...results.map((raw) => {
+            const item = asRecord(raw)
+            return `- ${item.ok ? 'PASS' : 'FAIL'} ${item.anchor ?? ''}`
+              + `${item.article ? ` ${item.article}` : ''}`
+              + `${item.title ? `《${item.title}》` : ''}`
+              + `${item.reason ? ` — ${item.reason}` : ''}`
+          }),
+          payload.passed === results.length && results.length > 0
+            ? '全部通过：可以在回答中引用这些锚点与原文。'
+            : '存在未通过项：不得引用对应锚点/条号；请重新 kb_search 或 kb_get_doc 后再核验。',
+          `提示：${REVIEW_NOTICE}`,
+        ]
+        return [{ type: 'text', text: lines.join('\n') }]
+      },
+    },
+    async execute(args) {
+      const raw = requireText(args.quotes, 'quotes')
+      let parsed
+      try {
+        parsed = JSON.parse(raw)
+      } catch {
+        throw new ToolArgsError(['quotes 必须是 JSON 数组字符串'])
+      }
+      if (!Array.isArray(parsed)) throw new ToolArgsError(['quotes 必须是 JSON 数组'])
+      return checkQuotes(anchors, parsed)
     },
   }))
 
