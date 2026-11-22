@@ -798,7 +798,12 @@ window.__ModuleLoader__.load({
         const toneOfWp = function (status) { return status === '已完成' || status === '已执行' || status === '已预填' || status === '已生成' ? 'ok' : status === '进行中' ? 'warn' : status === '不适用' ? 'muted' : 'bad' }
         const items = props.wp === null ? null : props.wp
         const wpFilter = props.wpStatusFilter || 'all'
-        const visibleItems = items === null ? null : (wpFilter === 'all' ? items : items.filter(function (item) { return item.status === wpFilter }))
+        const visibleItems = items === null ? null : items.filter(function (item) {
+          if (wpFilter !== 'all' && item.status !== wpFilter) return false
+          const query = String(props.wpSearch || '').trim().toLowerCase()
+          if (!query) return true
+          return (String(item.code || '') + ' ' + String(item.name || '') + ' ' + String(item.note || '')).toLowerCase().indexOf(query) >= 0
+        })
         const rows = visibleItems === null
           ? [h('div', { key: 'loading', style: { padding: '14px', fontSize: '12px', color: COLORS.muted } }, '正在加载审计底稿…')]
           : (visibleItems.length ? visibleItems.map(function (item) {
@@ -836,6 +841,8 @@ window.__ModuleLoader__.load({
           h(Section, null, h('div', { style: { fontSize: '13px' } }, '审计底稿（审计员产出）'), h('div', { style: { fontSize: '12px', color: COLORS.muted, marginTop: '2px' } }, '按事务所模板与索引号生成，点击状态可切换执行状态')),
           h('div', { style: { padding: '8px 14px 0', display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center', fontSize: '11px' } },
             h('span', { style: { color: COLORS.muted } }, '底稿统计：共 ' + generated.length + ' 份 · 台账 ' + (items ? items.length : 0) + ' 项'),
+            h('input', { value: props.wpSearch || '', placeholder: '搜索底稿名称/索引/说明', onChange: function (e) { if (props.onSetWpSearch) props.onSetWpSearch(e.target.value) },
+              style: { width: '170px', padding: '4px 8px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px' } }),
             h('select', { value: wpFilter, onChange: function (e) { if (props.onSetWpStatusFilter) props.onSetWpStatusFilter(e.target.value) },
               style: { padding: '4px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px' } },
               h('option', { value: 'all' }, '全部状态'),
@@ -859,7 +866,7 @@ window.__ModuleLoader__.load({
                 style: { padding: '6px 8px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }),
               h('button', { onClick: function () { if (props.onGenerateAll) props.onGenerateAll() }, disabled: props.generating || readOnly,
                 style: { padding: '8px 14px', borderRadius: '8px', border: 0, background: '#16a34a', color: '#fff', fontSize: '12px', cursor: 'pointer' } },
-                props.generating ? '生成中…' : '一键生成全部底稿（4 类）'),
+                props.generating ? '生成中…' : '一键生成常用底稿（4 类）'),
               h('button', { onClick: function () { if (props.onExportWorkpapers) props.onExportWorkpapers() },
                 style: { padding: '8px 14px', borderRadius: '8px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '打包下载全部底稿（ZIP）'),
               h('button', { onClick: function () { if (props.onExportWorkpaperList) props.onExportWorkpaperList() }, style: { padding: '8px 14px', borderRadius: '8px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '导出底稿台账（CSV）'),
@@ -1206,6 +1213,7 @@ window.__ModuleLoader__.load({
       React.useEffect(function () { try { localStorage.setItem('auditdesk.previewZoom', String(previewZoom)) } catch (e) {} }, [previewZoom])
       const wpStatusFilterState = React.useState(function () { try { return localStorage.getItem('auditdesk.wp.statusFilter') || 'all' } catch (e) { return 'all' } })
       const wpStatusFilter = wpStatusFilterState[0]; const setWpStatusFilter = wpStatusFilterState[1]
+      const wpSearchState = React.useState(''); const wpSearch = wpSearchState[0]; const setWpSearch = wpSearchState[1]
       React.useEffect(function () { try { localStorage.setItem('auditdesk.wp.statusFilter', wpStatusFilter || 'all') } catch (e) {} }, [wpStatusFilter])
       const todoOverdueState = React.useState(function () { try { return localStorage.getItem('auditdesk.todo.overdueOnly') === '1' } catch (e) { return false } })
       const todoOverdueOnly = todoOverdueState[0]; const setTodoOverdueOnly = todoOverdueState[1]
@@ -2478,7 +2486,7 @@ window.__ModuleLoader__.load({
         onAddMember: addProjectMember, onRemoveMember: removeProjectMember,
         generatedDate: generatedDate, onGeneratedDateChange: setGeneratedDate,
         onOpenWorkpaperIndex: openWorkpaperByIndex, onGenerateWorkpaper: generateWorkpaper,
-        onGenerateAll: generateAllWorkpapers, onExportWorkpapers: exportWorkpapersZip, reportVersionFilter: reportVersionFilter, onSetReportVersionFilter: setReportVersionFilter, approvalFilter: approvalFilter, onSetApprovalFilter: setApprovalFilter, onExportApprovals: exportApprovals, todoOverdueOnly: todoOverdueOnly, onSetTodoOverdueOnly: setTodoOverdueOnly, wpStatusFilter: wpStatusFilter, onSetWpStatusFilter: setWpStatusFilter, onExportWorkpaperList: exportWorkpaperListCsv, onJumpTodoZone: jumpTodoZone, onVerifyWorkpapersZip: verifyWorkpapersZip, wpsVerifyMessage: wpsVerifyMessage,
+        onGenerateAll: generateAllWorkpapers, onExportWorkpapers: exportWorkpapersZip, reportVersionFilter: reportVersionFilter, onSetReportVersionFilter: setReportVersionFilter, approvalFilter: approvalFilter, onSetApprovalFilter: setApprovalFilter, onExportApprovals: exportApprovals, todoOverdueOnly: todoOverdueOnly, onSetTodoOverdueOnly: setTodoOverdueOnly, wpStatusFilter: wpStatusFilter, onSetWpStatusFilter: setWpStatusFilter, wpSearch: wpSearch, onSetWpSearch: setWpSearch, onExportWorkpaperList: exportWorkpaperListCsv, onJumpTodoZone: jumpTodoZone, onVerifyWorkpapersZip: verifyWorkpapersZip, wpsVerifyMessage: wpsVerifyMessage,
         onDownloadWorkpaper: downloadGeneratedWorkpaper, onPreviewWorkpaper: previewGeneratedWorkpaper,
         newPbcName: newPbcName, onPbcNameChange: setNewPbcName, onAddPbc: addPbcItem,
         onDeletePbc: deletePbcItem, onUploadAttachment: uploadPbcAttachment,
@@ -3488,6 +3496,11 @@ window.__ModuleLoader__.load({
         section('归档与备份', h('div', null,
           line('归档后项目只读；归档包含最新底稿、程序底稿、扫描件、操作日志与项目信息。'),
           line('系统状态 → 数据库备份/恢复；服务常驻时每日自动备份（保留 10 份）。'))),
+        section('底稿与交付文档', h('div', null,
+          line('底稿 15 类：货币资金、应收账款、存货、营业收入成本、试算平衡、期后事项、持续经营、关联方、或有事项、期初余额、会计政策与估计、风险评估、固定资产、应付职工薪酬、应交税费。'),
+          line('底稿 ZIP：打包下载含 README/清单/校验值；「校验底稿包（ZIP）」可核对 SHA256，失败自动告警并生成复核审批。'),
+          line('台账：可按状态筛选、按名称/索引/说明搜索，支持导出 CSV。'),
+          line('交付文档（客户验收清单、用户培训手册、发布说明）随客户端安装包内置，安装后位于 ~/.dsh/auditdesk-docs。'))),
         section('常见问题', h('div', null,
           line('加载失败：检查网关服务（8030）与网络/Tailscale。'),
           line('登录 429：连续失败锁定 5 分钟，请联系管理员或稍后再试。'),

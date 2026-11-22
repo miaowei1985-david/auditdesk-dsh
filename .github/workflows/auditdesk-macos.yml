@@ -3,6 +3,10 @@ name: AuditDesk macOS Build
 on:
   push:
     branches: [main]
+    paths:
+      - 'apps/desktop/resources/audit-plugins/**'
+      - 'apps/desktop/scripts/electron-builder-config.mjs'
+      - '.github/workflows/auditdesk-macos.yml'
   workflow_dispatch:
 
 env:
