@@ -2596,7 +2596,27 @@ window.__ModuleLoader__.load({
     }
 
     // ---------- 知识库 ----------
-    function KbPage() {
+    function KbPage(props) {
+      const authUser = (props && props.auth && props.auth.user) || {}
+      const isKbAdmin = ['kb-admin', 'admin'].indexOf(authUser.role) >= 0
+      const pendingState = React.useState([]); const pendingDocs = pendingState[0]; const setPendingDocs = pendingState[1]
+      const pendingMsgState = React.useState(''); const pendingMsg = pendingMsgState[0]; const setPendingMsg = pendingMsgState[1]
+      const pendingBusyState = React.useState(false); const pendingBusy = pendingBusyState[0]; const setPendingBusy = pendingBusyState[1]
+      function loadPending() {
+        if (!isKbAdmin) return
+        api('/kb/pending').then(function (d) { setPendingDocs((d && d.docs) || []) }).catch(function () {})
+      }
+      function decidePending(id, decision) {
+        setPendingBusy(true)
+        setPendingMsg(decision === 'approve' ? '已提交通过，正在发布并重建索引…' : '正在驳回…')
+        api('/kb/pending/decide', null, { method: 'POST', body: { id: id, decision: decision } })
+          .then(function (d) {
+            setPendingMsg(d && d.started ? '已开始发布并重建索引，请稍后刷新' : (decision === 'approve' ? '已处理' : '已驳回'))
+            setTimeout(function () { loadPending(); setPendingBusy(false) }, 2000)
+          })
+          .catch(function (e) { setPendingMsg('失败：' + String(e)); setPendingBusy(false) })
+      }
+      React.useEffect(function () { loadPending() }, [])
       const docsState = React.useState([]); const docs = docsState[0]; const setDocs = docsState[1]
       const queryState = React.useState(''); const q = queryState[0]; const setQ = queryState[1]
       const hitsState = React.useState(null); const hits = hitsState[0]; const setHits = hitsState[1]
@@ -2645,6 +2665,21 @@ window.__ModuleLoader__.load({
             style: { flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: '8px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '13px' } }),
           h('button', { onClick: runSearch, disabled: searching, style: { padding: '8px 12px', borderRadius: '8px', border: 0, background: COLORS.accent, color: '#fff', fontSize: '13px', cursor: 'pointer' } }, searching ? '检索中' : '检索')),
         error ? h('div', { style: { fontSize: '12px', color: '#b91c1c', marginTop: '8px' } }, error) : null)
+      const pendingBox = isKbAdmin && (pendingDocs.length > 0 || pendingMsg) ? h('div', { style: { padding: '10px 12px', borderBottom: '1px solid ' + COLORS.line, background: 'rgba(180,83,9,0.06)' } },
+        h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' } },
+          h('div', { style: { fontSize: '12px', fontWeight: 600, color: '#b45309' } }, '待审文档（' + pendingDocs.length + '）'),
+          h('button', { onClick: loadPending, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '11px', cursor: 'pointer' } }, '刷新')),
+        pendingDocs.slice(0, 5).map(function (item) {
+          return h('div', { key: 'kb-pending-' + item.id, style: { padding: '5px 0', borderBottom: '1px dashed ' + COLORS.line, fontSize: '11px' } },
+            h('div', { style: { color: COLORS.text, marginBottom: '3px' } }, item.title + (item.docno ? '（' + item.docno + '）' : '')),
+            h('div', { style: { display: 'flex', gap: '8px', alignItems: 'center', color: COLORS.muted } },
+              h('span', null, (CAT[item.code] || item.code) + (item.source_url ? ' · 官网' : '') + ' · ' + (item.added_at || '')),
+              h('button', { disabled: pendingBusy, onClick: function () { decidePending(item.id, 'approve') },
+                style: { padding: '2px 8px', borderRadius: '6px', border: 0, background: '#16a34a', color: '#fff', fontSize: '10px', cursor: 'pointer' } }, '通过'),
+              h('button', { disabled: pendingBusy, onClick: function () { decidePending(item.id, 'reject') },
+                style: { padding: '2px 8px', borderRadius: '6px', border: '1px solid #b91c1c', background: 'transparent', color: '#b91c1c', fontSize: '10px', cursor: 'pointer' } }, '驳回')))
+        }),
+        pendingMsg ? h('div', { style: { marginTop: '6px', fontSize: '11px', color: '#b45309' } }, pendingMsg) : null) : null
       let listItems = []
       if (hits === null) {
         listItems = visibleDocs.map(function (d, i) {
@@ -2667,7 +2702,7 @@ window.__ModuleLoader__.load({
         })
       }
       const middle = h('div', { style: { width: '320px', borderRight: '1px solid ' + COLORS.line, display: 'flex', flexDirection: 'column', minHeight: 0, flexShrink: 0 } },
-        searchBox, h('div', { style: { flex: 1, overflow: 'auto', padding: '4px 8px' } }, listItems))
+        searchBox, pendingBox, h('div', { style: { flex: 1, overflow: 'auto', padding: '4px 8px' } }, listItems))
       let right
       if (!doc) {
         right = h(Empty, null, '左侧检索或选择文档，这里显示条文全文与出处')
