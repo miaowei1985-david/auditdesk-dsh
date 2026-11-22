@@ -170,6 +170,81 @@ window.__ModuleLoader__.load({
       { name: '成果复核', state: '待提交', tone: 'warn', note: '底稿完成后提交' },
     ]
 
+    function basicProjectPrompt(company, project) {
+      return '【审计项目】公司：' + company + '；项目：' + (project ? project.name : '') +
+        (project && project.period ? '；期间：' + project.period : '') +
+        '。请作为该项目的审计助手：先检索事务所知识库（准则/法规/模板），再给结论并标注出处；涉及底稿时说明索引号与数据来源。'
+    }
+
+    function projectPrompt(company, project) {
+      if (!project || !project.name || !authState.token) return Promise.resolve(basicProjectPrompt(company, project))
+      const headers = { 'X-KB-Token': authState.token }
+      const projectQuery = encodeURIComponent(project.name)
+      return Promise.all([
+        fetch(BASE + '/audit/analysis/summary?project=' + projectQuery, { headers: headers }).then(function (r) { return r.ok ? r.json() : null }).catch(function () { return null }),
+        fetch(BASE + '/audit/dashboard', { headers: headers }).then(function (r) { return r.ok ? r.json() : null }).catch(function () { return null }),
+        fetch(BASE + '/audit/report/versions?project=' + projectQuery, { headers: headers }).then(function (r) { return r.ok ? r.json() : null }).catch(function () { return null }),
+        fetch(BASE + '/audit/workpapers/generated?project=' + projectQuery, { headers: headers }).then(function (r) { return r.ok ? r.json() : null }).catch(function () { return null }),
+        fetch(BASE + '/audit/report/checklist?project=' + projectQuery, { headers: headers }).then(function (r) { return r.ok ? r.json() : null }).catch(function () { return null }),
+        fetch(BASE + '/audit/approvals?project=' + projectQuery, { headers: headers }).then(function (r) { return r.ok ? r.json() : null }).catch(function () { return null }),
+        fetch(BASE + '/audit/members?project=' + projectQuery, { headers: headers }).then(function (r) { return r.ok ? r.json() : null }).catch(function () { return null }),
+        fetch(BASE + '/audit/events?project=' + projectQuery + '&limit=5', { headers: headers }).then(function (r) { return r.ok ? r.json() : null }).catch(function () { return null }),
+      ]).then(function (results) {
+        const summary = results[0]
+        const dashboard = results[1]
+        const reportVersions = (results[2] && results[2].items) || []
+        const generatedFiles = (results[3] && results[3].items) || []
+        const checklist = (results[4] && results[4].items) || []
+        const approvals = (results[5] && results[5].items) || []
+        const members = (results[6] && results[6].items) || []
+        const recentEvents = (results[7] && results[7].events) || []
+        const checklistTodo = checklist.filter(function (item) { return item.status !== 'OK' })
+        const approvalPending = approvals.filter(function (item) { return item.status === '待审批' })
+        const row = ((dashboard && dashboard.items) || []).filter(function (item) { return item.id === project.name })[0] || {}
+        const materiality = summary && summary.materiality
+        const risks = (summary && summary.risks) || []
+        const lines = []
+        lines.push('【审计项目上下文】')
+        lines.push('公司：' + company + '；项目：' + project.name + '；期间：' + (project.period || '') + '；业务类型：' + (project.business_type || '年报审计') + '；状态：' + (project.status || '进行中'))
+        if (materiality) {
+          lines.push('重要性：基准 ' + (materiality.basis || '') + '；整体 ' + Number(materiality.overall || 0).toLocaleString() + '；执行 ' + Number(materiality.performance || 0).toLocaleString() + '；明显微小 ' + Number(materiality.trivial || 0).toLocaleString() + (materiality.confirmed ? '（已确认）' : '（自动测算待确认）'))
+        }
+        lines.push('进度：资料清单 ' + (row.pbc_percent || 0) + '%（' + (row.pbc_done || 0) + '/' + (row.pbc_total || 0) + '）；底稿执行 ' + (row.wp_percent || 0) + '%（待执行 ' + (row.wp_pending || 0) + '）；审计程序 ' + (row.program_percent || 0) + '%（' + (row.program_done || 0) + '/' + (row.program_total || 0) + '）；已生成底稿 ' + (row.generated_files || 0) + ' 个；待审批 ' + (row.approval_pending || 0) + ' 项')
+        const latestVersion = reportVersions[0]
+        lines.push('报告：' + reportVersions.length + ' 个版本' + (latestVersion ? '（最新：' + (latestVersion.status || '草稿') + '，' + (latestVersion.created_at || '') + '）' : '（尚未生成初稿）'))
+        const kindNames = { currency: '货币资金', receivable: '应收账款', inventory: '存货', revenue: '营业收入成本' }
+        const kinds = []
+        generatedFiles.forEach(function (file) { const name = kindNames[file.kind] || file.kind; if (kinds.indexOf(name) < 0) kinds.push(name) })
+        lines.push('已生成底稿类型：' + (kinds.length ? kinds.join('、') : '无'))
+        if (checklistTodo.length) {
+          lines.push('报告门禁：' + checklistTodo.length + ' 项未完成（' + checklistTodo.slice(0, 3).map(function (item) { return item.item }).join('；') + (checklistTodo.length > 3 ? ' 等' : '') + '）')
+        } else if (checklist.length) {
+          lines.push('报告门禁：检查清单全部完成')
+        }
+        lines.push('审批：' + approvals.length + ' 项' + (approvalPending.length ? '，其中待审批 ' + approvalPending.length + ' 项' : '，无待审批'))
+        const me = (authState.user && authState.user.name) || ''
+        const myApprovals = approvalPending.filter(function (item) { return item.assigned_name === me })
+        const myNote = []
+        if (myApprovals.length) myNote.push('指派给我的审批 ' + myApprovals.length + ' 项')
+        if (row.pbc_percent !== undefined && row.pbc_percent < 100) myNote.push('资料清单未完成 ' + (100 - (row.pbc_percent || 0)) + '%')
+        if (row.wp_pending) myNote.push('底稿待执行 ' + row.wp_pending + ' 项')
+        lines.push('我的待办：' + (myNote.length ? myNote.join('；') : '暂无'))
+        if (members.length) {
+          lines.push('项目成员：' + members.slice(0, 6).map(function (member) { return member.name + '(' + member.role + ')' }).join('、') + (members.length > 6 ? ' 等 ' + members.length + ' 人' : ''))
+        }
+        if (recentEvents.length) {
+          const eventText = recentEvents.slice(0, 3).map(function (event) { return (event.actor || '') + ' ' + (event.item_name || '') + ' ' + (event.old_status || '') + '→' + (event.new_status || '') }).join('；')
+          lines.push('最近操作：' + eventText)
+        }
+        if (risks.length) lines.push('当前风险提示：' + risks.slice(0, 5).join('；') + (risks.length > 5 ? ' 等 ' + risks.length + ' 条' : ''))
+        lines.push('')
+        lines.push('要求：1）先检索事务所知识库（准则/法规/模板），结论标注出处（分类/文件名/段落）；2）涉及底稿时说明索引号（如 ZA/ZE/ZJ/SA）与数据来源；3）给可执行的下一步审计程序；4）数字与结论须可复核，不得编造。')
+        let text = lines.join('\n')
+        if (text.length > 2400) text = text.slice(0, 2300) + '\n（上下文较长已截断，更多细节请查看项目页面）'
+        return text
+      }).catch(function () { return basicProjectPrompt(company, project) })
+    }
+
     function Zone(props) {
       const readOnly = Boolean(props.readOnly)
       const matEditState = React.useState(false); const matEditing = matEditState[0]; const setMatEditing = matEditState[1]
@@ -182,6 +257,9 @@ window.__ModuleLoader__.load({
       const sampleResultState = React.useState(null); const sampleResult = sampleResultState[0]; const setSampleResult = sampleResultState[1]
       const samplingState = React.useState(false); const sampling = samplingState[0]; const setSampling = samplingState[1]
       const replyItemState = React.useState(null); const replyItem = replyItemState[0]; const setReplyItem = replyItemState[1]
+      const cutoffAsOfState = React.useState(''); const cutoffAsOf = cutoffAsOfState[0]; const setCutoffAsOf = cutoffAsOfState[1]
+      const cutoffDaysState = React.useState('5'); const cutoffDays = cutoffDaysState[0]; const setCutoffDays = cutoffDaysState[1]
+      const cutoffResultState = React.useState(null); const cutoffResult = cutoffResultState[0]; const setCutoffResult = cutoffResultState[1]
       const replyAmountState = React.useState(''); const replyAmount = replyAmountState[0]; const setReplyAmount = replyAmountState[1]
       const replyNoteState = React.useState(''); const replyNote = replyNoteState[0]; const setReplyNote = replyNoteState[1]
       React.useEffect(function () {
@@ -211,6 +289,24 @@ window.__ModuleLoader__.load({
               h('span', null, (item.actor || '未知') + '：' + (item.item_name || '') + ' ' + (item.old_status || '') + ' → ' + (item.new_status || '')),
               h('span', null, item.created_at))
           }))
+      }
+      function runCutoff() {
+        if (!props.project) return
+        api('/audit/analysis/cutoff', { project: props.project.id, asof: cutoffAsOf || undefined, days: Number(cutoffDays) || 5 })
+          .then(function (d) { setCutoffResult(d) })
+          .catch(function () { setCutoffResult(null) })
+      }
+      function exportCutoff() {
+        if (!props.project) return
+        fetch(BASE + '/audit/workpapers/cutoff', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-KB-Token': currentToken() }, body: JSON.stringify({ project: props.project.id, asof: cutoffAsOf || undefined, days: Number(cutoffDays) || 5 }) })
+          .then(function (resp) { if (!resp.ok) throw new Error('HTTP ' + resp.status); return resp.blob() })
+          .then(function (blob) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = '截止测试底稿.docx'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); setTimeout(function () { if (props.onRefreshWorkpapers) props.onRefreshWorkpapers() }, 300) }).catch(function () {})
+      }
+      function exportInventoryCount() {
+        if (!props.project) return
+        fetch(BASE + '/audit/workpapers/inventory-sheet', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-KB-Token': currentToken() }, body: JSON.stringify({ project: props.project.id }) })
+          .then(function (resp) { if (!resp.ok) throw new Error('HTTP ' + resp.status); return resp.blob() })
+          .then(function (blob) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = '存货监盘表.docx'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); setTimeout(function () { if (props.onRefreshWorkpapers) props.onRefreshWorkpapers() }, 300) }).catch(function () {})
       }
       function runSampling() {
         if (!props.project) return
@@ -254,6 +350,9 @@ window.__ModuleLoader__.load({
         const approvalItems = props.approvals || []
         const generatedItems = props.generated || []
         const memberItems = props.members || []
+        const programItems = props.programs || []
+        const programDone = programItems.filter(function (item) { return item.status === '已完成' }).length
+        const programPercent = programItems.length ? Math.round(programDone / programItems.length * 100) : 0
         const countBy = function (list, key) { const map = {}; list.forEach(function (item) { const value = item[key] || '未知'; map[value] = (map[value] || 0) + 1 }); return map }
         const pbcCounts = countBy(pbcItems, 'status')
         const wpCounts = countBy(wpItems, 'status')
@@ -261,7 +360,11 @@ window.__ModuleLoader__.load({
         const finishedPbc = pbcCounts['已交'] || 0
         const pbcPercent = pbcItems.length ? Math.round(finishedPbc / pbcItems.length * 100) : 0
         const current = (props.auth && props.auth.user) || {}
-        const myApprovals = approvalItems.filter(function (item) { return item.status === '待审批' && item.assigned_username === current.username })
+        const myApprovals = approvalItems.filter(function (item) { return item.status === '待审批' && item.assigned_username === current.username && (!props.todoOverdueOnly || (item.overdue_days || 0) > 0) }).sort(function (a, b) {
+          const overdueDiff = (b.overdue_days || 0) - (a.overdue_days || 0)
+          if (overdueDiff !== 0) return overdueDiff
+          return String(a.submitted_at || '').localeCompare(String(b.submitted_at || ''))
+        })
         const card = function (title, value, detail, tone) {
           return h('div', { style: { flex: '1 1 180px', minWidth: '180px', padding: '14px', borderRadius: '12px', border: '1px solid ' + COLORS.line, background: COLORS.bg } },
             h('div', { style: { fontSize: '12px', color: COLORS.muted } }, title),
@@ -286,6 +389,8 @@ window.__ModuleLoader__.load({
                 ? h('button', { onClick: function () { if (props.onOpenDelete) props.onOpenDelete() },
                     style: { padding: '7px 12px', borderRadius: '8px', border: '1px solid #b91c1c', background: 'transparent', color: '#b91c1c', fontSize: '12px', cursor: 'pointer' } }, '删除项目')
                 : null,
+              h('label', { style: { padding: '7px 12px', borderRadius: '8px', border: '1px solid ' + COLORS.line, color: COLORS.muted, fontSize: '12px', cursor: 'pointer' } },
+                '校验归档包（ZIP）', h('input', { type: 'file', accept: '.zip', style: { display: 'none' }, onChange: function (e) { const f = e.target.files && e.target.files[0]; if (f && props.onVerifyArchiveFile) props.onVerifyArchiveFile(f); e.target.value = '' } })),
               h('button', { onClick: function () { if (props.onExportArchive) props.onExportArchive() }, disabled: props.exporting,
                 style: { padding: '7px 12px', borderRadius: '8px', border: '1px solid ' + COLORS.accent, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } },
                 props.exporting ? '打包中…' : '导出归档包（ZIP）'),
@@ -295,6 +400,7 @@ window.__ModuleLoader__.load({
                     ? h('button', { onClick: function () { if (props.onArchiveProject) props.onArchiveProject() },
                         style: { padding: '7px 12px', borderRadius: '8px', border: '1px solid #b45309', background: 'transparent', color: '#b45309', fontSize: '12px', cursor: 'pointer' } }, '归档项目（只读）')
                     : null))),
+          props.archiveVerifyMessage ? h('div', { style: { fontSize: '12px', marginBottom: '8px', color: props.archiveVerifyMessage.indexOf('通过') >= 0 && props.archiveVerifyMessage.indexOf('未') < 0 ? '#16a34a' : '#b45309' } }, props.archiveVerifyMessage) : null,
           h('div', { style: { display: 'flex', gap: '10px', flexWrap: 'wrap' } },
             h('div', { style: { flex: '1 1 180px', minWidth: '180px', padding: '14px', borderRadius: '12px', border: '1px solid ' + COLORS.line, background: COLORS.bg } },
               h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '资料清单完成率'),
@@ -304,12 +410,26 @@ window.__ModuleLoader__.load({
             card('审计底稿', wpItems.length, '已生成 ' + (wpCounts['已生成'] || 0) + ' · 进行中 ' + (wpCounts['进行中'] || 0) + ' · 待执行 ' + (wpCounts['待执行'] || 0)),
             card('已生成文件', generatedItems.length, '可预览/下载，按索引号回写台账'),
             card('审批状态', approvalItems.length, '已通过 ' + (approvalCounts['已通过'] || 0) + ' · 待审批 ' + (approvalCounts['待审批'] || 0) + ' · 待提交 ' + (approvalCounts['待提交'] || 0)),
+            card('审计程序', programPercent + '%', '已完成 ' + programDone + ' / ' + programItems.length + ' 项'),
             card('项目成员', memberItems.length, memberItems.map(function (m) { return m.name }).join('、'))),
           h('div', { style: { marginTop: '16px', padding: '14px', borderRadius: '12px', border: '1px solid ' + COLORS.line } },
-            h('div', { style: { fontSize: '13px', fontWeight: 600, marginBottom: '8px' } }, '我的待办'),
+            h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' } },
+              h('div', { style: { fontSize: '13px', fontWeight: 600 } }, '我的待办' + (props.todoOverdueOnly ? '（仅超期）' : '')),
+              h('button', { onClick: function () { if (props.onSetTodoOverdueOnly) props.onSetTodoOverdueOnly(!props.todoOverdueOnly) }, style: { padding: '3px 8px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px', cursor: 'pointer' } }, props.todoOverdueOnly ? '查看全部' : '只看超期')),
             myApprovals.length
               ? myApprovals.map(function (item) {
-                  return h('div', { key: 'todo-' + item.id, style: { fontSize: '12px', padding: '4px 0', color: COLORS.accent } }, '待你审批：' + item.title)
+                  const urgent = item.kind === '归档校验' || item.kind === '报告复核'
+                  const tone = urgent ? { border: '1px solid #b91c1c', color: '#b91c1c' } : { border: '1px solid ' + COLORS.line, color: COLORS.muted }
+                  return h('div', { key: 'todo-' + item.id, style: { fontSize: '12px', padding: '4px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' } },
+                    h('span', { style: { display: 'flex', alignItems: 'center', gap: '6px' } },
+                      h('span', { style: Object.assign({ padding: '1px 6px', borderRadius: '8px', fontSize: '10px', flexShrink: 0 }, tone) }, urgent ? '紧急' : '普通'),
+                      item.overdue_days ? h(Badge, { tone: item.overdue_days > 7 ? 'bad' : 'warn' }, '超期 ' + item.overdue_days + ' 天') : null,
+                      h('span', { style: { color: COLORS.accent, cursor: 'pointer' }, title: '跳转到相关分区', onClick: function () { if (props.onJumpTodoZone) props.onJumpTodoZone(item.kind) } }, '待你审批：' + item.title + (item.kind ? '（' + item.kind + '）' : ''))),
+                    readOnly ? null : h('div', { style: { display: 'flex', gap: '6px', flexShrink: 0 } },
+                      h('button', { onClick: function () { if (props.onDecideApproval) props.onDecideApproval(item, 'approve', '确认通过') },
+                        style: { padding: '3px 8px', borderRadius: '6px', border: 0, background: '#16a34a', color: '#fff', fontSize: '11px', cursor: 'pointer' } }, '通过'),
+                      h('button', { onClick: function () { if (props.onDecideApproval) props.onDecideApproval(item, 'reject', '已驳回，请重新处理') },
+                        style: { padding: '3px 8px', borderRadius: '6px', border: '1px solid #b91c1c', background: 'transparent', color: '#b91c1c', fontSize: '11px', cursor: 'pointer' } }, '驳回')))
                 })
               : h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '暂无指派给你的审批；资料清单待补 ' + (pbcCounts['待补'] || 0) + ' 项')),
           eventsBlock('pbc'),
@@ -337,8 +457,21 @@ window.__ModuleLoader__.load({
             h('div', null,
               h('div', { style: { fontSize: '14px', fontWeight: 600, marginBottom: '4px' } }, '风险评估与重要性'),
               h('div', { style: { fontSize: '12px', color: COLORS.muted, marginBottom: '14px' } }, '基于客户报表数据自动计算，审计师须结合职业判断确认')),
-            readOnly ? null : h('button', { onClick: function () { if (props.onGenerateRiskDocx) props.onGenerateRiskDocx() },
-              style: { padding: '8px 14px', borderRadius: '8px', border: 0, background: COLORS.accent, color: '#fff', fontSize: '12px', cursor: 'pointer' } }, '生成风险评估底稿（Word）')),
+            readOnly ? null : h('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' } },
+              h('button', { onClick: function () { if (props.onAskAiNextSteps) props.onAskAiNextSteps() },
+                style: { padding: '8px 14px', borderRadius: '8px', border: '1px solid ' + COLORS.accent, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, 'AI 建议后续程序'),
+              h('select', { value: props.checklistKind, onChange: function (e) { if (props.onSetChecklistKind) props.onSetChecklistKind(e.target.value) },
+                style: { padding: '7px 10px', borderRadius: '8px', border: '1px solid ' + COLORS.accent, background: 'transparent', color: 'inherit', fontSize: '12px' } },
+                h('option', { value: 'subsequent' }, '期后事项检查表'),
+                h('option', { value: 'going' }, '持续经营评估'),
+                h('option', { value: 'related' }, '关联方交易检查表'),
+                h('option', { value: 'contingencies' }, '或有事项检查表'),
+                h('option', { value: 'opening' }, '期初余额审计程序表'),
+                h('option', { value: 'policies' }, '会计政策与估计检查表')),
+              h('button', { onClick: function () { if (props.onGenerateChecklist) props.onGenerateChecklist() },
+                style: { padding: '8px 14px', borderRadius: '8px', border: '1px solid ' + COLORS.accent, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '生成检查表（Word）'),
+              h('button', { onClick: function () { if (props.onGenerateRiskDocx) props.onGenerateRiskDocx() },
+                style: { padding: '8px 14px', borderRadius: '8px', border: 0, background: COLORS.accent, color: '#fff', fontSize: '12px', cursor: 'pointer' } }, '生成风险评估底稿（Word）'))),
           h('div', { style: { display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '12px' } },
             h('div', { style: { flex: '1 1 260px', minWidth: '260px', padding: '14px', borderRadius: '12px', border: '1px solid ' + COLORS.line, background: COLORS.bg } },
               h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' } },
@@ -446,6 +579,59 @@ window.__ModuleLoader__.load({
                   h('span', { style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, item.summary + (item.name ? ' · ' + item.name : '')),
                   h('span', { style: { textAlign: 'right' } }, Number(item.amount).toLocaleString()))
               })) : (sampleResult && !sampleResult.available ? h('div', { style: { fontSize: '12px', color: '#b45309' } }, sampleResult.message || '抽样不可用') : null)),
+          h('div', { style: { marginTop: '12px', padding: '14px', borderRadius: '12px', border: '1px solid ' + COLORS.line } },
+            h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' } },
+              h('div', { style: { fontSize: '13px', fontWeight: 600 } }, '截止测试与存货监盘'),
+              readOnly ? null : h('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' } },
+                h('button', { onClick: exportCutoff, style: { padding: '7px 12px', borderRadius: '8px', border: '1px solid ' + COLORS.accent, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '生成截止测试底稿'),
+                h('button', { onClick: exportInventoryCount, style: { padding: '7px 12px', borderRadius: '8px', border: '1px solid ' + COLORS.accent, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '生成存货监盘表'))),
+            readOnly ? null : h('div', { style: { display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '6px' } },
+              h('span', { style: { fontSize: '12px', color: COLORS.muted } }, '截止日'),
+              h('input', { value: cutoffAsOf, onChange: function (e) { setCutoffAsOf(e.target.value) }, placeholder: 'YYYY-MM-DD', style: { width: '110px', padding: '5px 8px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }),
+              h('span', { style: { fontSize: '12px', color: COLORS.muted } }, '前后'),
+              h('input', { value: cutoffDays, onChange: function (e) { setCutoffDays(e.target.value) }, style: { width: '52px', padding: '5px 8px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }),
+              h('span', { style: { fontSize: '12px', color: COLORS.muted } }, '天'),
+              h('button', { onClick: runCutoff, style: { padding: '7px 12px', borderRadius: '8px', border: '1px solid ' + COLORS.accent, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '执行截止测试')),
+            cutoffResult && cutoffResult.available ? h('div', { style: { fontSize: '12px', color: COLORS.muted } },
+              '截止日 ' + cutoffResult.asof + '：日前 ' + cutoffResult.before_count + ' 笔 / 日后 ' + cutoffResult.after_count + ' 笔'
+              + (cutoffResult.before_count + cutoffResult.after_count === 0 ? '（无临近凭证，调整截止日或天数）' : ''))
+              : (cutoffResult && !cutoffResult.available ? h('div', { style: { fontSize: '12px', color: '#b45309' } }, cutoffResult.message || '截止测试不可用') : null),
+            (props.inventoryCounts || []).length ? h('div', { style: { marginTop: '8px', paddingTop: '8px', borderTop: '1px dashed ' + COLORS.line } },
+              h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' } },
+                h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '存货监盘录入（' + props.inventoryCounts.length + '）'),
+                readOnly ? null : h('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' } },
+                  h('button', { onClick: function () { if (props.onSaveInventoryCounts) props.onSaveInventoryCounts() }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '保存录入'),
+                  h('button', { onClick: function () { if (props.onExportInventorySummary) props.onExportInventorySummary() }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '导出汇总 Excel'),
+                  h('button', { onClick: function () { if (props.onExportInventoryExceptions) props.onExportInventoryExceptions() }, style: { border: 0, background: 'transparent', color: '#b45309', fontSize: '12px', cursor: 'pointer' } }, '差异事项清单'),
+                  h('button', { onClick: function () { if (props.onConfirmInventory) props.onConfirmInventory() }, style: { border: 0, background: 'transparent', color: '#16a34a', fontSize: '12px', cursor: 'pointer' } }, '确认监盘'))),
+              h('div', { style: { display: 'grid', gridTemplateColumns: '60px 1fr 90px 70px 70px 70px 1fr 60px', gap: '6px', fontSize: '11px', color: COLORS.muted, padding: '3px 0' } },
+                h('span', null, '编码'), h('span', null, '名称'), h('span', null, '账面金额'), h('span', null, '账面数量'), h('span', null, '实盘数量'), h('span', null, '差异'), h('span', null, '备注'), h('span', null, '状态')),
+              (props.inventoryCounts || []).map(function (row) {
+                return h('div', { key: 'inv-' + row.code, style: { display: 'grid', gridTemplateColumns: '60px 1fr 90px 70px 70px 70px 1fr 60px', gap: '6px', alignItems: 'center', fontSize: '12px', padding: '2px 0' } },
+                  h('span', null, row.code), h('span', null, row.name), h('span', null, Number(row.book_amount).toLocaleString()),
+                  h('input', { value: String(row.book_qty || ''), onChange: function (e) { if (props.onUpdateInventoryRow) props.onUpdateInventoryRow(row.code, 'book_qty', e.target.value) }, style: { width: '58px', padding: '3px 5px', borderRadius: '5px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px' } }),
+                  h('input', { value: String(row.counted_qty || ''), onChange: function (e) { if (props.onUpdateInventoryRow) props.onUpdateInventoryRow(row.code, 'counted_qty', e.target.value) }, style: { width: '58px', padding: '3px 5px', borderRadius: '5px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px' } }),
+                  h('span', { style: { color: Number(row.difference || 0) === 0 ? COLORS.muted : '#b45309' } }, String(row.difference || 0)),
+                  h('input', { value: row.note || '', onChange: function (e) { if (props.onUpdateInventoryRow) props.onUpdateInventoryRow(row.code, 'note', e.target.value) }, style: { width: '100%', padding: '3px 5px', borderRadius: '5px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px' } }),
+                  h(Badge, { tone: row.status === '已确认' ? 'ok' : row.status === '已录入' ? 'warn' : 'muted' }, row.status))
+              }),
+              h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center', marginTop: '6px', fontSize: '11px' } },
+                h('span', { style: { color: COLORS.muted } }, '监盘日期'),
+                h('input', { value: (props.inventoryMeta && props.inventoryMeta.counted_at) || '', onChange: function (e) { if (props.onUpdateInventoryMeta) props.onUpdateInventoryMeta('counted_at', e.target.value) }, placeholder: 'YYYY-MM-DD', style: { width: '92px', padding: '3px 6px', borderRadius: '5px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px' } }),
+                h('span', { style: { color: COLORS.muted } }, '监盘人'),
+                h('input', { value: (props.inventoryMeta && props.inventoryMeta.auditor_rep) || '', onChange: function (e) { if (props.onUpdateInventoryMeta) props.onUpdateInventoryMeta('auditor_rep', e.target.value) }, placeholder: '监盘人', style: { width: '80px', padding: '3px 6px', borderRadius: '5px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px' } }),
+                h('span', { style: { color: COLORS.muted } }, '陪同人'),
+                h('input', { value: (props.inventoryMeta && props.inventoryMeta.client_rep) || '', onChange: function (e) { if (props.onUpdateInventoryMeta) props.onUpdateInventoryMeta('client_rep', e.target.value) }, placeholder: '客户陪同人', style: { width: '100px', padding: '3px 6px', borderRadius: '5px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px' } }),
+                h('input', { value: (props.inventoryMeta && props.inventoryMeta.note) || '', onChange: function (e) { if (props.onUpdateInventoryMeta) props.onUpdateInventoryMeta('note', e.target.value) }, placeholder: '监盘说明', style: { flex: 1, minWidth: '100px', padding: '3px 6px', borderRadius: '5px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px' } }),
+                readOnly ? null : h('button', { onClick: function () { if (props.onSaveInventoryMeta) props.onSaveInventoryMeta() }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '11px', cursor: 'pointer' } }, '保存监盘信息')),
+              h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px', marginTop: '6px', fontSize: '12px', flexWrap: 'wrap' } },
+                h('span', { style: { color: COLORS.muted } }, '盘点表扫描件（' + (props.inventoryAttachments || []).length + '）'),
+                readOnly ? null : h('label', { style: { color: COLORS.accent, cursor: 'pointer' } },
+                  '上传扫描件', h('input', { type: 'file', style: { display: 'none' }, onChange: function (e) { const f = e.target.files && e.target.files[0]; if (f && props.onUploadInventoryAttachment) props.onUploadInventoryAttachment(f); e.target.value = '' } })),
+                (props.inventoryAttachments || []).map(function (item) {
+                  return h('button', { key: 'invatt-' + item.id, onClick: function () { if (props.onPreviewInventoryAttachment) props.onPreviewInventoryAttachment(item) },
+                    style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '查看 ' + item.filename)
+                }))) : null),
           (function () {
             const confirmation = analysis.confirmation || {}
             const aging = analysis.aging || {}
@@ -453,7 +639,7 @@ window.__ModuleLoader__.load({
             return h('div', { style: { marginTop: '12px', padding: '14px', borderRadius: '12px', border: '1px solid ' + COLORS.line } },
               h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' } },
                 h('div', { style: { fontSize: '13px', fontWeight: 600 } }, '函证与账龄'),
-                readOnly ? null : h('div', { style: { display: 'flex', gap: '8px' } },
+                readOnly ? null : h('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' } },
                   confirmation.available ? h('button', { onClick: exportConfirmation, style: { padding: '7px 12px', borderRadius: '8px', border: '1px solid ' + COLORS.accent, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '生成函证清单（Word）') : null,
                   aging.available ? h('button', { onClick: exportAging, style: { padding: '7px 12px', borderRadius: '8px', border: '1px solid ' + COLORS.accent, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '生成账龄分析（Word）') : null)),
               h('div', { style: { display: 'flex', gap: '10px', flexWrap: 'wrap' } },
@@ -516,13 +702,43 @@ window.__ModuleLoader__.load({
             })) : null,
           h('div', { style: { marginTop: '12px', padding: '14px', borderRadius: '12px', border: '1px solid ' + COLORS.line } },
             h('div', { style: { fontSize: '13px', fontWeight: 600, marginBottom: '6px' } }, '项目数据导入'),
-            h('div', { style: { fontSize: '11px', color: COLORS.muted, marginBottom: '8px' } }, '导入科目余额表与序时账后，可执行试算平衡、勾稽与抽样程序（支持 .xlsx / .csv）。'),
+            h('div', { style: { fontSize: '11px', color: COLORS.muted, marginBottom: '8px' } }, '导入科目余额表与序时账后，可执行试算平衡、勾稽与抽样程序（支持 .xlsx / .xls / .csv）。'),
             readOnly ? h('div', { style: { fontSize: '12px', color: '#b45309' } }, '项目已归档，不可导入') : h('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap' } },
               h('label', { style: { padding: '7px 12px', borderRadius: '8px', border: '1px solid ' + COLORS.accent, color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } },
-                '上传科目余额表', h('input', { type: 'file', accept: '.xlsx,.csv', style: { display: 'none' }, onChange: function (e) { const f = e.target.files && e.target.files[0]; if (f && props.onImportData) props.onImportData('tb', f); e.target.value = '' } })),
+                '上传科目余额表', h('input', { type: 'file', accept: '.xlsx,.xls,.csv', style: { display: 'none' }, onChange: function (e) { const f = e.target.files && e.target.files[0]; if (f && props.onImportData) props.onImportData('tb', f); e.target.value = '' } })),
               h('label', { style: { padding: '7px 12px', borderRadius: '8px', border: '1px solid ' + COLORS.accent, color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } },
-                '上传序时账/明细账', h('input', { type: 'file', accept: '.xlsx,.csv', style: { display: 'none' }, onChange: function (e) { const f = e.target.files && e.target.files[0]; if (f && props.onImportData) props.onImportData('journal', f); e.target.value = '' } }))),
-            props.importMessage ? h('div', { style: { fontSize: '12px', marginTop: '8px', color: '#16a34a' } }, props.importMessage) : null))
+                '上传序时账/明细账', h('input', { type: 'file', accept: '.xlsx,.xls,.csv', style: { display: 'none' }, onChange: function (e) { const f = e.target.files && e.target.files[0]; if (f && props.onImportData) props.onImportData('journal', f); e.target.value = '' } })),
+              h('label', { style: { padding: '7px 12px', borderRadius: '8px', border: '1px solid ' + COLORS.accent, color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } },
+                '上传财务报表（xlsx）', h('input', { type: 'file', accept: '.xlsx', style: { display: 'none' }, onChange: function (e) { const f = e.target.files && e.target.files[0]; if (f && props.onImportFinancialStatements) props.onImportFinancialStatements(f); e.target.value = '' } })),
+              h('label', { style: { padding: '7px 12px', borderRadius: '8px', border: '1px solid ' + COLORS.line, color: COLORS.muted, fontSize: '12px', cursor: 'pointer' } },
+                '校验科目余额表', h('input', { type: 'file', accept: '.xlsx,.xls,.csv', style: { display: 'none' }, onChange: function (e) { const f = e.target.files && e.target.files[0]; if (f && props.onValidateImportFile) props.onValidateImportFile('tb', f); e.target.value = '' } })),
+              h('label', { style: { padding: '7px 12px', borderRadius: '8px', border: '1px solid ' + COLORS.line, color: COLORS.muted, fontSize: '12px', cursor: 'pointer' } },
+                '校验序时账', h('input', { type: 'file', accept: '.xlsx,.xls,.csv', style: { display: 'none' }, onChange: function (e) { const f = e.target.files && e.target.files[0]; if (f && props.onValidateImportFile) props.onValidateImportFile('journal', f); e.target.value = '' } }))),
+            h('div', { style: { display: 'flex', gap: '10px', marginTop: '6px', fontSize: '11px' } },
+              h('span', { style: { color: COLORS.muted } }, '标准模板：'),
+              h('button', { onClick: function () { if (props.onDownloadImportTemplate) props.onDownloadImportTemplate('tb') }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '11px', cursor: 'pointer' } }, '下载科目余额表模板'),
+              h('button', { onClick: function () { if (props.onDownloadImportTemplate) props.onDownloadImportTemplate('journal') }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '11px', cursor: 'pointer' } }, '下载序时账模板'),
+              h('button', { onClick: function () { if (props.onDownloadFinancialTemplate) props.onDownloadFinancialTemplate() }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '11px', cursor: 'pointer' } }, '下载财务报表模板')),
+            readOnly ? null : h('div', { style: { marginTop: '8px', paddingTop: '8px', borderTop: '1px dashed ' + COLORS.line, display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center', fontSize: '11px' } },
+              h('label', { style: { padding: '5px 10px', borderRadius: '7px', border: '1px solid ' + COLORS.line, color: COLORS.muted, cursor: 'pointer' } },
+                props.multiLoading ? '读取中…' : '多工作表文件', h('input', { type: 'file', accept: '.xlsx,.xls', style: { display: 'none' }, onChange: function (e) { const f = e.target.files && e.target.files[0]; if (f && props.onChooseMultiSheetFile) props.onChooseMultiSheetFile(f); e.target.value = '' } })),
+              (props.multiSheets || []).length ? h('select', { value: props.multiKind, onChange: function (e) { if (props.onSetMultiKind) props.onSetMultiKind(e.target.value) }, style: { padding: '4px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px' } },
+                h('option', { value: 'tb' }, '科目余额表'), h('option', { value: 'journal' }, '序时账')) : null,
+              (props.multiSheets || []).length ? h('select', { value: props.multiSheetIndex, onChange: function (e) { if (props.onSetMultiSheetIndex) props.onSetMultiSheetIndex(e.target.value) }, style: { padding: '4px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px' } },
+                props.multiSheets.map(function (name, index) { return h('option', { key: name + index, value: String(index) }, name) })) : null,
+              (props.multiSheets || []).length ? h('button', { onClick: function () { if (props.onSubmitMultiSheet) props.onSubmitMultiSheet('validate') }, style: { padding: '5px 10px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px', cursor: 'pointer' } }, '校验所选') : null,
+              (props.multiSheets || []).length ? h('button', { onClick: function () { if (props.onSubmitMultiSheet) props.onSubmitMultiSheet('import') }, style: { padding: '5px 10px', borderRadius: '7px', border: 0, background: COLORS.accent, color: '#fff', fontSize: '11px', cursor: 'pointer' } }, '导入所选') : null),
+            props.importMessage ? h('div', { style: { display: 'flex', gap: '8px', alignItems: 'center', marginTop: '8px', flexWrap: 'wrap' } },
+              h('div', { style: { fontSize: '12px', color: props.importMessage.indexOf('失败') >= 0 ? '#b91c1c' : '#16a34a' } }, props.importMessage),
+              (props.importMessage.indexOf('勾稽提示') >= 0 && !readOnly) ? h('button', { onClick: function () { if (props.onGenerateTrialBalance) props.onGenerateTrialBalance() },
+                style: { padding: '4px 10px', borderRadius: '6px', border: '1px solid ' + COLORS.accent, background: 'transparent', color: COLORS.accent, fontSize: '11px', cursor: 'pointer' } }, '生成试算平衡底稿') : null) : null,
+            (props.dataEvents || []).length ? h('div', { style: { marginTop: '8px', fontSize: '11px', color: COLORS.muted } },
+              h('div', { style: { marginBottom: '3px' } }, '最近导入：'),
+              (props.dataEvents || []).slice(0, 5).map(function (event, index) {
+                return h('div', { key: 'de-' + index, style: { display: 'flex', justifyContent: 'space-between', padding: '2px 0' } },
+                  h('span', null, (event.item_name || '') + ' · ' + (event.actor || '') + (event.new_status ? ' · ' + event.new_status : '')),
+                  h('span', null, event.created_at))
+              })) : null))
       }
       if (props.zone === '资料清单') {
         const items = props.pbc === null ? null : props.pbc
@@ -596,7 +812,11 @@ window.__ModuleLoader__.load({
                   h(Badge, { tone: toneOfWp(item.status) }, item.status)))
             }) : [h('div', { key: 'empty', style: { padding: '14px', fontSize: '12px', color: COLORS.muted } }, '暂无底稿，先从模板生成')])
         const generated = props.generated === null ? [] : props.generated
-        const generatedRows = generated.map(function (item) {
+        const generatedStats = generated.reduce(function (acc, item) { const kind = item.kind || 'other'; acc[kind] = (acc[kind] || 0) + 1; return acc }, {})
+        const KIND_LABELS = { currency: '货币资金', receivable: '应收账款', inventory: '存货', revenue: '营业收入成本', trial_balance: '试算平衡', subsequent_events: '期后事项', going_concern: '持续经营', related_parties: '关联方交易', contingencies: '或有事项', opening_balances: '期初余额', accounting_policies: '会计政策与估计' }
+        const kindOptions = Array.from(new Set(generated.map(function (item) { return item.kind }))).filter(Boolean)
+        const filteredGenerated = props.generatedKind && props.generatedKind !== 'all' ? generated.filter(function (item) { return item.kind === props.generatedKind }) : generated
+        const generatedRows = filteredGenerated.map(function (item) {
           return h('div', { key: 'gen-' + item.id, style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid ' + COLORS.line } },
             h('div', { style: { display: 'flex', gap: '8px', alignItems: 'baseline', minWidth: 0 } },
               h('span', { style: { fontSize: '12px' } }, item.filename),
@@ -609,6 +829,16 @@ window.__ModuleLoader__.load({
         })
         return h('div', null,
           h(Section, null, h('div', { style: { fontSize: '13px' } }, '审计底稿（审计员产出）'), h('div', { style: { fontSize: '12px', color: COLORS.muted, marginTop: '2px' } }, '按事务所模板与索引号生成，点击状态可切换执行状态')),
+          h('div', { style: { padding: '8px 14px 0', display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center', fontSize: '11px' } },
+            h('span', { style: { color: COLORS.muted } }, '底稿统计：共 ' + generated.length + ' 份'),
+            Object.keys(generatedStats).map(function (kind) {
+              const active = (props.generatedKind || 'all') === kind
+              return h('span', { key: 'stat-' + kind, title: '点击按类型过滤', onClick: function () { if (props.onSetGeneratedKind) props.onSetGeneratedKind(active ? 'all' : kind) },
+                style: { padding: '2px 8px', borderRadius: '10px', border: '1px solid ' + (active ? COLORS.accent : COLORS.line), color: active ? COLORS.accent : COLORS.muted, cursor: 'pointer' } },
+                (KIND_LABELS[kind] || kind) + ' ' + generatedStats[kind])
+            }),
+            generated.length ? h('span', { title: '点击预览最新底稿', onClick: function () { if (props.onPreviewWorkpaper) props.onPreviewWorkpaper(generated[0]) },
+              style: { color: COLORS.accent, cursor: 'pointer', textDecoration: 'underline' } }, '最新：' + generated[0].created_at) : null),
           h('div', { style: { padding: '6px 14px' } }, rows),
           h('div', { style: { padding: '10px 14px', borderTop: '1px solid ' + COLORS.line } },
             h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '8px' } },
@@ -623,6 +853,9 @@ window.__ModuleLoader__.load({
                 props.generating ? '生成中…' : '一键生成全部底稿（4 类）'),
               h('button', { onClick: function () { if (props.onExportWorkpapers) props.onExportWorkpapers() },
                 style: { padding: '8px 14px', borderRadius: '8px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '打包下载全部底稿（ZIP）'),
+              h('label', { style: { padding: '8px 14px', borderRadius: '8px', border: '1px solid ' + COLORS.line, color: COLORS.muted, fontSize: '12px', cursor: 'pointer' } },
+                '校验底稿包（ZIP）', h('input', { type: 'file', accept: '.zip', style: { display: 'none' }, onChange: function (e) { const f = e.target.files && e.target.files[0]; if (f && props.onVerifyWorkpapersZip) props.onVerifyWorkpapersZip(f); e.target.value = '' } })),
+              props.wpsVerifyMessage ? h('span', { style: { fontSize: '11px', color: props.wpsVerifyMessage.indexOf('通过') >= 0 && props.wpsVerifyMessage.indexOf('未') < 0 ? '#16a34a' : '#b45309' } }, props.wpsVerifyMessage) : null,
               h('button', { onClick: function () { if (props.onGenerateWorkpaper) props.onGenerateWorkpaper('currency') }, disabled: props.generating || readOnly,
                 style: { padding: '8px 14px', borderRadius: '8px', border: 0, background: COLORS.accent, color: '#fff', fontSize: '12px', cursor: 'pointer' } },
                 props.generating ? '生成中…' : '生成货币资金底稿（ZA）'),
@@ -637,9 +870,46 @@ window.__ModuleLoader__.load({
                 props.generating ? '生成中…' : '生成营业收入成本底稿（SA）'),
               props.generateMessage ? h('span', { style: { fontSize: '11px', color: COLORS.muted } }, props.generateMessage) : null),
             generated.length ? h('div', null,
-              h('div', { style: { fontSize: '12px', fontWeight: 600, margin: '6px 0' } }, '已生成底稿（' + generated.length + '）'),
+              h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px', margin: '6px 0' } },
+                h('div', { style: { fontSize: '12px', fontWeight: 600 } }, '已生成底稿（' + filteredGenerated.length + (props.generatedKind && props.generatedKind !== 'all' ? ' / ' + generated.length : '') + '）'),
+                h('select', { value: props.generatedKind || 'all', onChange: function (e) { if (props.onSetGeneratedKind) props.onSetGeneratedKind(e.target.value) },
+                  style: { padding: '5px 8px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px' } },
+                  h('option', { value: 'all' }, '全部类型'),
+                  kindOptions.map(function (kind) { return h('option', { key: kind, value: kind }, KIND_LABELS[kind] || kind) }))),
               generatedRows) : h('div', { style: { fontSize: '11px', color: COLORS.muted } }, '还没有生成底稿')),
           eventsBlock('workpaper'))
+      }
+      if (props.zone === '审计程序') {
+        const rows = props.programs || []
+        const cycle = ['待执行', '进行中', '已完成', '不适用']
+        return h('div', { style: { padding: '18px', maxWidth: '960px' } },
+          h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' } },
+            h('div', null,
+              h('div', { style: { fontSize: '14px', fontWeight: 600 } }, '审计程序清单'),
+              h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '业务类型：' + (((props.project || {}).business_type) || '年报审计') + ' · 共 ' + rows.length + ' 项 · 更新执行状态与负责人后保存')),
+            h('div', { style: { display: 'flex', gap: '8px' } },
+              h('button', { onClick: function () { if (props.onExportPrograms) props.onExportPrograms() }, style: { padding: '8px 14px', borderRadius: '8px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '导出程序表（Word）'),
+              h('button', { onClick: function () { if (props.onExportProgramsXlsx) props.onExportProgramsXlsx() }, style: { padding: '8px 14px', borderRadius: '8px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '导出 Excel'),
+              readOnly ? null : h('button', { onClick: function () { if (props.onSavePrograms) props.onSavePrograms() }, style: { padding: '8px 14px', borderRadius: '8px', border: 0, background: COLORS.accent, color: '#fff', fontSize: '12px', cursor: 'pointer' } }, '保存程序清单'))),
+          props.importMessage ? h('div', { style: { fontSize: '12px', color: '#16a34a', marginBottom: '6px' } }, props.importMessage) : null,
+          rows.length ? rows.map(function (row) {
+            return h('div', { key: 'prog-' + row.id, style: { display: 'grid', gridTemplateColumns: '36px 1fr 90px 120px 1fr', gap: '8px', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid ' + COLORS.line, fontSize: '12px' } },
+              h('span', { style: { color: COLORS.muted } }, row.seq + '.'),
+              h('span', null, row.name),
+              h('span', { onClick: function () { if (!readOnly && props.onUpdateProgramRow) props.onUpdateProgramRow(row.id, 'status', cycle[(cycle.indexOf(row.status || '待执行') + 1) % cycle.length]) }, title: '点击切换状态', style: { cursor: 'pointer' } },
+                h(Badge, { tone: row.status === '已完成' ? 'ok' : row.status === '进行中' ? 'warn' : row.status === '不适用' ? 'muted' : 'bad' }, row.status || '待执行')),
+              h('input', { value: row.owner || '', onChange: function (e) { if (props.onUpdateProgramRow) props.onUpdateProgramRow(row.id, 'owner', e.target.value) }, placeholder: '负责人', style: { padding: '4px 7px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }),
+              h('input', { value: row.note || '', onChange: function (e) { if (props.onUpdateProgramRow) props.onUpdateProgramRow(row.id, 'note', e.target.value) }, placeholder: '备注/证据', style: { padding: '4px 7px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }))
+          }) : h('div', { style: { padding: '14px', fontSize: '12px', color: COLORS.muted } }, '暂无审计程序，保存后自动生成'),
+          (props.programEvents || []).filter(function (event) { return event.old_status }).length ? h('div', { style: { marginTop: '16px', padding: '14px', borderRadius: '12px', border: '1px solid ' + COLORS.line } },
+            h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' } },
+              h('div', { style: { fontSize: '13px', fontWeight: 600 } }, '最近变更（' + (props.programEvents || []).filter(function (event) { return event.old_status }).length + '）'),
+              h('button', { onClick: function () { if (props.onExportProgramHistory) props.onExportProgramHistory() }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '导出变更历史 Excel')),
+            (props.programEvents || []).filter(function (event) { return event.old_status }).slice(0, 10).map(function (event, index) {
+              return h('div', { key: 'pe-' + index, style: { display: 'flex', justifyContent: 'space-between', gap: '10px', fontSize: '12px', padding: '3px 0', borderBottom: '1px solid ' + COLORS.line } },
+                h('span', null, (event.item_name || '') + '：' + (event.old_status || '') + ' → ' + (event.new_status || '') + '（' + (event.actor || '') + '）'),
+                h('span', { style: { color: COLORS.muted } }, event.created_at))
+            })) : null)
       }
       if (props.zone === '项目对话') {
         const linked = props.linked === null ? null : props.linked
@@ -665,13 +935,15 @@ window.__ModuleLoader__.load({
       }
       if (props.zone === '审批状态') {
         const items = props.approvals === null ? null : props.approvals
+        const statusFilter = props.approvalFilter || 'all'
+        const filteredItems = items === null ? null : (statusFilter === 'all' ? items : items.filter(function (item) { return item.status === statusFilter }))
         const user = (props.auth && props.auth.user) || { name: '未登录', role: 'auditor', username: '' }
         const canApprove = ['manager', 'partner', 'kb-admin', 'admin'].indexOf(user.role) >= 0
         const approverMembers = (props.members || []).filter(function (m) { return ['manager', 'partner', 'kb-admin', 'admin'].indexOf(m.role) >= 0 })
         const toneOf = function (status) { return status === '已通过' ? 'ok' : status === '待审批' ? 'warn' : status === '已驳回' ? 'bad' : 'muted' }
         const rows = items === null
           ? [h('div', { key: 'loading', style: { padding: '14px', fontSize: '12px', color: COLORS.muted } }, '正在加载审批状态…')]
-          : (items.length ? items.map(function (item) {
+          : (filteredItems.length ? filteredItems.map(function (item) {
               const actions = []
               if (item.status === '待提交' || item.status === '已驳回') {
                 if (approverMembers.length) {
@@ -713,12 +985,21 @@ window.__ModuleLoader__.load({
                     h('span', { style: { fontSize: '11px', color: COLORS.muted, marginLeft: '8px' } }, item.kind === 'engagement' ? '立项' : item.kind === 'review' ? '成果复核' : item.kind)),
                   h(Badge, { tone: toneOf(item.status) }, item.status)),
                 meta ? h('div', { style: { fontSize: '11px', color: COLORS.muted, marginTop: '4px' } }, meta) : null,
+                item.overdue_days ? h('div', { style: { marginTop: '4px' } }, h(Badge, { tone: item.overdue_days > 7 ? 'bad' : 'warn' }, '超期 ' + item.overdue_days + ' 天')) : null,
                 actions.length ? h('div', null, actions) : null)
             }) : [h('div', { key: 'empty', style: { padding: '14px', fontSize: '12px', color: COLORS.muted } }, '暂无审批事项')])
         const identityBar = h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', fontSize: '12px' } },
           h('span', { style: { color: COLORS.muted } }, '当前身份：'),
           h('span', { style: { fontWeight: 600 } }, user.name + '（' + user.role + '）'),
-          h('span', { style: { color: canApprove ? '#16a34a' : '#b45309' } }, canApprove ? '可审批' : '只读/提交'))
+          h('span', { style: { color: canApprove ? '#16a34a' : '#b45309' } }, canApprove ? '可审批' : '只读/提交'),
+          h('button', { onClick: function () { if (props.onExportApprovals) props.onExportApprovals() }, style: { marginLeft: 'auto', padding: '5px 10px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '导出 CSV'),
+          h('select', { value: statusFilter, onChange: function (e) { if (props.onSetApprovalFilter) props.onSetApprovalFilter(e.target.value) },
+            style: { marginLeft: 'auto', padding: '5px 8px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } },
+            h('option', { value: 'all' }, '全部状态（' + (items ? items.length : 0) + '）'),
+            h('option', { value: '待提交' }, '待提交'),
+            h('option', { value: '待审批' }, '待审批'),
+            h('option', { value: '已通过' }, '已通过'),
+            h('option', { value: '已驳回' }, '已驳回')))
         const memberList = props.members || []
         if (readOnly) {
           return h('div', { style: { padding: '20px', maxWidth: '720px' } },
@@ -744,7 +1025,11 @@ window.__ModuleLoader__.load({
             h('button', { onClick: function () { if (props.onAddMember) props.onAddMember(props.newMemberName || '') },
               style: { padding: '6px 10px', borderRadius: '7px', border: 0, background: COLORS.accent, color: '#fff', fontSize: '12px', cursor: 'pointer' } }, '+ 添加成员')))
         return h('div', { style: { padding: '20px', maxWidth: '720px' } },
-          h('div', { style: { fontSize: '14px', marginBottom: '6px' } }, '审批状态'),
+          h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' } },
+            h('div', { style: { fontSize: '14px' } }, '审批状态'),
+            canApprove ? h('button', { onClick: function () { if (props.onEscalateApprovals) props.onEscalateApprovals() },
+              style: { padding: '6px 10px', borderRadius: '7px', border: '1px solid #b45309', background: 'transparent', color: '#b45309', fontSize: '12px', cursor: 'pointer' } }, '超期升级提醒') : null),
+          props.escalateMessage ? h('div', { style: { fontSize: '12px', color: '#b45309', marginBottom: '8px' } }, props.escalateMessage) : null,
           membersBlock,
           h('div', { style: { fontSize: '12px', color: COLORS.muted, marginBottom: '6px' } }, '立项审批与成果复核：提交 → 待审批 → 通过/驳回，操作全程留痕。'),
           identityBar,
@@ -793,13 +1078,21 @@ window.__ModuleLoader__.load({
             h('div', { style: { fontSize: '13px', fontWeight: 600, marginBottom: '6px' } }, '报告初稿：' + draft.filename),
             h('pre', { style: { whiteSpace: 'pre-wrap', fontSize: '12px', lineHeight: 1.7, background: COLORS.bg, padding: '12px', borderRadius: '10px', maxHeight: '420px', overflow: 'auto' } }, draft.content)) : null,
           (report.versions || []).length ? h('div', { style: { marginTop: '16px' } },
-            h('div', { style: { fontSize: '13px', fontWeight: 600, marginBottom: '6px' } }, '历史版本（' + report.versions.length + '）'),
-            report.versions.map(function (version) {
+            h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' } },
+              h('div', { style: { fontSize: '13px', fontWeight: 600 } }, '历史版本（' + report.versions.length + '）'),
+              h('select', { value: props.reportVersionFilter || 'all', onChange: function (e) { if (props.onSetReportVersionFilter) props.onSetReportVersionFilter(e.target.value) },
+                style: { padding: '5px 8px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px' } },
+                h('option', { value: 'all' }, '全部状态'),
+                h('option', { value: '草稿' }, '草稿'),
+                h('option', { value: '复核中' }, '复核中'),
+                h('option', { value: '已复核' }, '已复核'),
+                h('option', { value: '已定稿' }, '已定稿'))),
+            (props.reportVersionFilter && props.reportVersionFilter !== 'all' ? report.versions.filter(function (v) { return (v.status || '草稿') === props.reportVersionFilter }) : report.versions).map(function (version) {
               const canFinalize = ['partner', 'kb-admin', 'admin'].indexOf(((props.auth && props.auth.user) || {}).role) >= 0
               return h('div', { key: 'v-' + version.id, style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid ' + COLORS.line, fontSize: '12px' } },
                 h('div', { style: { display: 'flex', gap: '8px', alignItems: 'center', minWidth: 0 } },
-                  h('span', { style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, version.filename + ' · ' + version.created_by + ' · ' + version.created_at),
-                  h(Badge, { tone: version.status === '已定稿' ? 'ok' : version.status === '复核中' ? 'warn' : 'muted' }, version.status || '草稿')),
+                  h('span', { style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, version.filename + ' · ' + version.created_by + ' · ' + version.created_at + (version.status === '已复核' && version.reviewed_by ? (' · 复核：' + version.reviewed_by + (version.finalized_at ? '（' + version.finalized_at + '）' : '')) : '')),
+                  h(Badge, { tone: (version.status === '已定稿' || version.status === '已复核') ? 'ok' : version.status === '复核中' ? 'warn' : 'muted' }, version.status || '草稿')),
                 h('div', { style: { display: 'flex', gap: '10px' } },
                   version.status !== '已定稿' ? h('button', { onClick: function () { if (props.onSubmitReview) props.onSubmitReview(version.id) }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '提交复核') : null,
                   (version.status !== '已定稿' && canFinalize) ? h('button', { onClick: function () { if (props.onFinalizeReport) props.onFinalizeReport(version.id) }, style: { border: 0, background: 'transparent', color: '#16a34a', fontSize: '12px', cursor: 'pointer' } }, '定稿') : null,
@@ -814,9 +1107,66 @@ window.__ModuleLoader__.load({
     function CompaniesPage(props) {
       const state = React.useState({ loading: true, companies: [], error: '' })
       const companies = state[0].companies; const loading = state[0].loading; const error = state[0].error; const setData = state[1]
-      const companyState = React.useState(null); const activeCompany = companyState[0]; const setActiveCompany = companyState[1]
-      const projectState = React.useState(null); const activeProject = projectState[0]; const setActiveProject = projectState[1]
-      const zoneState = React.useState('概览'); const zone = zoneState[0]; const setZone = zoneState[1]
+      const savedContext = (function () { try { return JSON.parse(localStorage.getItem('auditdesk.lastContext') || '{}') || {} } catch (e) { return {} } })()
+      const companyState = React.useState(savedContext.company || null); const activeCompany = companyState[0]; const setActiveCompany = companyState[1]
+      const projectState = React.useState(savedContext.project || null); const activeProject = projectState[0]; const setActiveProject = projectState[1]
+      const zoneState = React.useState(savedContext.zone || '概览'); const zone = zoneState[0]; const setZone = zoneState[1]
+      const recentState = React.useState(function () { try { return JSON.parse(localStorage.getItem('auditdesk.recentProjects') || '[]') || [] } catch (e) { return [] } })
+      const recentProjects = recentState[0]; const setRecentProjects = recentState[1]
+      React.useEffect(function () {
+        if (!activeProject) return
+        try {
+          const company = activeCompany || ''
+          const next = [{ company: company, project: activeProject, at: new Date().toISOString() }]
+            .concat((recentProjects || []).filter(function (item) { return !(item.project === activeProject && item.company === company) }))
+            .slice(0, 5)
+          setRecentProjects(next)
+          localStorage.setItem('auditdesk.recentProjects', JSON.stringify(next))
+        } catch (e) {}
+      }, [activeProject])
+      const pendingCountsState = React.useState({}); const pendingCounts = pendingCountsState[0]; const setPendingCounts = pendingCountsState[1]
+      React.useEffect(function () {
+        refreshPendingCounts()
+        const timer = setInterval(refreshPendingCounts, 60000)
+        return function () { clearInterval(timer) }
+      }, [])
+      const pinnedState = React.useState(function () { try { return JSON.parse(localStorage.getItem('auditdesk.pinnedProjects') || '[]') || [] } catch (e) { return [] } })
+      const pinnedProjects = pinnedState[0]; const setPinnedProjects = pinnedState[1]
+      function togglePinProject(item) {
+        const exists = (pinnedProjects || []).some(function (p) { return p.project === item.project })
+        const next = exists ? (pinnedProjects || []).filter(function (p) { return p.project !== item.project }) : ([{ company: item.company, project: item.project }].concat(pinnedProjects || []).slice(0, 5))
+        setPinnedProjects(next)
+        try { localStorage.setItem('auditdesk.pinnedProjects', JSON.stringify(next)) } catch (e) {}
+      }
+      function removeRecentProject(project) {
+        const next = (recentProjects || []).filter(function (item) { return item.project !== project })
+        setRecentProjects(next)
+        try { localStorage.setItem('auditdesk.recentProjects', JSON.stringify(next)) } catch (e) {}
+      }
+      function projectMeta(item) {
+        try {
+          const company = (companies || []).filter(function (c) { return c.name === item.company })[0]
+          const project = company ? (company.projects || []).filter(function (p) { return p.id === item.project })[0] : null
+          return project ? { status: project.status || '', period: project.period || '', business_type: project.business_type || '' } : null
+        } catch (e) { return null }
+      }
+      const restoredRef = React.useRef(false)
+      React.useEffect(function () {
+        try { localStorage.setItem('auditdesk.lastContext', JSON.stringify({ company: activeCompany, project: activeProject, zone: zone })) } catch (e) {}
+      }, [activeCompany, activeProject, zone])
+      React.useEffect(function () {
+        if (restoredRef.current || !companies.length) return
+        restoredRef.current = true
+        const saved = savedContext
+        const target = companies.filter(function (c) { return c.name === saved.company })[0]
+        if (!target) {
+          if (activeCompany && !companies.some(function (c) { return c.name === activeCompany })) setActiveCompany(null)
+          return
+        }
+        if (!activeCompany) setActiveCompany(target.name)
+        const projectExists = (target.projects || []).some(function (p) { return p.id === saved.project })
+        if (saved.project && projectExists && !activeProject) setActiveProject(saved.project)
+      }, [companies])
       const pbcState = React.useState(null); const pbc = pbcState[0]; const setPbc = pbcState[1]
       const wpState = React.useState(null); const wp = wpState[0]; const setWp = wpState[1]
       const linkedState = React.useState(null); const linked = linkedState[0]; const setLinked = linkedState[1]
@@ -831,6 +1181,64 @@ window.__ModuleLoader__.load({
       const matHistoryState = React.useState([]); const matHistory = matHistoryState[0]; const setMatHistory = matHistoryState[1]
       const importMessageState = React.useState(''); const importMessage = importMessageState[0]; const setImportMessage = importMessageState[1]
       const confirmationsState = React.useState([]); const confirmations = confirmationsState[0]; const setConfirmations = confirmationsState[1]
+      const inventoryCountsState = React.useState([]); const inventoryCounts = inventoryCountsState[0]; const setInventoryCounts = inventoryCountsState[1]
+      const inventoryAttachmentsState = React.useState([]); const inventoryAttachments = inventoryAttachmentsState[0]; const setInventoryAttachments = inventoryAttachmentsState[1]
+      const inventoryMetaState = React.useState({}); const inventoryMeta = inventoryMetaState[0]; const setInventoryMeta = inventoryMetaState[1]
+      const programsState = React.useState([]); const programs = programsState[0]; const setPrograms = programsState[1]
+      const newFsState = React.useState(null); const newFsFile = newFsState[0]; const setNewFsFile = newFsState[1]
+      const newTbState = React.useState(null); const newTbFile = newTbState[0]; const setNewTbFile = newTbState[1]
+      const newJournalState = React.useState(null); const newJournalFile = newJournalState[0]; const setNewJournalFile = newJournalState[1]
+      const programEventsState = React.useState([]); const programEvents = programEventsState[0]; const setProgramEvents = programEventsState[1]
+      const escalateState = React.useState(''); const escalateMessage = escalateState[0]; const setEscalateMessage = escalateState[1]
+      const archiveVerifyState = React.useState(''); const archiveVerifyMessage = archiveVerifyState[0]; const setArchiveVerifyMessage = archiveVerifyState[1]
+      const previewZoomState = React.useState(function () { try { const value = parseFloat(localStorage.getItem('auditdesk.previewZoom') || '1'); return Number.isFinite(value) && value >= 0.5 && value <= 3 ? value : 1 } catch (e) { return 1 } })
+      const previewZoom = previewZoomState[0]; const setPreviewZoom = previewZoomState[1]
+      React.useEffect(function () { try { localStorage.setItem('auditdesk.previewZoom', String(previewZoom)) } catch (e) {} }, [previewZoom])
+      const todoOverdueState = React.useState(function () { try { return localStorage.getItem('auditdesk.todo.overdueOnly') === '1' } catch (e) { return false } })
+      const todoOverdueOnly = todoOverdueState[0]; const setTodoOverdueOnly = todoOverdueState[1]
+      React.useEffect(function () { try { localStorage.setItem('auditdesk.todo.overdueOnly', todoOverdueOnly ? '1' : '0') } catch (e) {} }, [todoOverdueOnly])
+      const approvalFilterState = React.useState('all'); const approvalFilter = approvalFilterState[0]; const setApprovalFilter = approvalFilterState[1]
+      const approvalFilterRestored = React.useRef(false)
+      React.useEffect(function () {
+        if (!approvalFilterRestored.current) return
+        try {
+          localStorage.setItem('auditdesk.approvalFilter', approvalFilter || 'all')
+          if (activeProject) localStorage.setItem('auditdesk.approvalFilter.' + activeProject, approvalFilter || 'all')
+        } catch (e) {}
+      }, [approvalFilter, activeProject])
+      React.useEffect(function () {
+        if (!activeProject) return
+        try {
+          const saved = localStorage.getItem('auditdesk.approvalFilter.' + activeProject)
+          if (saved) setApprovalFilter(saved)
+        } catch (e) {}
+        approvalFilterRestored.current = true
+      }, [activeProject])
+      const reportVersionFilterState = React.useState(function () { try { return localStorage.getItem('auditdesk.report.versionFilter') || 'all' } catch (e) { return 'all' } })
+      const reportVersionFilter = reportVersionFilterState[0]; const setReportVersionFilter = reportVersionFilterState[1]
+      const reportVersionFilterRestored = React.useRef(false)
+      React.useEffect(function () {
+        if (!reportVersionFilterRestored.current) return
+        try { localStorage.setItem('auditdesk.report.versionFilter', reportVersionFilter || 'all') } catch (e) {}
+        if (activeProject) { try { localStorage.setItem('auditdesk.report.versionFilter.' + activeProject, reportVersionFilter || 'all') } catch (e) {} }
+      }, [reportVersionFilter, activeProject])
+      React.useEffect(function () {
+        if (!activeProject) return
+        try {
+          const saved = localStorage.getItem('auditdesk.report.versionFilter.' + activeProject)
+          if (saved) setReportVersionFilter(saved)
+        } catch (e) {}
+        reportVersionFilterRestored.current = true
+      }, [activeProject])
+      const wpsVerifyState = React.useState(''); const wpsVerifyMessage = wpsVerifyState[0]; const setWpsVerifyMessage = wpsVerifyState[1]
+      const generatedKindState = React.useState('all'); const generatedKind = generatedKindState[0]; const setGeneratedKind = generatedKindState[1]
+      const checklistKindState = React.useState('subsequent'); const checklistKind = checklistKindState[0]; const setChecklistKind = checklistKindState[1]
+      const dataEventsState = React.useState([]); const dataEvents = dataEventsState[0]; const setDataEvents = dataEventsState[1]
+      const multiFileState = React.useState(null); const multiFile = multiFileState[0]; const setMultiFile = multiFileState[1]
+      const multiSheetsState = React.useState([]); const multiSheets = multiSheetsState[0]; const setMultiSheets = multiSheetsState[1]
+      const multiSheetIndexState = React.useState('0'); const multiSheetIndex = multiSheetIndexState[0]; const setMultiSheetIndex = multiSheetIndexState[1]
+      const multiKindState = React.useState('tb'); const multiKind = multiKindState[0]; const setMultiKind = multiKindState[1]
+      const multiLoadingState = React.useState(false); const multiLoading = multiLoadingState[0]; const setMultiLoading = multiLoadingState[1]
       const showCreateState = React.useState(false); const showCreate = showCreateState[0]; const setShowCreate = showCreateState[1]
       const searchState = React.useState(''); const search = searchState[0]; const setSearch = searchState[1]
       const statusFilterState = React.useState(''); const statusFilter = statusFilterState[0]; const setStatusFilter = statusFilterState[1]
@@ -894,6 +1302,18 @@ window.__ModuleLoader__.load({
           .catch(function () { if (!cancelled) setMatHistory([]) })
         api('/audit/confirmations', { project: activeProject }).then(function (d) { if (!cancelled) setConfirmations(d.items || []) })
           .catch(function () { if (!cancelled) setConfirmations([]) })
+        api('/audit/inventory-counts', { project: activeProject }).then(function (d) { if (!cancelled) setInventoryCounts(d.items || []) })
+          .catch(function () { if (!cancelled) setInventoryCounts([]) })
+        api('/audit/inventory-attachments', { project: activeProject }).then(function (d) { if (!cancelled) setInventoryAttachments(d.items || []) })
+          .catch(function () { if (!cancelled) setInventoryAttachments([]) })
+        api('/audit/inventory-meta', { project: activeProject }).then(function (d) { if (!cancelled) setInventoryMeta(d.item || {}) })
+          .catch(function () { if (!cancelled) setInventoryMeta({}) })
+        api('/audit/programs', { project: activeProject }).then(function (d) { if (!cancelled) setPrograms(d.items || []) })
+          .catch(function () { if (!cancelled) setPrograms([]) })
+        api('/audit/events', { project: activeProject, item_type: 'program', limit: 30 }).then(function (d) { if (!cancelled) setProgramEvents(d.events || []) })
+          .catch(function () { if (!cancelled) setProgramEvents([]) })
+        api('/audit/events', { project: activeProject, item_type: 'data', limit: 10 }).then(function (d) { if (!cancelled) setDataEvents(d.events || []) })
+          .catch(function () { if (!cancelled) setDataEvents([]) })
         setGenerateMessage('')
         setReport({})
         return function () { cancelled = true }
@@ -948,9 +1368,30 @@ window.__ModuleLoader__.load({
         return null
       }
 
+      function refreshPendingCounts() {
+        api('/audit/approvals/pending-counts').then(function (d) { setPendingCounts((d && d.counts) || {}) }).catch(function () {})
+      }
+      function jumpTodoZone(kind) {
+        const map = { '底稿复核': '审计底稿', '底稿校验': '审计底稿', '报告复核': '报告', '归档校验': '概览', '立项审批': '概览', 'engagement': '概览', 'review': '报告' }
+        setZone(map[kind] || '审批状态')
+      }
+      function exportApprovals() {
+        if (!activeProject) return
+        const params = '?project=' + encodeURIComponent(activeProject) + '&status=' + encodeURIComponent(approvalFilter || 'all')
+        fetch(BASE + '/audit/approvals/export' + params, { headers: { 'X-KB-Token': currentToken() } })
+          .then(function (resp) { if (!resp.ok) throw new Error('HTTP ' + resp.status); return resp.blob() })
+          .then(function (blob) {
+            const url = URL.createObjectURL(blob)
+            const anchor = document.createElement('a')
+            anchor.href = url; anchor.download = '审批列表_' + (approvalFilter === 'all' ? '全部' : approvalFilter) + '.csv'
+            document.body.appendChild(anchor); anchor.click(); anchor.remove()
+            URL.revokeObjectURL(url)
+          }).catch(function (e) { setError(String(e)) })
+      }
       function refreshApprovals() {
         api('/audit/approvals', { project: activeProject }).then(function (d) { setApprovals(d.items || []) }).catch(function () {})
         api('/audit/events', { project: activeProject, limit: 40 }).then(function (d) { setEvents(d.events || []) }).catch(function () {})
+        refreshPendingCounts()
       }
       function refreshPbc() {
         api('/audit/pbc', { project: activeProject }).then(function (d) { setPbc(d.items || []) }).catch(function () {})
@@ -1067,6 +1508,65 @@ window.__ModuleLoader__.load({
           .then(function (resp) { if (!resp.ok) throw new Error('HTTP ' + resp.status); return resp.blob() })
           .then(function (blob) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = '函证差异调节表.docx'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); refreshWorkpapers() }).catch(function () {})
       }
+      function updateInventoryRow(code, field, value) {
+        setInventoryCounts(function (prev) { return (prev || []).map(function (row) { return row.code === code ? Object.assign({}, row, { [field]: value }) : row }) })
+      }
+      function exportInventoryExceptions() {
+        if (!activeProject) return
+        fetch(BASE + '/audit/workpapers/inventory-exceptions', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-KB-Token': currentToken() }, body: JSON.stringify({ project: activeProject }) })
+          .then(function (resp) { if (!resp.ok) throw new Error('HTTP ' + resp.status); return resp.blob() })
+          .then(function (blob) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = '存货监盘差异事项.docx'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url) }).catch(function () {})
+      }
+      function exportInventorySummary() {
+        if (!activeProject) return
+        fetch(BASE + '/audit/inventory-summary/export?project=' + encodeURIComponent(activeProject), { headers: { 'X-KB-Token': currentToken() } })
+          .then(function (resp) { if (!resp.ok) throw new Error('HTTP ' + resp.status); return resp.blob() })
+          .then(function (blob) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = '存货监盘汇总.xlsx'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url) }).catch(function () {})
+      }
+      function updateInventoryMeta(field, value) {
+        setInventoryMeta(function (prev) { return Object.assign({}, prev, { [field]: value }) })
+      }
+      function saveInventoryMeta() {
+        if (!activeProject) return
+        api('/audit/inventory-meta/save', null, { method: 'POST', body: Object.assign({ project: activeProject }, inventoryMeta) })
+          .then(function (d) { setInventoryMeta(d.item || {}); setImportMessage('监盘信息已保存') })
+          .catch(function () {})
+      }
+      function uploadInventoryAttachment(file) {
+        if (!activeProject || !file) return
+        const form = new FormData()
+        form.append('project', activeProject)
+        form.append('file', file)
+        fetch(BASE + '/audit/inventory-attachments/upload', { method: 'POST', headers: { 'X-KB-Token': currentToken() }, body: form })
+          .then(function (resp) { if (!resp.ok) throw new Error('HTTP ' + resp.status); return api('/audit/inventory-attachments', { project: activeProject }) })
+          .then(function (d) { setInventoryAttachments(d.items || []); setImportMessage('盘点表扫描件已上传') })
+          .catch(function () {})
+      }
+      function previewInventoryAttachment(item) {
+        fetch(BASE + '/audit/inventory-attachments/file?attachment_id=' + item.id + '&inline=1', { headers: { 'X-KB-Token': currentToken() } })
+          .then(function (resp) { if (!resp.ok) throw new Error('HTTP ' + resp.status); const type = resp.headers.get('content-type') || ''; return resp.blob().then(function (blob) { return { type: type, blob: blob } }) })
+          .then(function (result) {
+            setPreview({ attachment: { filename: item.filename }, url: URL.createObjectURL(result.blob), type: result.type,
+              onDownload: function () {
+                fetch(BASE + '/audit/inventory-attachments/file?attachment_id=' + item.id, { headers: { 'X-KB-Token': currentToken() } })
+                  .then(function (resp) { return resp.blob() })
+                  .then(function (blob) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = item.filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url) })
+              } })
+          }).catch(function () {})
+      }
+      function saveInventoryCounts() {
+        if (!activeProject) return
+        api('/audit/inventory-counts/save', null, { method: 'POST', body: { project: activeProject, items: inventoryCounts } })
+          .then(function (d) { setInventoryCounts(d.items || []); setImportMessage('存货监盘已保存') })
+          .catch(function () {})
+      }
+      function confirmInventory() {
+        if (!activeProject) return
+        api('/audit/inventory-counts/confirm', null, { method: 'POST', body: { project: activeProject } })
+          .then(function () { return api('/audit/inventory-counts', { project: activeProject }) })
+          .then(function (d) { setInventoryCounts(d.items || []); setImportMessage('存货监盘已确认') })
+          .catch(function () {})
+      }
       function syncConfirmations() {
         if (!activeProject) return
         api('/audit/confirmations/sync', null, { method: 'POST', body: { project: activeProject } })
@@ -1097,6 +1597,111 @@ window.__ModuleLoader__.load({
             refreshWorkpapers()
           }).catch(function () {})
       }
+      function downloadFinancialTemplate() {
+        fetch(BASE + '/audit/data/template-fs', { headers: { 'X-KB-Token': currentToken() } })
+          .then(function (resp) { if (!resp.ok) throw new Error('HTTP ' + resp.status); return resp.blob() })
+          .then(function (blob) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = '财务报表_标准模板.xlsx'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url) }).catch(function () {})
+      }
+      function downloadImportTemplate(kind) {
+        fetch(BASE + '/audit/data/template?kind=' + kind, { headers: { 'X-KB-Token': currentToken() } })
+          .then(function (resp) { if (!resp.ok) throw new Error('HTTP ' + resp.status); return resp.blob() })
+          .then(function (blob) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = kind === 'tb' ? '科目余额表_标准模板.xlsx' : '序时账_标准模板.xlsx'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url) }).catch(function () {})
+      }
+      function chooseMultiSheetFile(file) {
+        if (!file) return
+        setMultiFile(file)
+        setMultiSheets([])
+        setMultiSheetIndex('0')
+        setMultiLoading(true)
+        const form = new FormData()
+        form.append('file', file)
+        fetch(BASE + '/audit/data/sheets', { method: 'POST', headers: { 'X-KB-Token': currentToken() }, body: form })
+          .then(function (resp) { return resp.json().then(function (data) { return { ok: resp.ok, data: data } }) })
+          .then(function (result) {
+            if (!result.ok) { setImportMessage('读取工作表失败'); return }
+            setMultiSheets(result.data.sheets || [])
+            setImportMessage('已读取工作表：' + (result.data.sheets || []).join('、'))
+          })
+          .catch(function () { setImportMessage('读取工作表失败') })
+          .then(function () { setMultiLoading(false) })
+      }
+      function submitMultiSheet(mode) {
+        if (!activeProject || !multiFile) return
+        const form = new FormData()
+        form.append('project', activeProject)
+        form.append('kind', multiKind)
+        form.append('sheet_index', String(Number(multiSheetIndex) || 0))
+        form.append('file', multiFile)
+        const url = mode === 'validate' ? BASE + '/audit/data/validate' : BASE + '/audit/data/import'
+        setImportMessage(mode === 'validate' ? '正在校验所选工作表…' : '正在导入所选工作表…')
+        fetch(url, { method: 'POST', headers: { 'X-KB-Token': currentToken() }, body: form })
+          .then(function (resp) { return resp.json().then(function (data) { return { ok: resp.ok, data: data } }) })
+          .then(function (result) {
+            if (!result.ok) {
+              const detail = result.data && result.data.detail
+              setImportMessage('失败：' + (typeof detail === 'string' ? detail : '文件格式不符'))
+              return
+            }
+            if (mode === 'validate') {
+              setImportMessage(result.data.ok ? ('校验通过：识别 ' + result.data.rows + ' 行') : ('校验失败：缺少列 ' + (result.data.missing || []).join('、')))
+            } else {
+              setImportMessage('导入成功：' + (multiKind === 'tb' ? '科目余额表' : '序时账') + ' ' + result.data.rows + ' 行')
+              return api('/audit/analysis/summary', { project: activeProject }).then(function (d) { setAnalysis(d) })
+            }
+          })
+          .catch(function () { setImportMessage('操作失败，请检查文件') })
+      }
+      function importFinancialStatements(file) {
+        if (!activeProject || !file) return
+        const form = new FormData()
+        form.append('project', activeProject)
+        form.append('file', file)
+        setImportMessage('正在导入财务报表…')
+        fetch(BASE + '/audit/data/import-fs', { method: 'POST', headers: { 'X-KB-Token': currentToken() }, body: form })
+          .then(function (resp) { return resp.json().then(function (data) { return { ok: resp.ok, data: data } }) })
+          .then(function (result) {
+            if (!result.ok) {
+              const detail = result.data && result.data.detail
+              setImportMessage('导入失败：' + (typeof detail === 'string' ? detail : '文件格式不符'))
+              return
+            }
+            const tables = (result.data.imported || []).map(function (item) { return item.sheet + '(' + item.rows + '行)' }).join('、')
+            setImportMessage('财务报表导入成功：' + result.data.imported.length + ' 张表（' + tables + '）'); refreshDataEvents()
+            return api('/audit/analysis/summary', { project: activeProject }).then(function (d) { setAnalysis(d) })
+          })
+          .catch(function () { setImportMessage('财务报表导入失败') })
+      }
+      function validateImportFile(kind, file) {
+        if (!activeProject || !file) return
+        const form = new FormData()
+        form.append('project', activeProject)
+        form.append('kind', kind)
+        form.append('file', file)
+        setImportMessage('正在校验文件…')
+        fetch(BASE + '/audit/data/validate', { method: 'POST', headers: { 'X-KB-Token': currentToken() }, body: form })
+          .then(function (resp) { return resp.json().then(function (data) { return { ok: resp.ok, data: data } }) })
+          .then(function (result) {
+            if (!result.ok) {
+              const detail = result.data && result.data.detail
+              setImportMessage('校验失败：' + (typeof detail === 'string' ? detail : '文件格式不符'))
+              return
+            }
+            const data = result.data
+            if (data.ok) {
+              const cols = Object.keys(data.recognized || {}).map(function (key) { return data.recognized[key] }).join('、')
+              setImportMessage('校验通过：识别 ' + data.rows + ' 行；列：' + cols)
+            } else {
+              setImportMessage('校验失败：缺少列 ' + (data.missing || []).join('、') + '（表头：' + (data.header || []).join('、') + '）')
+            }
+          })
+          .catch(function () { setImportMessage('校验失败，请检查文件') })
+      }
+      function refreshDataEvents() {
+        if (!activeProject) return
+        api('/audit/events', { project: activeProject, item_type: 'data', limit: 10 })
+          .then(function (d) { setDataEvents(d.events || []) })
+          .catch(function () {})
+      }
       function importProjectData(kind, file) {
         if (!activeProject || !file) return
         const form = new FormData()
@@ -1112,10 +1717,124 @@ window.__ModuleLoader__.load({
               setImportMessage('导入失败：' + (typeof detail === 'string' ? detail : (detail && detail.message ? detail.message + '（缺少列：' + (detail.missing || []).join('、') + '）' : '文件格式不符')))
               return
             }
-            setImportMessage('导入成功：' + (kind === 'tb' ? '科目余额表' : '序时账') + ' ' + result.data.rows + ' 行')
-            return api('/audit/analysis/summary', { project: activeProject }).then(function (d) { setAnalysis(d) })
+            const baseMessage = '导入成功：' + (kind === 'tb' ? '科目余额表' : '序时账') + ' ' + result.data.rows + ' 行'
+            setImportMessage(baseMessage)
+            refreshDataEvents()
+            return api('/audit/analysis/summary', { project: activeProject }).then(function (summary) {
+              setAnalysis(summary)
+              const diffs = ((summary.trial_balance || {}).differences || []).length
+              setImportMessage(baseMessage + (diffs ? '；勾稽提示：科目余额表与序时账有 ' + diffs + ' 个科目差异，请查看试算平衡底稿' : '；勾稽检查通过'))
+            })
           })
           .catch(function () { setImportMessage('导入失败，请检查文件格式') })
+      }
+      function generateAccountingPolicies() {
+        if (!activeProject) return
+        fetch(BASE + '/audit/workpapers/accounting-policies', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-KB-Token': currentToken() },
+          body: JSON.stringify({ project: activeProject }),
+        }).then(function (resp) { if (!resp.ok) throw new Error('HTTP ' + resp.status); return resp.blob() })
+          .then(function (blob) {
+            const url = URL.createObjectURL(blob)
+            const anchor = document.createElement('a')
+            anchor.href = url; anchor.download = '会计政策与会计估计检查表.docx'
+            document.body.appendChild(anchor); anchor.click(); anchor.remove()
+            URL.revokeObjectURL(url)
+            refreshWorkpapers()
+          }).catch(function () {})
+      }
+      function generateChecklist() {
+        const map = {
+          subsequent: generateSubsequentEvents,
+          going: generateGoingConcern,
+          related: generateRelatedParties,
+          contingencies: generateContingencies,
+          opening: generateOpeningBalances,
+          policies: generateAccountingPolicies,
+        }
+        const handler = map[checklistKind] || generateSubsequentEvents
+        if (handler) handler()
+      }
+      function generateOpeningBalances() {
+        if (!activeProject) return
+        fetch(BASE + '/audit/workpapers/opening-balances', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-KB-Token': currentToken() },
+          body: JSON.stringify({ project: activeProject }),
+        }).then(function (resp) { if (!resp.ok) throw new Error('HTTP ' + resp.status); return resp.blob() })
+          .then(function (blob) {
+            const url = URL.createObjectURL(blob)
+            const anchor = document.createElement('a')
+            anchor.href = url; anchor.download = '期初余额审计程序表.docx'
+            document.body.appendChild(anchor); anchor.click(); anchor.remove()
+            URL.revokeObjectURL(url)
+            refreshWorkpapers()
+          }).catch(function () {})
+      }
+      function generateContingencies() {
+        if (!activeProject) return
+        fetch(BASE + '/audit/workpapers/contingencies', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-KB-Token': currentToken() },
+          body: JSON.stringify({ project: activeProject }),
+        }).then(function (resp) { if (!resp.ok) throw new Error('HTTP ' + resp.status); return resp.blob() })
+          .then(function (blob) {
+            const url = URL.createObjectURL(blob)
+            const anchor = document.createElement('a')
+            anchor.href = url; anchor.download = '或有事项检查表.docx'
+            document.body.appendChild(anchor); anchor.click(); anchor.remove()
+            URL.revokeObjectURL(url)
+            refreshWorkpapers()
+          }).catch(function () {})
+      }
+      function generateRelatedParties() {
+        if (!activeProject) return
+        fetch(BASE + '/audit/workpapers/related-parties', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-KB-Token': currentToken() },
+          body: JSON.stringify({ project: activeProject }),
+        }).then(function (resp) { if (!resp.ok) throw new Error('HTTP ' + resp.status); return resp.blob() })
+          .then(function (blob) {
+            const url = URL.createObjectURL(blob)
+            const anchor = document.createElement('a')
+            anchor.href = url; anchor.download = '关联方交易检查表.docx'
+            document.body.appendChild(anchor); anchor.click(); anchor.remove()
+            URL.revokeObjectURL(url)
+            refreshWorkpapers()
+          }).catch(function () {})
+      }
+      function generateGoingConcern() {
+        if (!activeProject) return
+        fetch(BASE + '/audit/workpapers/going-concern', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-KB-Token': currentToken() },
+          body: JSON.stringify({ project: activeProject }),
+        }).then(function (resp) { if (!resp.ok) throw new Error('HTTP ' + resp.status); return resp.blob() })
+          .then(function (blob) {
+            const url = URL.createObjectURL(blob)
+            const anchor = document.createElement('a')
+            anchor.href = url; anchor.download = '持续经营评估.docx'
+            document.body.appendChild(anchor); anchor.click(); anchor.remove()
+            URL.revokeObjectURL(url)
+            refreshWorkpapers()
+          }).catch(function () {})
+      }
+      function generateSubsequentEvents() {
+        if (!activeProject) return
+        fetch(BASE + '/audit/workpapers/subsequent-events', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-KB-Token': currentToken() },
+          body: JSON.stringify({ project: activeProject }),
+        }).then(function (resp) { if (!resp.ok) throw new Error('HTTP ' + resp.status); return resp.blob() })
+          .then(function (blob) {
+            const url = URL.createObjectURL(blob)
+            const anchor = document.createElement('a')
+            anchor.href = url; anchor.download = '期后事项检查表.docx'
+            document.body.appendChild(anchor); anchor.click(); anchor.remove()
+            URL.revokeObjectURL(url)
+            refreshWorkpapers()
+          }).catch(function () {})
       }
       function generateRiskDocx() {
         if (!activeProject) return
@@ -1142,10 +1861,35 @@ window.__ModuleLoader__.load({
           .then(function (d) { setMatHistory((d && d.items) || []) })
           .catch(function () {})
       }
+      function uploadProjectFile(projectName, path, fields) {
+        const form = new FormData()
+        form.append('project', projectName)
+        Object.keys(fields || {}).forEach(function (key) { form.append(key, fields[key]) })
+        return fetch(BASE + path, { method: 'POST', headers: { 'X-KB-Token': currentToken() }, body: form })
+          .then(function (resp) { return resp.json().then(function (data) { return { ok: resp.ok, data: data } }) })
+      }
+      function uploadProjectFiles(projectName, files) {
+        const messages = []
+        let chain = Promise.resolve()
+        if (files.fs) {
+          chain = chain.then(function () { return uploadProjectFile(projectName, '/audit/data/import-fs', { file: files.fs }) })
+            .then(function (result) { messages.push(result.ok ? ('财务报表 ' + (result.data.imported || []).length + ' 张') : '财务报表导入失败') })
+        }
+        if (files.tb) {
+          chain = chain.then(function () { return uploadProjectFile(projectName, '/audit/data/import', { kind: 'tb', file: files.tb }) })
+            .then(function (result) { messages.push(result.ok ? ('余额表 ' + result.data.rows + ' 行') : '余额表导入失败') })
+        }
+        if (files.journal) {
+          chain = chain.then(function () { return uploadProjectFile(projectName, '/audit/data/import', { kind: 'journal', file: files.journal }) })
+            .then(function (result) { messages.push(result.ok ? ('序时账 ' + result.data.rows + ' 行') : '序时账导入失败') })
+        }
+        return chain.then(function () { return messages })
+      }
       function createProject() {
         if (!newClient.trim() || !newName.trim() || creating) return
         const targetClient = newClient.trim()
         const targetName = newName.trim()
+        const files = { fs: newFsFile, tb: newTbFile, journal: newJournalFile }
         setCreating(true); setCreateError('')
         api('/audit/projects/create', null, { method: 'POST', body: { client: targetClient, name: targetName, period: newPeriod.trim(), business_type: businessType } })
           .then(function () { return api('/audit/projects') })
@@ -1155,6 +1899,29 @@ window.__ModuleLoader__.load({
             setActiveProject(targetName)
             setShowCreate(false)
             setNewClient(''); setNewName(''); setNewPeriod('')
+            setNewFsFile(null); setNewTbFile(null); setNewJournalFile(null)
+            setZone('风险评估')
+            const chosen = [files.fs, files.tb, files.journal].filter(Boolean).length
+            if (!chosen) {
+              setImportMessage('项目已创建，正在初始化审计程序…')
+              return api('/audit/programs', { project: targetName }).then(function (program) {
+                const items = program.items || []
+                setPrograms(items)
+                setImportMessage('项目已创建。下一步：① 上传财务报表（xlsx）② 导入科目余额表 ③ 导入序时账；审计程序 0/' + items.length + '（可在「审计程序」分区维护）。')
+              })
+            }
+            setImportMessage('项目已创建，正在导入所选文件…')
+            return uploadProjectFiles(targetName, files).then(function (messages) {
+              const tail = messages.join('；')
+              return api('/audit/analysis/summary', { project: targetName }).then(function (summary) {
+                setAnalysis(summary)
+                return api('/audit/programs', { project: targetName }).then(function (program) {
+                  const items = program.items || []
+                  setPrograms(items)
+                  setImportMessage('项目已创建；' + tail + '。下一步可确认重要性、查看勾稽结果；审计程序 0/' + items.length + '。')
+                })
+              })
+            })
           })
           .catch(function (error) { setCreateError(String(error && error.message ? error.message : error)) })
           .then(function () { setCreating(false) })
@@ -1283,6 +2050,43 @@ window.__ModuleLoader__.load({
           .then(function (d) { setData({ loading: false, companies: d.companies || [], error: '' }) })
           .catch(function () {})
       }
+      function updateProgramRow(id, field, value) {
+        setPrograms(function (prev) { return (prev || []).map(function (row) { return row.id === id ? Object.assign({}, row, { [field]: value }) : row }) })
+      }
+      function exportPrograms() {
+        if (!activeProject) return
+        fetch(BASE + '/audit/programs/export?project=' + encodeURIComponent(activeProject), { headers: { 'X-KB-Token': currentToken() } })
+          .then(function (resp) { if (!resp.ok) throw new Error('HTTP ' + resp.status); return resp.blob() })
+          .then(function (blob) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = '审计程序表.docx'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url) }).catch(function () {})
+      }
+      function exportProgramsXlsx() {
+        if (!activeProject) return
+        fetch(BASE + '/audit/programs/export-xlsx?project=' + encodeURIComponent(activeProject), { headers: { 'X-KB-Token': currentToken() } })
+          .then(function (resp) { if (!resp.ok) throw new Error('HTTP ' + resp.status); return resp.blob() })
+          .then(function (blob) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = '审计程序表.xlsx'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url) }).catch(function () {})
+      }
+      function exportProgramHistory() {
+        if (!activeProject) return
+        fetch(BASE + '/audit/programs/history-xlsx?project=' + encodeURIComponent(activeProject), { headers: { 'X-KB-Token': currentToken() } })
+          .then(function (resp) { if (!resp.ok) throw new Error('HTTP ' + resp.status); return resp.blob() })
+          .then(function (blob) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = '程序变更历史.xlsx'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url) }).catch(function () {})
+      }
+      function savePrograms() {
+        if (!activeProject) return
+        api('/audit/programs/save', null, { method: 'POST', body: { project: activeProject, items: programs } })
+          .then(function (d) { setPrograms(d.items || []); setImportMessage('审计程序清单已保存'); refreshWorkpapers() })
+          .catch(function () {})
+      }
+      function askAiNextSteps() {
+        const project = (companies.filter(function (c) { return c.name === activeCompany })[0] || {}).projects || []
+        const target = project.filter(function (p) { return p.id === activeProject })[0]
+        if (!target || !props.ui || !props.ui.uiWorkspace) return
+        projectPrompt(activeCompany, target).then(function (base) {
+          const prompt = base + '\n\n请基于上述项目上下文，输出：1）下一步审计程序清单（按底稿索引号）；2）每项程序需要的审计证据；3）重点风险与判断依据。结论须检索知识库并标注出处。'
+          try { props.ui.layout.selectPanel(null) } catch (e) {}
+          props.ui.uiWorkspace.startSession(undefined, { prompt: prompt, whenDraftExists: 'append' })
+        }).catch(function () {})
+      }
       function refreshWorkpapers() {
         if (!activeProject) return
         Promise.all([
@@ -1320,8 +2124,54 @@ window.__ModuleLoader__.load({
             setGenerateMessage('提交后台任务失败：' + String(error && error.message ? error.message : error))
           })
       }
+      function escalateApprovals() {
+        setEscalateMessage('正在扫描超期审批…')
+        api('/audit/approvals/escalate', null, { method: 'POST', body: { days: 2 } })
+          .then(function (d) {
+            if (d.escalated) setEscalateMessage('已升级 ' + d.escalated + ' 项超期审批（已留痕/通知）')
+            else if (d.overdue) setEscalateMessage('超期 ' + d.overdue + ' 项（今日已提醒，请尽快处理）')
+            else setEscalateMessage('暂无超期审批（≥2 天）')
+            api('/audit/approvals', { project: activeProject }).then(function (a) { setApprovals(a.items || []) }).catch(function () {})
+          })
+          .catch(function () { setEscalateMessage('扫描失败') })
+      }
+      function verifyArchiveFile(file) {
+        if (!file) return
+        setArchiveVerifyMessage('正在校验归档包…')
+        const form = new FormData()
+        form.append('file', file)
+        fetch(BASE + '/audit/projects/archive-verify', { method: 'POST', headers: { 'X-KB-Token': currentToken() }, body: form })
+          .then(function (resp) { return resp.json().then(function (data) { return { ok: resp.ok, data: data } }) })
+          .then(function (result) {
+            if (!result.ok) {
+              const detail = result.data && result.data.detail
+              setArchiveVerifyMessage('校验失败：' + (typeof detail === 'string' ? detail : '文件无效'))
+              return
+            }
+            const data = result.data
+            if (data.ok) setArchiveVerifyMessage('校验通过：' + data.checked + ' 个文件 SHA256 全部一致')
+            else setArchiveVerifyMessage('校验未通过：不一致 ' + (data.mismatched || []).length + ' 个，缺失 ' + (data.missing || []).length + ' 个')
+          })
+          .catch(function () { setArchiveVerifyMessage('校验失败，请重试') })
+      }
+      function verifyWorkpapersZip(file) {
+        if (!file) return
+        setWpsVerifyMessage('正在校验底稿包…')
+        const form = new FormData()
+        form.append('file', file)
+        if (activeProject) form.append('project', activeProject)
+        fetch(BASE + '/audit/workpapers/verify', { method: 'POST', headers: { 'X-KB-Token': currentToken() }, body: form })
+          .then(function (resp) { return resp.json().then(function (data) { return { ok: resp.ok, data: data } }) })
+          .then(function (result) {
+            if (!result.ok) { setWpsVerifyMessage('校验失败：' + ((result.data && result.data.detail) || '文件无效')); return }
+            const d = result.data
+            setWpsVerifyMessage(d.ok ? ('底稿包校验通过：' + d.checked + ' 个文件 SHA256 一致') : ('底稿包校验未通过：不一致 ' + (d.mismatched || []).length + ' 个，缺失 ' + (d.missing || []).length + ' 个'))
+          })
+          .catch(function () { setWpsVerifyMessage('校验失败，请重试') })
+      }
       function exportWorkpapersZip() {
-        fetch(BASE + '/audit/workpapers/export?project=' + encodeURIComponent(activeProject), { headers: { 'X-KB-Token': currentToken() } })
+        const kindSuffix = (generatedKind && generatedKind !== 'all') ? ('&kind=' + encodeURIComponent(generatedKind)) : ''
+        fetch(BASE + '/audit/workpapers/export?project=' + encodeURIComponent(activeProject) + kindSuffix, { headers: { 'X-KB-Token': currentToken() } })
           .then(function (resp) { if (!resp.ok) throw new Error('HTTP ' + resp.status); return resp.blob() })
           .then(function (blob) {
             const url = URL.createObjectURL(blob)
@@ -1406,20 +2256,36 @@ window.__ModuleLoader__.load({
       }
 
       function newProjectSession(company, project) {
-        if (!props.ui || !props.ui.sessions) return
+        if (!props.ui || !props.ui.sessions || !props.ui.uiWorkspace) return
         ensureViaHostCommand(company, project).catch(function () { return null })
           .then(function (workspace) { return workspace || ensureProjectWorkspace(company, project).catch(function () { return null }) })
           .then(function (workspace) {
-            return workspace ? props.ui.sessions.create({ workspaceId: workspace.workspaceId }) : props.ui.sessions.create({})
-          }).then(function (id) {
-          const title = (project ? project.name : company) + ' · ' + new Date().toLocaleString()
-          api('/audit/link_session', null, { method: 'POST', body: { project: activeProject, session_id: id, title: title } })
-            .then(function () { return api('/audit/project_sessions', { project: activeProject }) })
-            .then(function (d) { setLinked(d.sessions || []) }).catch(function () {})
-          props.ui.uiWorkspace.openSession(id)
-        }).catch(function (error) {
-          try { console.warn('audit-workbench: create project session failed', error) } catch (e) {}
-        })
+            return projectPrompt(company, project).then(function (prompt) {
+              return { workspace: workspace, prompt: prompt }
+            })
+          })
+          .then(function (context) {
+            const before = new Set(((props.ui.sessions.list.getSnapshot() || {}).ids) || [])
+            props.ui.uiWorkspace.startSession(context.workspace ? context.workspace.workspaceId : undefined, { prompt: context.prompt, whenDraftExists: 'append' })
+            let attempts = 0
+            const poll = function () {
+              attempts += 1
+              const ids = ((props.ui.sessions.list.getSnapshot() || {}).ids) || []
+              const fresh = ids.filter(function (id) { return !before.has(id) })[0]
+              if (fresh) {
+                const title = (project ? project.name : company) + ' · ' + new Date().toLocaleString()
+                api('/audit/link_session', null, { method: 'POST', body: { project: activeProject, session_id: fresh, title: title } })
+                  .then(function () { return api('/audit/project_sessions', { project: activeProject }) })
+                  .then(function (d) { setLinked(d.sessions || []) }).catch(function () {})
+              } else if (attempts < 20) {
+                setTimeout(poll, 400)
+              }
+            }
+            setTimeout(poll, 400)
+          })
+          .catch(function (error) {
+            try { console.warn('audit-workbench: create project session failed', error) } catch (e) {}
+          })
       }
       function openProjectSession(sessionId) {
         if (props.ui && props.ui.uiWorkspace) props.ui.uiWorkspace.openSession(sessionId)
@@ -1446,6 +2312,14 @@ window.__ModuleLoader__.load({
         }).catch(function (e) { if (!cancelled) setData({ loading: false, companies: [], error: String(e) }) })
         return function () { cancelled = true }
       }, [])
+
+      React.useEffect(function () {
+        function onKeyDown(event) {
+          if (event.key === 'Escape') closeAttachmentPreview()
+        }
+        if (preview) document.addEventListener('keydown', onKeyDown)
+        return function () { document.removeEventListener('keydown', onKeyDown) }
+      }, [preview])
 
       if (loading) return h(Empty, null, '正在加载客户与项目…')
       if (error) return h(Empty, null, '加载失败：' + error + '（检查 mini4pro:8030 与 token）')
@@ -1474,17 +2348,22 @@ window.__ModuleLoader__.load({
       const isManager = ['partner', 'kb-admin', 'admin'].indexOf(role) >= 0
       const inputStyle = { width: '100%', boxSizing: 'border-box', padding: '7px 9px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', marginBottom: '8px' }
 
-      const previewModal = preview ? h('div', { style: { position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center' } },
+      const previewModal = preview ? h('div', { onClick: function (event) { if (event.target === event.currentTarget) closeAttachmentPreview() },
+        style: { position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center' } },
         h('div', { style: { width: '82vw', height: '82vh', background: '#fff', color: '#111', borderRadius: '12px', overflow: 'hidden', display: 'flex', flexDirection: 'column' } },
           h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', borderBottom: '1px solid ' + COLORS.line } },
             h('div', { style: { fontSize: '13px', fontWeight: 600 } }, preview.attachment.filename),
             h('div', { style: { display: 'flex', gap: '10px' } },
+              h('button', { onClick: function () { setPreviewZoom(function (value) { return Math.max(0.5, Math.round((value - 0.1) * 10) / 10) }) }, style: { border: '1px solid ' + COLORS.line, background: 'transparent', color: COLORS.muted, fontSize: '12px', cursor: 'pointer', width: '28px', height: '24px', borderRadius: '6px' } }, '−'),
+              h('button', { onClick: function () { setPreviewZoom(1) }, style: { border: 0, background: 'transparent', color: COLORS.muted, fontSize: '12px', cursor: 'pointer' } }, Math.round(previewZoom * 100) + '%'),
+              h('button', { onClick: function () { setPreviewZoom(function (value) { return Math.min(3, Math.round((value + 0.1) * 10) / 10) }) }, style: { border: '1px solid ' + COLORS.line, background: 'transparent', color: COLORS.muted, fontSize: '12px', cursor: 'pointer', width: '28px', height: '24px', borderRadius: '6px' } }, '+'),
+              h('button', { onClick: function () { if (preview.url) window.open(preview.url, '_blank', 'noopener') }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '新窗口打开'),
               h('button', { onClick: function () { if (preview.onDownload) preview.onDownload() }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '下载'),
               h('button', { onClick: closeAttachmentPreview, style: { border: 0, background: 'transparent', color: COLORS.muted, fontSize: '12px', cursor: 'pointer' } }, '关闭'))),
           h('div', { style: { flex: 1, minHeight: 0, background: '#fff' } },
             String(preview.type).indexOf('image/') === 0
               ? h('img', { src: preview.url, style: { maxWidth: '100%', maxHeight: '100%', display: 'block', margin: '0 auto' } })
-              : h('iframe', { src: preview.url, style: { width: '100%', height: '100%', border: 0, background: '#fff' }, sandbox: '' }))))
+              : h('iframe', { src: preview.url, style: { width: '100%', height: '100%', border: 0, background: '#fff', zoom: previewZoom }, sandbox: '' }))))
         : null
 
       const mgmtModal = (renameOpen || deleteOpen) ? h('div', { style: { position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center' } },
@@ -1507,9 +2386,9 @@ window.__ModuleLoader__.load({
         auth: props.auth, readOnly: readOnly,
         onArchiveProject: archiveProject, onUnarchiveProject: unarchiveProject,
         onOpenRename: openRenameDialog, onOpenDelete: function () { setMgmtError(''); setDeleteOpen(true) },
-        onExportArchive: exportArchive, exporting: exporting,
+        onExportArchive: exportArchive, onVerifyArchiveFile: verifyArchiveFile, archiveVerifyMessage: archiveVerifyMessage, onEscalateApprovals: escalateApprovals, escalateMessage: escalateMessage, exporting: exporting,
         report: report, reportLoading: reportLoading, analysis: analysis, matHistory: matHistory,
-        importMessage: importMessage, onImportData: importProjectData, onGenerateTrialBalance: generateTrialBalance, onRefreshWorkpapers: refreshWorkpapers, confirmations: confirmations, onSyncConfirmations: syncConfirmations, onCycleConfirmation: cycleConfirmation, onReplyConfirmation: replyConfirmation, onExportConfirmationDifferences: exportConfirmationDifferences, onUploadConfirmationAttachment: uploadConfirmationAttachment, onDownloadConfirmationAttachment: downloadConfirmationAttachment, onPreviewConfirmationAttachment: previewConfirmationAttachment,
+        importMessage: importMessage, onImportData: importProjectData, onImportFinancialStatements: importFinancialStatements, onValidateImportFile: validateImportFile, multiFile: multiFile, multiSheets: multiSheets, multiSheetIndex: multiSheetIndex, multiKind: multiKind, multiLoading: multiLoading, onChooseMultiSheetFile: chooseMultiSheetFile, onDownloadImportTemplate: downloadImportTemplate, onDownloadFinancialTemplate: downloadFinancialTemplate, onSetMultiSheetIndex: setMultiSheetIndex, onSetMultiKind: setMultiKind, onSubmitMultiSheet: submitMultiSheet, onGenerateTrialBalance: generateTrialBalance, onRefreshWorkpapers: refreshWorkpapers, confirmations: confirmations, inventoryCounts: inventoryCounts, inventoryAttachments: inventoryAttachments, inventoryMeta: inventoryMeta, onUpdateInventoryMeta: updateInventoryMeta, onSaveInventoryMeta: saveInventoryMeta, onExportInventorySummary: exportInventorySummary, onAskAiNextSteps: askAiNextSteps, onGenerateSubsequentEvents: generateSubsequentEvents, onGenerateGoingConcern: generateGoingConcern, onGenerateRelatedParties: generateRelatedParties, onGenerateContingencies: generateContingencies, onGenerateOpeningBalances: generateOpeningBalances, generatedKind: generatedKind, onSetGeneratedKind: setGeneratedKind, checklistKind: checklistKind, onSetChecklistKind: setChecklistKind, onGenerateChecklist: generateChecklist, programs: programs, onUpdateProgramRow: updateProgramRow, onSavePrograms: savePrograms, onExportPrograms: exportPrograms, programEvents: programEvents, onExportProgramsXlsx: exportProgramsXlsx, onExportProgramHistory: exportProgramHistory, onExportInventoryExceptions: exportInventoryExceptions, dataEvents: dataEvents, onUploadInventoryAttachment: uploadInventoryAttachment, onPreviewInventoryAttachment: previewInventoryAttachment, onUpdateInventoryRow: updateInventoryRow, onSaveInventoryCounts: saveInventoryCounts, onConfirmInventory: confirmInventory, onSyncConfirmations: syncConfirmations, onCycleConfirmation: cycleConfirmation, onReplyConfirmation: replyConfirmation, onExportConfirmationDifferences: exportConfirmationDifferences, onUploadConfirmationAttachment: uploadConfirmationAttachment, onDownloadConfirmationAttachment: downloadConfirmationAttachment, onPreviewConfirmationAttachment: previewConfirmationAttachment,
         onConfirmMateriality: confirmMateriality, onGenerateRiskDocx: generateRiskDocx,
         onLoadChecklist: loadReportChecklist, onLoadOpinion: loadReportOpinion,
         onGenerateDraft: generateReportDraft, onDownloadDraft: downloadReportDraft,
@@ -1521,7 +2400,7 @@ window.__ModuleLoader__.load({
         onAddMember: addProjectMember, onRemoveMember: removeProjectMember,
         generatedDate: generatedDate, onGeneratedDateChange: setGeneratedDate,
         onOpenWorkpaperIndex: openWorkpaperByIndex, onGenerateWorkpaper: generateWorkpaper,
-        onGenerateAll: generateAllWorkpapers, onExportWorkpapers: exportWorkpapersZip,
+        onGenerateAll: generateAllWorkpapers, onExportWorkpapers: exportWorkpapersZip, reportVersionFilter: reportVersionFilter, onSetReportVersionFilter: setReportVersionFilter, approvalFilter: approvalFilter, onSetApprovalFilter: setApprovalFilter, onExportApprovals: exportApprovals, todoOverdueOnly: todoOverdueOnly, onSetTodoOverdueOnly: setTodoOverdueOnly, onJumpTodoZone: jumpTodoZone, onVerifyWorkpapersZip: verifyWorkpapersZip, wpsVerifyMessage: wpsVerifyMessage,
         onDownloadWorkpaper: downloadGeneratedWorkpaper, onPreviewWorkpaper: previewGeneratedWorkpaper,
         newPbcName: newPbcName, onPbcNameChange: setNewPbcName, onAddPbc: addPbcItem,
         onDeletePbc: deletePbcItem, onUploadAttachment: uploadPbcAttachment,
@@ -1550,12 +2429,51 @@ window.__ModuleLoader__.load({
             h('input', { value: newPeriod, onChange: function (e) { setNewPeriod(e.target.value) }, placeholder: '会计期间（如 2026）', style: inputStyle }),
             h('select', { value: businessType, onChange: function (e) { setBusinessType(e.target.value) }, style: inputStyle },
               ['年报审计', '专项审计', '内控审计'].map(function (name) { return h('option', { key: name, value: name }, '业务类型：' + name) })),
+            h('div', { style: { fontSize: '11px', color: COLORS.muted } }, '可选：创建后立即导入（也可稍后上传）'),
+            h('label', { style: { padding: '5px 8px', borderRadius: '6px', border: '1px dashed ' + COLORS.line, color: COLORS.muted, fontSize: '11px', cursor: 'pointer' } },
+              newFsFile ? ('财务报表：' + newFsFile.name) : '＋ 财务报表（xlsx）',
+              h('input', { type: 'file', accept: '.xlsx', style: { display: 'none' }, onChange: function (e) { setNewFsFile(e.target.files && e.target.files[0] || null); e.target.value = '' } })),
+            h('label', { style: { padding: '5px 8px', borderRadius: '6px', border: '1px dashed ' + COLORS.line, color: COLORS.muted, fontSize: '11px', cursor: 'pointer' } },
+              newTbFile ? ('科目余额表：' + newTbFile.name) : '＋ 科目余额表',
+              h('input', { type: 'file', accept: '.xlsx,.xls,.csv', style: { display: 'none' }, onChange: function (e) { setNewTbFile(e.target.files && e.target.files[0] || null); e.target.value = '' } })),
+            h('label', { style: { padding: '5px 8px', borderRadius: '6px', border: '1px dashed ' + COLORS.line, color: COLORS.muted, fontSize: '11px', cursor: 'pointer' } },
+              newJournalFile ? ('序时账：' + newJournalFile.name) : '＋ 序时账',
+              h('input', { type: 'file', accept: '.xlsx,.xls,.csv', style: { display: 'none' }, onChange: function (e) { setNewJournalFile(e.target.files && e.target.files[0] || null); e.target.value = '' } })),
             createError ? h('div', { style: { fontSize: '11px', color: '#b91c1c' } }, createError) : null,
             h('div', { style: { display: 'flex', gap: '6px' } },
               h('button', { onClick: createProject, disabled: creating,
                 style: { flex: 1, padding: '6px 10px', borderRadius: '7px', border: 0, background: COLORS.accent, color: '#fff', fontSize: '12px', cursor: 'pointer' } }, creating ? '创建中…' : '创建项目'),
               h('button', { onClick: function () { setShowCreate(false); setCreateError('') },
                 style: { padding: '6px 10px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '取消'))) : null,
+          (pinnedProjects || []).length ? h('div', { style: { padding: '0 10px 8px' } },
+            h('div', { style: { fontSize: '11px', color: COLORS.muted, marginBottom: '4px' } }, '已固定'),
+            pinnedProjects.map(function (item) {
+              return h('div', { key: 'pin-' + item.project, onClick: function () { setActiveCompany(item.company); setActiveProject(item.project) },
+                style: { padding: '5px 8px', borderRadius: '7px', cursor: 'pointer', fontSize: '12px', display: 'flex', justifyContent: 'space-between', gap: '8px', alignItems: 'center', color: item.project === activeProject ? COLORS.accent : 'inherit' } },
+                h('span', { style: { display: 'flex', flexDirection: 'column', minWidth: 0 } },
+                  h('span', { style: { display: 'flex', gap: '4px', alignItems: 'center', minWidth: 0 } },
+                    h('span', { style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, '★ ' + item.project),
+                    (pendingCounts || {})[item.project] ? h('button', { title: '查看待审批', onClick: function (e) { e.stopPropagation(); setActiveCompany(item.company); setActiveProject(item.project); setZone('审批状态') },
+                      style: { border: 0, borderRadius: '8px', background: 'rgba(180,83,9,0.12)', color: '#b45309', fontSize: '10px', padding: '1px 6px', cursor: 'pointer', flexShrink: 0 } }, pendingCounts[item.project] + ' 待审') : null),
+                  (function () { const meta = projectMeta(item); return meta ? h('span', { style: { fontSize: '10px', color: COLORS.muted } }, (meta.status || '-') + (meta.period ? ' · ' + meta.period : '')) : null })()),
+                h('button', { onClick: function (e) { e.stopPropagation(); togglePinProject(item) }, style: { border: 0, background: 'transparent', color: COLORS.muted, cursor: 'pointer', fontSize: '11px', flexShrink: 0 } }, '取消固定'))
+            })) : null,
+          (recentProjects || []).filter(function (item) { return !(pinnedProjects || []).some(function (p) { return p.project === item.project }) }).length ? h('div', { style: { padding: '0 10px 8px' } },
+            h('div', { style: { fontSize: '11px', color: COLORS.muted, marginBottom: '4px' } }, '最近访问'),
+            recentProjects.filter(function (item) { return !(pinnedProjects || []).some(function (p) { return p.project === item.project }) }).slice(0, 3).map(function (item) {
+              const isPinned = (pinnedProjects || []).some(function (p) { return p.project === item.project })
+              return h('div', { key: 'recent-' + item.project, onClick: function () { setActiveCompany(item.company); setActiveProject(item.project) },
+                style: { padding: '5px 8px', borderRadius: '7px', cursor: 'pointer', fontSize: '12px', display: 'flex', justifyContent: 'space-between', gap: '8px', alignItems: 'center', color: item.project === activeProject ? COLORS.accent : 'inherit' } },
+                h('span', { style: { display: 'flex', flexDirection: 'column', minWidth: 0 } },
+                  h('span', { style: { display: 'flex', gap: '4px', alignItems: 'center', minWidth: 0 } },
+                    h('span', { style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, item.project),
+                    (pendingCounts || {})[item.project] ? h('button', { title: '查看待审批', onClick: function (e) { e.stopPropagation(); setActiveCompany(item.company); setActiveProject(item.project); setZone('审批状态') },
+                      style: { border: 0, borderRadius: '8px', background: 'rgba(180,83,9,0.12)', color: '#b45309', fontSize: '10px', padding: '1px 6px', cursor: 'pointer', flexShrink: 0 } }, pendingCounts[item.project] + ' 待审') : null),
+                  (function () { const meta = projectMeta(item); return meta ? h('span', { style: { fontSize: '10px', color: COLORS.muted } }, (meta.status || '-') + (meta.period ? ' · ' + meta.period : '')) : null })()),
+                h('span', { style: { display: 'flex', gap: '6px', flexShrink: 0 } },
+                  h('button', { onClick: function (e) { e.stopPropagation(); togglePinProject(item) }, style: { border: 0, background: 'transparent', color: isPinned ? COLORS.accent : COLORS.muted, cursor: 'pointer', fontSize: '11px' } }, isPinned ? '★' : '☆'),
+                  h('button', { onClick: function (e) { e.stopPropagation(); removeRecentProject(item.project) }, style: { border: 0, background: 'transparent', color: COLORS.muted, cursor: 'pointer', fontSize: '11px' } }, '×')))
+            })) : null,
           h('div', { style: { padding: '0 8px 12px' } }, visibleCompanies.length ? visibleCompanies.map(function (c) {
             const active = c.name === activeCompany
             return h('div', { key: c.name, onClick: function () { setActiveCompany(c.name); setActiveProject(null) },
@@ -1574,7 +2492,7 @@ window.__ModuleLoader__.load({
           }) : h('div', { style: { padding: '10px', fontSize: '12px', color: COLORS.muted } }, '没有匹配的项目'))),
         h('div', { style: { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' } },
           h('div', { style: { display: 'flex', gap: '2px', padding: '10px 14px 0', borderBottom: '1px solid ' + COLORS.line, flexShrink: 0, flexWrap: 'wrap' } },
-            ['概览', '风险评估', '资料清单', '审计底稿', '项目对话', '审批状态', '报告'].map(function (name) {
+            ['概览', '风险评估', '资料清单', '审计底稿', '审计程序', '项目对话', '审批状态', '报告'].map(function (name) {
               const active = zone === name
               return h('button', { key: name, 'data-zone': name, onClick: function () { setZone(name) },
                 style: { border: 0, background: 'transparent', padding: '8px 12px', fontSize: '13px', cursor: 'pointer',
@@ -1687,22 +2605,46 @@ window.__ModuleLoader__.load({
     }
 
     // ---------- 操作留痕 ----------
-    const TYPE_NAMES = { pbc: '资料清单', workpaper: '底稿', approval: '审批', pbc_attachment: '附件', member: '成员' }
+    const TYPE_NAMES = { pbc: '资料清单', workpaper: '底稿', approval: '审批', pbc_attachment: '附件', member: '成员', program: '审计程序', report: '报告', materiality: '重要性', data: '数据', inventory: '存货监盘', confirmation: '函证', risk: '风险评估', archive: '归档包', drill: '演练', backup: '备份' }
 
     function EventsPage() {
+      const savedFilters = (function () {
+        try { return JSON.parse(localStorage.getItem('auditdesk.events.filters') || '{}') || {} } catch (e) { return {} }
+      })()
+      const navType = (function () {
+        try {
+          const saved = localStorage.getItem('auditdesk.events.type') || ''
+          if (saved) localStorage.removeItem('auditdesk.events.type')
+          return saved
+        } catch (e) { return '' }
+      })()
       const [events, setEvents] = React.useState([])
       const [projects, setProjects] = React.useState([])
-      const [project, setProject] = React.useState('')
-      const [actor, setActor] = React.useState('')
-      const [type, setType] = React.useState('')
+      const [project, setProject] = React.useState(savedFilters.project || '')
+      const [actor, setActor] = React.useState(savedFilters.actor || '')
+      const [type, setType] = React.useState(navType || savedFilters.type || '')
+      const [startDate, setStartDate] = React.useState(savedFilters.startDate || '')
+      const [endDate, setEndDate] = React.useState(savedFilters.endDate || '')
+      React.useEffect(function () {
+        try { localStorage.setItem('auditdesk.events.filters', JSON.stringify({ project: project, actor: actor, type: type, startDate: startDate, endDate: endDate })) } catch (e) {}
+      }, [project, actor, type, startDate, endDate])
       const [loading, setLoading] = React.useState(false)
       const [error, setError] = React.useState('')
+      const [page, setPage] = React.useState(1)
+      const [total, setTotal] = React.useState(0)
 
+      function resetFilters() {
+        setProject(''); setActor(''); setType(''); setStartDate(''); setEndDate(''); setPage(1)
+        try { localStorage.removeItem('auditdesk.events.filters') } catch (e) {}
+        setTimeout(function () { load(1) }, 0)
+      }
       function exportCsv() {
         const params = []
         if (project) params.push('project=' + encodeURIComponent(project))
         if (actor) params.push('actor=' + encodeURIComponent(actor))
         if (type) params.push('item_type=' + encodeURIComponent(type))
+        if (startDate) params.push('start_date=' + encodeURIComponent(startDate))
+        if (endDate) params.push('end_date=' + encodeURIComponent(endDate))
         fetch(BASE + '/audit/events/export' + (params.length ? '?' + params.join('&') : ''), { headers: { 'X-KB-Token': currentToken() } })
           .then(function (resp) { if (!resp.ok) throw new Error('HTTP ' + resp.status); return resp.blob() })
           .then(function (blob) {
@@ -1713,10 +2655,24 @@ window.__ModuleLoader__.load({
             URL.revokeObjectURL(url)
           }).catch(function (e) { setError(String(e)) })
       }
-      function load() {
+      function exportPageCsv() {
+        const rows = [['ID', '项目', '类型', '对象', '原状态', '新状态', '操作人', 'IP', '时间']]
+        ;(events || []).forEach(function (event) {
+          rows.push([event.id, event.project_id, event.item_type, event.item_name, event.old_status, event.new_status, event.actor, event.source_ip, event.created_at])
+        })
+        const csv = '\ufeff' + rows.map(function (row) { return row.map(function (cell) { return '"' + String(cell === null || cell === undefined ? '' : cell).replace(/"/g, '""') + '"' }).join(',') }).join('\n')
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+        const url = URL.createObjectURL(blob)
+        const anchor = document.createElement('a')
+        anchor.href = url; anchor.download = '操作留痕_第' + page + '页.csv'
+        document.body.appendChild(anchor); anchor.click(); anchor.remove()
+        URL.revokeObjectURL(url)
+      }
+      function load(pageNo) {
+        const target = pageNo || page
         setLoading(true); setError('')
-        api('/audit/events', { project: project || undefined, actor: actor || undefined, item_type: type || undefined, limit: 200 })
-          .then(function (d) { setEvents(d.events || []) })
+        api('/audit/events', { project: project || undefined, actor: actor || undefined, item_type: type || undefined, start_date: startDate || undefined, end_date: endDate || undefined, limit: 100, offset: (target - 1) * 100 })
+          .then(function (d) { setEvents(d.events || []); setTotal(d.total || (d.events || []).length); setPage(target) })
           .catch(function (e) { setError(String(e)) })
           .then(function () { setLoading(false) })
       }
@@ -1740,8 +2696,19 @@ window.__ModuleLoader__.load({
           style: { padding: '7px 9px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } },
           h('option', { value: '' }, '全部类型'),
           Object.keys(TYPE_NAMES).map(function (key) { return h('option', { key: key, value: key }, TYPE_NAMES[key]) })),
-        h('button', { onClick: load, style: { padding: '7px 14px', borderRadius: '7px', border: 0, background: COLORS.accent, color: '#fff', fontSize: '12px', cursor: 'pointer' } }, loading ? '查询中…' : '查询'),
-        h('button', { onClick: exportCsv, style: { padding: '7px 14px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '导出 CSV'))
+        h('input', { value: startDate, onChange: function (e) { setStartDate(e.target.value) }, type: 'date', title: '开始日期',
+          style: { padding: '7px 9px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }),
+        h('input', { value: endDate, onChange: function (e) { setEndDate(e.target.value) }, type: 'date', title: '结束日期',
+          style: { padding: '7px 9px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }),
+        h('button', { onClick: function () { load(1) }, style: { padding: '7px 14px', borderRadius: '7px', border: 0, background: COLORS.accent, color: '#fff', fontSize: '12px', cursor: 'pointer' } }, loading ? '查询中…' : '查询'),
+        h('button', { onClick: resetFilters, style: { padding: '7px 12px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '清除筛选'),
+        h('span', { style: { fontSize: '11px', color: COLORS.muted, marginLeft: '6px' } }, '共 ' + total + ' 条 · 第 ' + page + ' / ' + Math.max(1, Math.ceil(total / 100)) + ' 页'),
+        h('button', { onClick: function () { if (page > 1) load(page - 1) }, disabled: page <= 1,
+          style: { padding: '7px 10px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer', opacity: page <= 1 ? 0.4 : 1 } }, '上一页'),
+        h('button', { onClick: function () { if (page * 100 < total) load(page + 1) }, disabled: page * 100 >= total,
+          style: { padding: '7px 10px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer', opacity: page * 100 >= total ? 0.4 : 1 } }, '下一页'),
+        h('button', { onClick: exportCsv, style: { padding: '7px 14px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '导出 CSV'),
+        h('button', { onClick: exportPageCsv, style: { padding: '7px 14px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '导出当前页'))
 
       const rows = events.map(function (item) {
         return h('div', { key: item.id, style: { display: 'grid', gridTemplateColumns: '150px 90px 1fr 90px', gap: '10px', padding: '7px 16px', borderBottom: '1px solid ' + COLORS.line, fontSize: '12px', alignItems: 'center' } },
@@ -1887,6 +2854,17 @@ window.__ModuleLoader__.load({
       const loadingState = React.useState(false); const loading = loadingState[0]; const setLoading = loadingState[1]
       const messageState = React.useState(''); const message = messageState[0]; const setMessage = messageState[1]
       const errorState = React.useState(''); const error = errorState[0]; const setError = errorState[1]
+      const settingsState = React.useState(null); const settings = settingsState[0]; const setSettings = settingsState[1]
+      const drillEventsState = React.useState(null); const drillEvents = drillEventsState[0]; const setDrillEvents = drillEventsState[1]
+      const pruneDaysState = React.useState(30); const pruneDays = pruneDaysState[0]; const setPruneDays = pruneDaysState[1]
+      const deleteBackupState = React.useState(''); const deleteBackupName = deleteBackupState[0]; const setDeleteBackupName = deleteBackupState[1]
+      const restoreSummaryState = React.useState(null); const restoreSummary = restoreSummaryState[0]; const setRestoreSummary = restoreSummaryState[1]
+      const backupVerifyState = React.useState(''); const backupVerifyMessage = backupVerifyState[0]; const setBackupVerifyMessage = backupVerifyState[1]
+      const sysEventState = React.useState(null); const sysEvent = sysEventState[0]; const setSysEvent = sysEventState[1]
+      const sysEventsState = React.useState([]); const sysEvents = sysEventsState[0]; const setSysEvents = sysEventsState[1]
+      const reportPushSettingsState = React.useState(null); const reportPushSettings = reportPushSettingsState[0]; const setReportPushSettings = reportPushSettingsState[1]
+      const backupSettingsState = React.useState(null); const backupSettings = backupSettingsState[0]; const setBackupSettings = backupSettingsState[1]
+      const settingsMessageState = React.useState(''); const settingsMessage = settingsMessageState[0]; const setSettingsMessage = settingsMessageState[1]
 
       function load() {
         setLoading(true); setError('')
@@ -1896,10 +2874,114 @@ window.__ModuleLoader__.load({
         api('/audit/jobs').then(function (d) { setJobs(d.items || []) }).catch(function () {})
         if (isAdmin) {
           api('/audit/system/backups').then(function (d) { setBackups(d.items || []) }).catch(function () {})
+          api('/audit/system/settings').then(function (d) { setSettings(d.escalation || null); setBackupSettings(d.backup || null); setReportPushSettings(d.report_push || null) }).catch(function () {})
         }
       }
       React.useEffect(function () { load() }, [isAdmin])
 
+      function deleteBackup(name) {
+        api('/audit/system/backup/delete', null, { method: 'POST', body: { name: name } })
+          .then(function () { setMessage('已删除备份：' + name); setDeleteBackupName(''); load() })
+          .catch(function (e) { setError(String(e)) })
+      }
+      function loadDrillHistory() {
+        if (drillEvents) { setDrillEvents(null); return }
+        api('/audit/events', { item_type: 'drill', limit: 10 })
+          .then(function (d) { setDrillEvents(d.events || []) })
+          .catch(function () { setDrillEvents([]) })
+      }
+      function exportDrillHistory() {
+        if (!drillEvents || !drillEvents.length) return
+        const rows = [['演练名称', '结果', '操作人', '时间']]
+        drillEvents.forEach(function (event) { rows.push([event.item_name || '', event.new_status || '', event.actor || '', event.created_at || '']) })
+        const csv = '\ufeff' + rows.map(function (row) { return row.map(function (cell) { return '"' + String(cell).replace(/"/g, '""') + '"' }).join(',') }).join('\n')
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+        const url = URL.createObjectURL(blob)
+        const anchor = document.createElement('a')
+        anchor.href = url; anchor.download = '恢复演练记录.csv'
+        document.body.appendChild(anchor); anchor.click(); anchor.remove()
+        URL.revokeObjectURL(url)
+      }
+      function exportOpsReport() {
+        fetch(BASE + '/audit/system/report', { headers: { 'X-KB-Token': currentToken() } })
+          .then(function (resp) { if (!resp.ok) throw new Error('HTTP ' + resp.status); return resp.blob() })
+          .then(function (blob) {
+            const url = URL.createObjectURL(blob)
+            const anchor = document.createElement('a')
+            anchor.href = url; anchor.download = 'auditdesk-运维报告.md'
+            document.body.appendChild(anchor); anchor.click(); anchor.remove()
+            URL.revokeObjectURL(url)
+          }).catch(function (e) { setError(String(e)) })
+      }
+      function pushOpsReport() {
+        setMessage('正在推送运维报告…')
+        api('/audit/system/report/push', null, { method: 'POST', body: {} })
+          .then(function (d) {
+            if (d.sent) setMessage('运维报告已推送（Webhook）')
+            else if (d.attempts) setMessage('推送失败（已重试 ' + d.attempts + ' 次）：' + (d.error || '请检查 Webhook 配置'))
+            else setMessage('未配置 Webhook，报告未推送（可在服务器 ~/kb-shared/notify-webhook 配置）')
+          })
+          .catch(function (e) { setError(String(e)) })
+      }
+      function exportOpsReportPdf() {
+        fetch(BASE + '/audit/system/report.pdf', { headers: { 'X-KB-Token': currentToken() } })
+          .then(function (resp) { if (!resp.ok) throw new Error('HTTP ' + resp.status); return resp.blob() })
+          .then(function (blob) {
+            const url = URL.createObjectURL(blob)
+            const anchor = document.createElement('a')
+            anchor.href = url; anchor.download = 'AuditDesk运维报告.pdf'
+            document.body.appendChild(anchor); anchor.click(); anchor.remove()
+            URL.revokeObjectURL(url)
+          }).catch(function (e) { setError(String(e)) })
+      }
+      function showSystemEvents(type) {
+        if (sysEvent === type) { setSysEvent(null); return }
+        setSysEvent(type)
+        setSysEvents([])
+        api('/audit/events', { item_type: type, limit: 30 })
+          .then(function (d) { setSysEvents(d.events || []) })
+          .catch(function () { setSysEvents([]) })
+      }
+      function runEscalationNow() {
+        api('/audit/approvals/escalate', null, { method: 'POST', body: { days: 2 } })
+          .then(function (d) { setMessage(d.escalated ? ('已升级 ' + d.escalated + ' 项超期审批') : ('超期 ' + (d.overdue || 0) + ' 项（今日已提醒）')); load() })
+          .catch(function (e) { setError(String(e)) })
+      }
+      function drillBackup() {
+        setMessage('正在执行恢复演练…')
+        api('/audit/system/backup/drill', null, { method: 'POST', body: {} })
+          .then(function (d) { setMessage(d.ok ? ('恢复演练通过：' + d.tables + ' 张表 / ' + d.projects + ' 个项目 / ' + d.users + ' 用户（' + d.name + '）') : ('恢复演练失败：' + (d.integrity || ''))); load() })
+          .catch(function (e) { setError(String(e)) })
+      }
+      function pruneBackups(days) {
+        const body = days ? { days: days } : {}
+        api('/audit/system/backup/prune', null, { method: 'POST', body: body })
+          .then(function (d) {
+            setMessage(d.deleted ? ('已清理 ' + d.deleted + ' 份旧备份' + (days ? '（早于 ' + days + ' 天）' : '')) : (days ? ('没有早于 ' + days + ' 天的备份') : '无需清理（未超过保留份数）'))
+            load()
+          })
+          .catch(function (e) { setError(String(e)) })
+      }
+      function openRestore(item) {
+        setRestoreSummary(null)
+        setRestoreName(item.filename)
+        api('/audit/system/backup/verify', null, { method: 'POST', body: { name: item.filename } })
+          .then(function (d) { setRestoreSummary(d) })
+          .catch(function () { setRestoreSummary({ ok: false, integrity: '校验失败', tables: 0, projects: 0, size: 0, name: item.filename }) })
+      }
+      function verifyBackup(name) {
+        setBackupVerifyMessage('正在校验 ' + name + '…')
+        api('/audit/system/backup/verify', null, { method: 'POST', body: { name: name } })
+          .then(function (d) {
+            setBackupVerifyMessage(d.ok ? ('校验通过：' + d.name + '（' + d.tables + ' 张表 / ' + d.projects + ' 个项目 / ' + formatBytes(d.size) + '）') : ('校验失败：' + d.name + '（' + d.integrity + '）'))
+          })
+          .catch(function () { setBackupVerifyMessage('校验失败，请重试') })
+      }
+      function saveSettings(next, nextBackup, nextReportPush) {
+        api('/audit/system/settings', null, { method: 'POST', body: { escalation: next, backup: nextBackup, report_push: nextReportPush } })
+          .then(function (d) { setSettings(d.escalation || null); setBackupSettings(d.backup || null); setReportPushSettings(d.report_push || null); setSettingsMessage('设置已保存') })
+          .catch(function () { setSettingsMessage('保存失败') })
+      }
       function checkAutoBackup(force) {
         setMessage('')
         api('/audit/system/auto-backup/check', null, { method: 'POST', body: { force: !!force } })
@@ -1949,12 +3031,17 @@ window.__ModuleLoader__.load({
           h('div', { style: { fontSize: '12px', color: COLORS.muted } }, loading ? '加载中…' : (error || '暂无数据')),
           h('button', { onClick: load, style: { marginTop: '10px', padding: '7px 12px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '刷新'))
       }
+      const backupStatusText = (health.backup && health.backup.last_backup ? ('上次：' + (health.backup.last_backup_at || '-') + ' · 下次约 ' + Math.max(0, Math.ceil(((health.backup.next_due_seconds || 0) / 3600))) + ' 小时后 · 自动备份每 ' + (health.backup.interval_hours || 24) + ' 小时') : ('自动备份：每 ' + (((health.backup || {}).interval_hours) || 24) + ' 小时检查一次')) + ' · 共 ' + backups.length + ' 份 · 总占用 ' + formatBytes(backups.reduce(function (sum, item) { return sum + (item.size || 0) }, 0)) + ' · 保留最近 ' + (((health.backup || {}).keep) || 10) + ' 份' + (health.last_drill ? (' · 最近演练：' + (String(health.last_drill.status || '').indexOf('PASS') === 0 ? '通过' : '异常') + '（' + (health.last_drill.at || '') + '）') : '')
       return h('div', { style: { padding: '18px', maxWidth: '980px' } },
         h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' } },
           h('div', null,
             h('div', { style: { fontSize: '15px', fontWeight: 600 } }, '系统状态'),
             h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '服务时间：' + health.server_time + ' · 数据目录：mini4pro:8030')),
-          h('button', { onClick: load, style: { padding: '7px 12px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, loading ? '刷新中…' : '刷新')),
+          h('div', { style: { display: 'flex', gap: '8px' } },
+            isAdmin ? h('button', { onClick: exportOpsReport, style: { padding: '7px 12px', borderRadius: '7px', border: '1px solid ' + COLORS.accent, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '导出运维报告（MD）') : null,
+            isAdmin ? h('button', { onClick: exportOpsReportPdf, style: { padding: '7px 12px', borderRadius: '7px', border: '1px solid ' + COLORS.accent, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '导出运维报告（PDF）') : null,
+            isAdmin ? h('button', { onClick: pushOpsReport, style: { padding: '7px 12px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '推送运维报告') : null,
+            h('button', { onClick: load, style: { padding: '7px 12px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, loading ? '刷新中…' : '刷新'))),
         message ? h('div', { style: { fontSize: '12px', color: '#16a34a', marginBottom: '8px' } }, message) : null,
         error ? h('div', { style: { fontSize: '12px', color: '#b91c1c', marginBottom: '8px' } }, error) : null,
         h('div', { style: { display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '12px' } },
@@ -1967,27 +3054,123 @@ window.__ModuleLoader__.load({
           card('生成目录', formatBytes(health.generated_root_bytes)),
           card('上传目录', formatBytes(health.uploads_root_bytes)),
           card('磁盘使用', health.disk_used_percent + '%', '剩余 ' + formatBytes(health.disk_free) + ' / 共 ' + formatBytes(health.disk_total))),
+        isAdmin ? h('div', { style: { marginBottom: '12px', padding: '14px', borderRadius: '12px', border: '1px solid ' + COLORS.line } },
+          h('div', { style: { fontSize: '13px', fontWeight: 600, marginBottom: '6px' } }, '后台任务'),
+          h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '8px', fontSize: '12px' } },
+            h('div', { style: { padding: '8px', borderRadius: '8px', border: '1px solid ' + COLORS.line } },
+              h('div', { style: { fontWeight: 600, marginBottom: '3px' } }, '审批超期自动扫描'),
+              h('div', { style: { color: COLORS.muted } }, (health.escalation ? (health.escalation.auto ? '已启用' : '已关闭') + ' · 每 ' + health.escalation.interval_hours + ' 小时' : '未配置')),
+              h('div', { style: { color: COLORS.muted } }, '最近：' + ((health.escalation && health.escalation.last_run) || '待运行')),
+              h('button', { onClick: runEscalationNow, style: { marginTop: '4px', padding: '3px 8px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px', cursor: 'pointer' } }, '立即扫描')),
+            h('div', { style: { padding: '8px', borderRadius: '8px', border: '1px solid ' + COLORS.line } },
+              h('div', { style: { fontWeight: 600, marginBottom: '3px' } }, '运维报告定时推送'),
+              h('div', { style: { color: COLORS.muted } }, (health.report_push ? (health.report_push.auto ? '已启用' : '已关闭') + ' · 每日 ' + health.report_push.hour + ':00' : '未配置')),
+              h('div', { style: { color: COLORS.muted } }, '最近：' + ((health.report_push && health.report_push.last_at) || '待运行') + (health.report_push && health.report_push.last_sent ? ' · 成功' : '')),
+              h('button', { onClick: pushOpsReport, style: { marginTop: '4px', padding: '3px 8px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px', cursor: 'pointer' } }, '立即推送')),
+            h('div', { style: { padding: '8px', borderRadius: '8px', border: '1px solid ' + COLORS.line } },
+              h('div', { style: { fontWeight: 600, marginBottom: '3px' } }, '数据库自动备份'),
+              h('div', { style: { color: COLORS.muted } }, (health.backup ? (health.backup.auto ? '已启用' : '已关闭') + ' · 每 ' + health.backup.interval_hours + ' 小时' : '未配置')),
+              h('div', { style: { color: COLORS.muted } }, '最近备份：' + ((health.backup && health.backup.last_backup_at) || '无')),
+              h('div', { style: { display: 'flex', gap: '6px', marginTop: '4px' } },
+                h('button', { onClick: createBackup, style: { padding: '3px 8px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px', cursor: 'pointer' } }, '立即备份'),
+                h('button', { onClick: drillBackup, style: { padding: '3px 8px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px', cursor: 'pointer' } }, '恢复演练'))))) : null,
+        isAdmin ? h('div', { style: { marginBottom: '12px', padding: '10px 14px', borderRadius: '12px', border: '1px solid ' + COLORS.line, display: 'flex', gap: '14px', flexWrap: 'wrap', fontSize: '12px', alignItems: 'center' } },
+          h('span', { style: { fontWeight: 600 } }, '系统操作统计'),
+          [['backup', '备份'], ['drill', '演练'], ['alert', '告警'], ['archive', '归档'], ['report_push', '报告推送']].map(function (pair) {
+            const active = sysEvent === pair[0]
+            return h('span', { key: 'syscount-' + pair[0], title: '点击查看明细', onClick: function () { showSystemEvents(pair[0]) },
+              style: { padding: '2px 8px', borderRadius: '10px', border: '1px solid ' + (active ? COLORS.accent : COLORS.line), color: active ? COLORS.accent : COLORS.muted, cursor: 'pointer' } },
+              pair[1] + ' ' + (((health.system_event_counts || {})[pair[0]]) || 0))
+          }),
+          sysEvent ? h('div', { style: { width: '100%', marginTop: '6px', paddingTop: '6px', borderTop: '1px dashed ' + COLORS.line, fontSize: '11px' } },
+            h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' } },
+              h('div', { style: { fontWeight: 600 } }, '最近明细（' + sysEvents.length + '）'),
+              h('button', { onClick: function () {
+                try { localStorage.setItem('auditdesk.events.type', sysEvent || '') } catch (e) {}
+                try { if (props.ui && props.ui.layout) props.ui.layout.selectPanel('audit-events') } catch (e) {}
+              }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '11px', cursor: 'pointer' } }, '查看全部（操作留痕）')),
+            sysEvents.length ? sysEvents.slice(0, 10).map(function (event) {
+              return h('div', { key: 'se-' + event.id, style: { display: 'flex', justifyContent: 'space-between', gap: '10px', padding: '2px 0' } },
+                h('span', null, (event.item_name || '') + ' · ' + (event.new_status || '') + ' · ' + (event.actor || '')),
+                h('span', { style: { color: COLORS.muted } }, event.created_at))
+            }) : h('div', { style: { color: COLORS.muted } }, '加载中…或者暂无记录')) : null) : null,
+        isAdmin && settings ? h('div', { style: { marginBottom: '12px', padding: '14px', borderRadius: '12px', border: '1px solid ' + COLORS.line } },
+          h('div', { style: { fontSize: '13px', fontWeight: 600, marginBottom: '6px' } }, '审批超期自动扫描'),
+          h('div', { style: { display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', fontSize: '12px' } },
+            h('label', { style: { display: 'flex', gap: '6px', alignItems: 'center' } },
+              h('input', { type: 'checkbox', checked: !!settings.auto, onChange: function (e) { setSettings(Object.assign({}, settings, { auto: e.target.checked })) } }), '启用自动扫描'),
+            h('label', { style: { display: 'flex', gap: '6px', alignItems: 'center' } }, '超期天数',
+              h('input', { type: 'number', min: 1, value: settings.days || 2, onChange: function (e) { setSettings(Object.assign({}, settings, { days: Number(e.target.value) || 2 })) }, style: { width: '64px', padding: '4px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit' } })),
+            h('label', { style: { display: 'flex', gap: '6px', alignItems: 'center' } }, '扫描间隔（小时）',
+              h('input', { type: 'number', min: 1, value: settings.interval_hours || 6, onChange: function (e) { setSettings(Object.assign({}, settings, { interval_hours: Number(e.target.value) || 6 })) }, style: { width: '64px', padding: '4px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit' } })),
+            h('label', { style: { display: 'flex', gap: '6px', alignItems: 'center' } }, '去重（小时）',
+              h('input', { type: 'number', min: 1, value: settings.dedupe_hours || 24, onChange: function (e) { setSettings(Object.assign({}, settings, { dedupe_hours: Number(e.target.value) || 24 })) }, style: { width: '64px', padding: '4px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit' } })),
+            h('button', { onClick: function () { saveSettings(settings, backupSettings) }, style: { padding: '6px 12px', borderRadius: '7px', border: 0, background: COLORS.accent, color: '#fff', fontSize: '12px', cursor: 'pointer' } }, '保存设置'),
+            settingsMessage ? h('span', { style: { color: '#16a34a' } }, settingsMessage) : null),
+          h('div', { style: { marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed ' + COLORS.line, display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', fontSize: '12px' } },
+            h('div', { style: { fontWeight: 600, width: '100%', marginBottom: '2px' } }, '数据库自动备份'),
+            backupSettings ? h('label', { style: { display: 'flex', gap: '6px', alignItems: 'center' } },
+              h('input', { type: 'checkbox', checked: !!backupSettings.auto, onChange: function (e) { setBackupSettings(Object.assign({}, backupSettings, { auto: e.target.checked })) } }), '启用自动备份') : null,
+            backupSettings ? h('label', { style: { display: 'flex', gap: '6px', alignItems: 'center' } }, '保留份数',
+              h('input', { type: 'number', min: 1, value: backupSettings.keep || 10, onChange: function (e) { setBackupSettings(Object.assign({}, backupSettings, { keep: Number(e.target.value) || 10 })) }, style: { width: '64px', padding: '4px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit' } })) : null,
+            backupSettings ? h('label', { style: { display: 'flex', gap: '6px', alignItems: 'center' } }, '备份间隔（小时）',
+              h('input', { type: 'number', min: 1, value: backupSettings.interval_hours || 24, onChange: function (e) { setBackupSettings(Object.assign({}, backupSettings, { interval_hours: Number(e.target.value) || 24 })) }, style: { width: '64px', padding: '4px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit' } })) : null,
+            h('button', { onClick: function () { saveSettings(settings, backupSettings, reportPushSettings) }, style: { padding: '6px 12px', borderRadius: '7px', border: 0, background: COLORS.accent, color: '#fff', fontSize: '12px', cursor: 'pointer' } }, '保存备份设置')),
+          h('div', { style: { marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed ' + COLORS.line, display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', fontSize: '12px' } },
+            h('div', { style: { fontWeight: 600, width: '100%', marginBottom: '2px' } }, '运维报告推送'),
+            reportPushSettings ? h('label', { style: { display: 'flex', gap: '6px', alignItems: 'center' } },
+              h('input', { type: 'checkbox', checked: !!reportPushSettings.auto, onChange: function (e) { setReportPushSettings(Object.assign({}, reportPushSettings, { auto: e.target.checked })) } }), '每日自动推送') : null,
+            reportPushSettings ? h('label', { style: { display: 'flex', gap: '6px', alignItems: 'center' } }, '推送时间',
+              h('input', { type: 'number', min: 0, max: 23, value: reportPushSettings.hour || 8, onChange: function (e) { setReportPushSettings(Object.assign({}, reportPushSettings, { hour: Number(e.target.value) || 0 })) }, style: { width: '64px', padding: '4px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit' } }), '点') : null,
+            reportPushSettings ? h('label', { style: { display: 'flex', gap: '6px', alignItems: 'center' } }, '失败重试',
+              h('input', { type: 'number', min: 1, max: 10, value: reportPushSettings.retries || 3, onChange: function (e) { setReportPushSettings(Object.assign({}, reportPushSettings, { retries: Number(e.target.value) || 3 })) }, style: { width: '54px', padding: '4px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit' } }), '次') : null,
+            h('button', { onClick: function () { saveSettings(settings, backupSettings, reportPushSettings) }, style: { padding: '6px 12px', borderRadius: '7px', border: 0, background: COLORS.accent, color: '#fff', fontSize: '12px', cursor: 'pointer' } }, '保存推送设置'))) : null,
         isAdmin ? h('div', { style: { padding: '14px', borderRadius: '12px', border: '1px solid ' + COLORS.line } },
           h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' } },
             h('div', null,
-              h('div', { style: { fontSize: '13px', fontWeight: 600 } }, '数据库备份（保留最近 10 份）'),
-              h('div', { style: { fontSize: '11px', color: COLORS.muted, marginTop: '2px' } }, '自动备份：每 24 小时检查一次（服务常驻后台执行）')),
-            h('div', { style: { display: 'flex', gap: '8px' } },
+              h('div', { style: { fontSize: '13px', fontWeight: 600 } }, '数据库备份（保留最近 ' + (((health.backup || {}).keep) || 10) + ' 份）'),
+              h('div', { style: { fontSize: '11px', color: COLORS.muted, marginTop: '2px' } }, backupStatusText)),
+            h('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap' } },
               h('button', { onClick: function () { checkAutoBackup(false) }, style: { padding: '7px 12px', borderRadius: '8px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '检查自动备份'),
+              h('button', { onClick: drillBackup, style: { padding: '7px 12px', borderRadius: '8px', border: '1px solid ' + COLORS.accent, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '恢复演练'),
+              h('button', { onClick: loadDrillHistory, style: { padding: '7px 12px', borderRadius: '8px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, drillEvents ? '收起演练记录' : '演练记录'),
+              h('button', { onClick: function () { pruneBackups(0) }, style: { padding: '7px 12px', borderRadius: '8px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '清理旧备份'),
+              h('span', { style: { fontSize: '11px', color: COLORS.muted, display: 'flex', alignItems: 'center', gap: '4px' } }, '清理早于',
+                h('input', { type: 'number', min: 1, value: pruneDays, onChange: function (e) { setPruneDays(Number(e.target.value) || 30) }, style: { width: '54px', padding: '4px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px' } }), '天',
+                h('button', { onClick: function () { pruneBackups(pruneDays) }, style: { padding: '4px 8px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px', cursor: 'pointer' } }, '执行')),
               h('button', { onClick: createBackup, style: { padding: '7px 12px', borderRadius: '8px', border: 0, background: COLORS.accent, color: '#fff', fontSize: '12px', cursor: 'pointer' } }, '立即备份'))),
+          backupVerifyMessage ? h('div', { style: { fontSize: '12px', marginBottom: '6px', color: backupVerifyMessage.indexOf('通过') >= 0 ? '#16a34a' : '#b45309' } }, backupVerifyMessage) : null,
+          drillEvents ? h('div', { style: { marginBottom: '8px', padding: '8px', borderRadius: '8px', background: 'rgba(127,127,127,0.06)', fontSize: '11px' } },
+            h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' } },
+              h('div', { style: { fontWeight: 600 } }, '最近恢复演练记录（' + drillEvents.length + '）'),
+              drillEvents.length ? h('button', { onClick: exportDrillHistory, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '11px', cursor: 'pointer' } }, '导出 CSV') : null),
+            drillEvents.length ? drillEvents.map(function (event) {
+              return h('div', { key: 'drill-' + event.id, style: { display: 'flex', justifyContent: 'space-between', gap: '10px', padding: '2px 0' } },
+                h('span', null, (event.item_name || '') + ' · ' + (event.new_status || '') + ' · ' + (event.actor || '')),
+                h('span', { style: { color: COLORS.muted } }, event.created_at))
+            }) : h('div', { style: { color: COLORS.muted } }, '暂无演练记录')) : null,
           backups.length ? backups.map(function (item) {
             return h('div', { key: item.filename, style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', padding: '4px 0', borderBottom: '1px solid ' + COLORS.line } },
               h('span', null, item.filename + ' · ' + formatBytes(item.size)),
               h('div', { style: { display: 'flex', gap: '10px' } },
                 h('span', { style: { color: COLORS.muted } }, item.created_at),
+                h('button', { onClick: function () { verifyBackup(item.filename) }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '校验'),
                 h('button', { onClick: function () { downloadBackup(item.filename) }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '下载'),
-                h('button', { onClick: function () { setRestoreName(item.filename) }, style: { border: 0, background: 'transparent', color: '#b45309', fontSize: '12px', cursor: 'pointer' } }, '恢复')))
+                h('button', { onClick: function () { openRestore(item) }, style: { border: 0, background: 'transparent', color: '#b45309', fontSize: '12px', cursor: 'pointer' } }, '恢复'),
+                h('button', { onClick: function () { setDeleteBackupName(item.filename) }, style: { border: 0, background: 'transparent', color: '#b91c1c', fontSize: '12px', cursor: 'pointer' } }, '删除')))
           }) : h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '还没有备份'),
+          deleteBackupName ? h('div', { style: { marginTop: '8px', padding: '8px', borderRadius: '8px', background: 'rgba(185,28,28,0.10)', fontSize: '12px', color: '#b91c1c' } },
+            '确认删除备份 ' + deleteBackupName + '？删除后不可恢复。',
+            h('div', { style: { display: 'flex', gap: '8px', marginTop: '6px' } },
+              h('button', { onClick: function () { deleteBackup(deleteBackupName) }, style: { padding: '5px 10px', borderRadius: '6px', border: 0, background: '#b91c1c', color: '#fff', fontSize: '12px', cursor: 'pointer' } }, '确认删除'),
+              h('button', { onClick: function () { setDeleteBackupName('') }, style: { padding: '5px 10px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '取消'))) : null,
           restoreName ? h('div', { style: { marginTop: '8px', padding: '8px', borderRadius: '8px', background: 'rgba(180,83,9,0.10)', fontSize: '12px', color: '#b45309' } },
             '确认用 ' + restoreName + ' 覆盖当前数据库？系统会先自动创建安全备份。',
+            restoreSummary ? h('div', { style: { marginTop: '6px', fontSize: '11px', lineHeight: 1.7 } }, '完整性：' + (restoreSummary.ok ? '通过' : '未通过（' + (restoreSummary.integrity || '') + '）') + ' · 表 ' + restoreSummary.tables + ' 张 · 项目 ' + restoreSummary.projects + ' 个 · ' + formatBytes(restoreSummary.size || 0)) : h('div', { style: { marginTop: '6px', fontSize: '11px', color: COLORS.muted } }, '正在校验备份完整性…'),
             h('div', { style: { display: 'flex', gap: '8px', marginTop: '6px' } },
-              h('button', { onClick: function () { restoreBackup(restoreName) }, style: { padding: '5px 10px', borderRadius: '6px', border: 0, background: '#b45309', color: '#fff', fontSize: '12px', cursor: 'pointer' } }, '确认恢复'),
-              h('button', { onClick: function () { setRestoreName('') }, style: { padding: '5px 10px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '取消'))) : null) : null,
+              h('button', { onClick: function () { restoreBackup(restoreName) }, disabled: !restoreSummary || !restoreSummary.ok,
+                style: { padding: '5px 10px', borderRadius: '6px', border: 0, background: '#b45309', color: '#fff', fontSize: '12px', cursor: 'pointer', opacity: (!restoreSummary || !restoreSummary.ok) ? 0.5 : 1 } }, '确认恢复'),
+              h('button', { onClick: function () { setRestoreName(''); setRestoreSummary(null) }, style: { padding: '5px 10px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '取消'))) : null) : null,
         h('div', { style: { marginTop: '12px', padding: '14px', borderRadius: '12px', border: '1px solid ' + COLORS.line } },
           h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' } },
             h('div', { style: { fontSize: '13px', fontWeight: 600 } }, '任务中心（最近任务）'),
@@ -2006,23 +3189,255 @@ window.__ModuleLoader__.load({
         )
     }
 
+    function DashboardIcon(props) {
+      const s = props && props.size ? props.size : 18
+      return h('svg', { width: s, height: s, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.7, 'aria-hidden': true },
+        h('path', { d: 'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z' }))
+    }
+
+    function DashboardPage() {
+      const state = React.useState(null); const dashboard = state[0]; const setDashboard = state[1]
+      const loadingState = React.useState(false); const loading = loadingState[0]; const setLoading = loadingState[1]
+      const errorState = React.useState(''); const error = errorState[0]; const setError = errorState[1]
+      const keywordState = React.useState(''); const keyword = keywordState[0]; const setKeyword = keywordState[1]
+      const statusState = React.useState(''); const statusFilter = statusState[0]; const setStatusFilter = statusState[1]
+      const sortState = React.useState('updated'); const sortBy = sortState[0]; const setSortBy = sortState[1]
+      const guideState = React.useState(function () { try { return localStorage.getItem('auditdesk.guide.dismissed') !== '1' } catch (e) { return true } })
+      const showGuide = guideState[0]; const setShowGuide = guideState[1]
+      function dismissGuide() { try { localStorage.setItem('auditdesk.guide.dismissed', '1') } catch (e) {}; setShowGuide(false) }
+
+      function exportDashboard() {
+        fetch(BASE + '/audit/dashboard/export', { headers: { 'X-KB-Token': currentToken() } })
+          .then(function (resp) { if (!resp.ok) throw new Error('HTTP ' + resp.status); return resp.blob() })
+          .then(function (blob) {
+            const url = URL.createObjectURL(blob)
+            const anchor = document.createElement('a')
+            anchor.href = url; anchor.download = '项目看板.xlsx'
+            document.body.appendChild(anchor); anchor.click(); anchor.remove()
+            URL.revokeObjectURL(url)
+          }).catch(function () {})
+      }
+      function exportDashboardPdf() {
+        fetch(BASE + '/audit/dashboard/pdf', { headers: { 'X-KB-Token': currentToken() } })
+          .then(function (resp) { if (!resp.ok) throw new Error('HTTP ' + resp.status); return resp.blob() })
+          .then(function (blob) {
+            const url = URL.createObjectURL(blob)
+            const anchor = document.createElement('a')
+            anchor.href = url; anchor.download = '项目看板.pdf'
+            document.body.appendChild(anchor); anchor.click(); anchor.remove()
+            URL.revokeObjectURL(url)
+          }).catch(function () {})
+      }
+      function load() {
+        setLoading(true); setError('')
+        api('/audit/dashboard').then(function (d) { setDashboard(d) })
+          .catch(function (e) { setError(String(e)) })
+          .then(function () { setLoading(false) })
+      }
+      React.useEffect(function () { load() }, [])
+
+      if (!dashboard) {
+        return h('div', { style: { padding: '18px' } },
+          h('div', { style: { fontSize: '15px', fontWeight: 600, marginBottom: '8px' } }, '项目看板'),
+          h('div', { style: { fontSize: '12px', color: COLORS.muted } }, loading ? '加载中…' : (error || '暂无数据')),
+          h('button', { onClick: load, style: { marginTop: '10px', padding: '7px 12px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '刷新'))
+      }
+      const card = function (title, value, hint) {
+        return h('div', { style: { flex: '1 1 160px', minWidth: '160px', padding: '14px', borderRadius: '12px', border: '1px solid ' + COLORS.line, background: COLORS.bg } },
+          h('div', { style: { fontSize: '12px', color: COLORS.muted, marginBottom: '6px' } }, title),
+          h('div', { style: { fontSize: '18px', fontWeight: 600 } }, value),
+          hint ? h('div', { style: { fontSize: '11px', color: COLORS.muted, marginTop: '4px' } }, hint) : null)
+      }
+      const formatBytesLocal = function (value) {
+        const number = Number(value || 0)
+        if (number >= 1024 * 1024 * 1024) return (number / (1024 * 1024 * 1024)).toFixed(2) + ' GB'
+        if (number >= 1024 * 1024) return (number / (1024 * 1024)).toFixed(1) + ' MB'
+        if (number >= 1024) return (number / 1024).toFixed(1) + ' KB'
+        return number + ' B'
+      }
+      const search = keyword.trim().toLowerCase()
+      const rows = (dashboard.items || [])
+        .filter(function (item) {
+          if (statusFilter && item.status !== statusFilter) return false
+          if (!search) return true
+          return (item.name + ' ' + item.client).toLowerCase().indexOf(search) >= 0
+        })
+        .slice()
+      if (sortBy === 'updated') rows.sort(function (a, b) { return String(b.updated_at || '').localeCompare(String(a.updated_at || '')) })
+      else if (sortBy === 'name') rows.sort(function (a, b) { return String(a.name).localeCompare(String(b.name), 'zh') })
+      else if (sortBy === 'pbc') rows.sort(function (a, b) { return (a.pbc_percent || 0) - (b.pbc_percent || 0) })
+      else if (sortBy === 'pending') rows.sort(function (a, b) { return (b.approval_pending || 0) - (a.approval_pending || 0) })
+      const isManager = false
+      return h('div', { style: { padding: '18px', maxWidth: '1100px' } },
+        h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' } },
+          h('div', null,
+            h('div', { style: { fontSize: '15px', fontWeight: 600 } }, '项目看板'),
+            h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '事务所级项目进度与待办汇总')),
+          h('div', { style: { display: 'flex', gap: '8px' } },
+            h('button', { onClick: exportDashboard, style: { padding: '7px 12px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '导出 Excel'),
+            h('button', { onClick: exportDashboardPdf, style: { padding: '7px 12px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '导出 PDF'),
+            h('button', { onClick: load, style: { padding: '7px 12px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, loading ? '刷新中…' : '刷新'))),
+        error ? h('div', { style: { fontSize: '12px', color: '#b91c1c', marginBottom: '8px' } }, error) : null,
+        showGuide ? h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', padding: '10px 14px', borderRadius: '10px', background: 'rgba(47,124,246,0.08)', border: '1px solid ' + COLORS.accent, marginBottom: '12px', fontSize: '12px' } },
+          h('span', null, '第一次使用？侧栏「使用指南」有 5 步上手流程：新建项目 → 导入数据 → 执行程序 → 报告 → 归档。'),
+          h('button', { onClick: dismissGuide, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '知道了')) : null,
+        h('div', { style: { display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '12px' } },
+          card('项目数', dashboard.count),
+          card('进行中', dashboard.active),
+          card('已归档', dashboard.archived),
+          card('待审批', dashboard.approval_pending),
+          card('已生成文件', formatBytesLocal(dashboard.generated_bytes))),
+        h('div', { style: { display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '8px' } },
+          h('input', { value: keyword, onChange: function (e) { setKeyword(e.target.value) }, placeholder: '搜索客户/项目…',
+            style: { width: '220px', padding: '7px 10px', borderRadius: '8px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }),
+          h('select', { value: statusFilter, onChange: function (e) { setStatusFilter(e.target.value) }, style: { padding: '7px 9px', borderRadius: '8px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } },
+            h('option', { value: '' }, '全部状态'),
+            h('option', { value: '进行中' }, '进行中'),
+            h('option', { value: '已归档' }, '已归档')),
+          h('select', { value: sortBy, onChange: function (e) { setSortBy(e.target.value) }, style: { padding: '7px 9px', borderRadius: '8px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } },
+            h('option', { value: 'updated' }, '按更新时间'),
+            h('option', { value: 'name' }, '按项目名称'),
+            h('option', { value: 'pbc' }, '按资料清单完成率'),
+            h('option', { value: 'pending' }, '按待审批数')),
+          h('span', { style: { fontSize: '12px', color: COLORS.muted } }, '共 ' + rows.length + ' 个项目')),
+        h('div', { style: { borderRadius: '12px', border: '1px solid ' + COLORS.line, overflow: 'hidden' } },
+          h('div', { style: { display: 'grid', gridTemplateColumns: '1fr 90px 70px 130px 130px 130px 70px 70px', gap: '8px', padding: '8px 12px', fontSize: '11px', color: COLORS.muted, borderBottom: '1px solid ' + COLORS.line, background: COLORS.bg } },
+            h('span', null, '客户 / 项目'), h('span', null, '期间'), h('span', null, '状态'), h('span', null, '资料清单'), h('span', null, '底稿执行'), h('span', null, '审计程序'), h('span', null, '生成文件'), h('span', null, '待审批')),
+          rows.map(function (item) {
+            return h('div', { key: item.id, style: { display: 'grid', gridTemplateColumns: '1fr 90px 70px 130px 130px 130px 70px 70px', gap: '8px', alignItems: 'center', padding: '8px 12px', fontSize: '12px', borderBottom: '1px solid ' + COLORS.line } },
+              h('div', { style: { minWidth: 0 } },
+                h('div', { style: { fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, item.name),
+                h('div', { style: { fontSize: '11px', color: COLORS.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, item.client + (item.business_type ? ' · ' + item.business_type : ''))),
+              h('span', null, item.period || '-'),
+              h(Badge, { tone: item.status === '已归档' ? 'muted' : 'ok' }, item.status),
+              h('div', null,
+                h('div', { style: { display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '2px' } }, h('span', null, item.pbc_percent + '%'), h('span', { style: { color: COLORS.muted } }, item.pbc_done + '/' + item.pbc_total)),
+                h('div', { style: { height: '5px', borderRadius: '3px', background: COLORS.line } }, h('div', { style: { width: item.pbc_percent + '%', height: '100%', borderRadius: '3px', background: COLORS.accent } }))),
+              h('div', null,
+                h('div', { style: { display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '2px' } }, h('span', null, item.wp_percent + '%'), h('span', { style: { color: COLORS.muted } }, '待执行 ' + item.wp_pending)),
+                h('div', { style: { height: '5px', borderRadius: '3px', background: COLORS.line } }, h('div', { style: { width: item.wp_percent + '%', height: '100%', borderRadius: '3px', background: '#16a34a' } }))),
+              h('div', null,
+                h('div', { style: { display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '2px' } }, h('span', null, (item.program_percent || 0) + '%'), h('span', { style: { color: COLORS.muted } }, (item.program_done || 0) + '/' + (item.program_total || 0))),
+                h('div', { style: { height: '5px', borderRadius: '3px', background: COLORS.line } }, h('div', { style: { width: (item.program_percent || 0) + '%', height: '100%', borderRadius: '3px', background: '#7c3aed' } }))),
+              h('span', null, item.generated_files),
+              h('span', { style: { color: item.approval_pending ? '#b45309' : 'inherit' } }, item.approval_pending))
+          })))
+    }
+
+    const CLIENT_VERSION = '0.1.0'
+    const RELEASE_URL = 'https://github.com/miaowei1985-david/auditdesk-dsh/releases'
+
+    function AboutPage() {
+      const healthState = React.useState(null); const health = healthState[0]; const setHealth = healthState[1]
+      const errorState = React.useState(''); const error = errorState[0]; const setError = errorState[1]
+      React.useEffect(function () {
+        api('/audit/system/health').then(function (d) { setHealth(d) }).catch(function (e) { setError(String(e)) })
+      }, [])
+      const bootRelease = (typeof window !== 'undefined' && window.__DSH_BOOT__ && window.__DSH_BOOT__.release) || {}
+      const runtimeVersion = bootRelease.version ? ('DeepSeek Harness ' + bootRelease.version + (bootRelease.commit ? '（' + bootRelease.commit + '）' : '')) : '未知'
+      const row = function (label, value) {
+        return h('div', { style: { display: 'flex', justifyContent: 'space-between', gap: '10px', padding: '6px 0', borderBottom: '1px solid ' + COLORS.line, fontSize: '12px' } },
+          h('span', { style: { color: COLORS.muted } }, label), h('span', null, String(value)))
+      }
+      return h('div', { style: { padding: '18px', maxWidth: '820px' } },
+        h('div', { style: { fontSize: '15px', fontWeight: 600, marginBottom: '10px' } }, '关于 AuditDesk'),
+        h('div', { style: { padding: '14px', borderRadius: '12px', border: '1px solid ' + COLORS.line, marginBottom: '12px' } },
+          row('客户端版本', CLIENT_VERSION + '（审计工作台插件）'),
+          row('运行时版本', runtimeVersion),
+          row('网关地址', BASE),
+          row('服务状态', health ? '正常' : (error || '检测中…')),
+          health ? row('服务端版本', health.server_version || '-') : null,
+          health ? row('服务端构建', health.server_build || '-') : null,
+          (health && health.escalation) ? row('审批超期自动扫描', (health.escalation.auto ? '已启用' : '已关闭') + ' · 每 ' + (health.escalation.interval_hours || 6) + ' 小时 · 超期 ≥' + (health.escalation.days || 2) + ' 天' + (health.escalation.last_run ? ' · 最近 ' + health.escalation.last_run : '')) : null,
+          health ? row('服务时间', health.server_time || '-') : null,
+          health ? row('项目数 / 启用用户', (health.projects || 0) + ' / ' + (health.active_users || 0)) : null,
+          health ? row('已生成文件', (health.generated_files || 0) + ' 个 / ' + formatBytes(health.generated_bytes || 0)) : null,
+          h('div', { style: { display: 'flex', justifyContent: 'space-between', gap: '10px', padding: '6px 0', borderBottom: '1px solid ' + COLORS.line, fontSize: '12px' } },
+            h('span', { style: { color: COLORS.muted } }, '最新安装包'),
+            h('a', { href: RELEASE_URL, target: '_blank', rel: 'noreferrer', style: { color: COLORS.accent } }, 'Windows / macOS 构建（GitHub Releases）'))),
+        h('div', { style: { padding: '14px', borderRadius: '12px', border: '1px solid ' + COLORS.line, marginBottom: '12px' } },
+          h('div', { style: { fontSize: '13px', fontWeight: 600, marginBottom: '6px' } }, '已启用模块'),
+          h('div', { style: { fontSize: '12px', lineHeight: 1.9, color: COLORS.muted } },
+            '项目看板 · 客户与项目（概览/风险评估/资料清单/审计底稿/审计程序/项目对话/审批状态/报告）· 知识库 · 操作留痕 · 用户管理 · 系统状态 · 使用指南')),
+        h('div', { style: { padding: '14px', borderRadius: '12px', border: '1px solid ' + COLORS.line } },
+          h('div', { style: { fontSize: '13px', fontWeight: 600, marginBottom: '6px' } }, '升级方式'),
+          h('div', { style: { fontSize: '12px', lineHeight: 1.9, color: COLORS.muted } },
+            '当前构建未启用自动更新（unsigned）。升级请下载最新安装包手动安装；安装完成后桌面/开始菜单会有「安装审计插件」快捷方式（如首次安装）。'),
+          error ? h('div', { style: { fontSize: '12px', color: '#b91c1c', marginTop: '8px' } }, '服务连接失败：' + error) : null))
+    }
+
+    function AboutIcon(props) {
+      const s = props && props.size ? props.size : 18
+      return h('svg', { width: s, height: s, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.7, 'aria-hidden': true },
+        h('circle', { cx: 12, cy: 12, r: 9 }), h('path', { d: 'M12 10.5v6M12 7.2v.2' }))
+    }
+
+    function GuideIcon(props) {
+      const s = props && props.size ? props.size : 18
+      return h('svg', { width: s, height: s, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.7, 'aria-hidden': true },
+        h('path', { d: 'M12 6.5A3.5 3.5 0 0 0 8.5 3H3v15h6a3 3 0 0 1 3 3V6.5zM12 6.5A3.5 3.5 0 0 1 15.5 3H21v15h-6a3 3 0 0 0-3 3V6.5z' }))
+    }
+
+    function GuidePage() {
+      const section = function (title, children) {
+        return h('div', { style: { marginBottom: '14px', padding: '14px', borderRadius: '12px', border: '1px solid ' + COLORS.line } },
+          h('div', { style: { fontSize: '13px', fontWeight: 600, marginBottom: '6px' } }, title),
+          children)
+      }
+      const line = function (text) {
+        return h('div', { style: { fontSize: '12px', lineHeight: 1.9 } }, text)
+      }
+      return h('div', { style: { padding: '18px', maxWidth: '900px' } },
+        h('div', { style: { fontSize: '15px', fontWeight: 600, marginBottom: '10px' } }, '使用指南'),
+        section('快速开始（5 步）', h('div', null,
+          line('1. 客户与项目 → + 新建项目：填写公司、项目名称、期间，选择业务类型（年报/专项/内控）。'),
+          line('2. 风险评估：确认重要性（经理/合伙人），上传财务报表（xlsx），导入科目余额表、序时账（支持 xlsx/xls/csv、多工作表、模板下载）。'),
+          line('3. 执行程序：试算平衡、抽样、函证/回函、账龄、截止测试、存货监盘；生成程序底稿（Word）。'),
+          line('4. 审计程序：按业务类型自动生成程序清单，更新状态/负责人，联动底稿台账。'),
+          line('5. 报告 → 生成初稿/意见 → 导出 Word/PDF → 合伙人复核定稿 → 归档（只读）→ 导出归档包。'))),
+        section('数据导入格式', h('div', null,
+          line('科目余额表：科目编码、科目名称、期初余额、借方发生额、贷方发生额、期末余额。'),
+          line('序时账：日期、凭证号、摘要、科目编码、科目名称、借方金额、贷方金额。'),
+          line('支持表头自动识别（跳过标题行）、列名容错、多工作表选择；导入前可先「校验」。'))),
+        section('角色与权限', h('div', null,
+          line('审计员：执行底稿/程序、生成报告初稿、提交审批。'),
+          line('项目经理/合伙人：确认重要性、审批、复核/定稿、归档。'),
+          line('管理员：用户管理、系统状态、备份/恢复、项目删除。'))),
+        section('AI 助手', h('div', null,
+          line('项目对话 → 新建项目对话：自动带入重要性、进度、报告门禁、审批、待办、风险等上下文。'),
+          line('风险评估 → AI 建议后续程序：基于项目上下文输出程序清单、证据与风险点。'),
+          line('AI 输出为初稿，须审计师复核；准则/法规结论以知识库检索结果为准。'))),
+        section('归档与备份', h('div', null,
+          line('归档后项目只读；归档包含最新底稿、程序底稿、扫描件、操作日志与项目信息。'),
+          line('系统状态 → 数据库备份/恢复；服务常驻时每日自动备份（保留 10 份）。'))),
+        section('常见问题', h('div', null,
+          line('加载失败：检查网关服务（8030）与网络/Tailscale。'),
+          line('登录 429：连续失败锁定 5 分钟，请联系管理员或稍后再试。'),
+          line('导入失败：用「校验」查看缺失列；.xls 若为网页导出请另存为 .xlsx。'),
+          line('报告 PDF 中文空白：服务器缺少 Arial Unicode 字体。'))))
+    }
+
     return {
       inject: ['slots', 'uiWorkspace', 'layout', 'sessions', 'workspaces', 'remote', 'remote.commands'],
       apply(ctx) {
         function onStartChat(company, project) {
-          const prompt = '【审计项目】公司：' + company + '；项目：' + (project ? project.name : '') +
-            (project && project.period ? '；期间：' + project.period : '') +
-            '。请作为该项目的审计助手：先检索事务所知识库（准则/法规/模板），再给结论并标注出处；涉及底稿时说明索引号与数据来源。'
           try { ctx.layout.selectPanel(null) } catch (e) {}
-          ctx.uiWorkspace.startSession(undefined, { prompt: prompt, whenDraftExists: 'append' })
+          projectPrompt(company, project).then(function (prompt) {
+            ctx.uiWorkspace.startSession(undefined, { prompt: prompt, whenDraftExists: 'append' })
+          }).catch(function () {
+            ctx.uiWorkspace.startSession(undefined, { prompt: basicProjectPrompt(company, project), whenDraftExists: 'append' })
+          })
         }
         function AuditCompaniesPage(props) { return h(CompaniesPage, { onStartChat: onStartChat, ui: ctx, auth: props.auth }) }
         const panels = [
+          { id: 'audit-dashboard', label: '项目看板', icon: DashboardIcon, page: withAuth(DashboardPage), order: 29 },
+          { id: 'audit-guide', label: '使用指南', icon: GuideIcon, page: withAuth(GuidePage), order: 35 },
+          { id: 'audit-about', label: '关于', icon: AboutIcon, page: withAuth(AboutPage), order: 36 },
           { id: 'audit-companies', label: '客户与项目', icon: CompaniesIcon, page: withAuth(AuditCompaniesPage), order: 30 },
           { id: 'audit-kb', label: '知识库', icon: KbIcon, page: withAuth(KbPage), order: 31 },
           { id: 'audit-events', label: '操作留痕', icon: EventsIcon, page: withAuth(EventsPage), order: 32 },
           { id: 'audit-users', label: '用户管理', icon: UsersIcon, page: withAuth(UsersPage), order: 33 },
-          { id: 'audit-system', label: '系统状态', icon: SystemIcon, page: withAuth(SystemPage), order: 34 },
+          { id: 'audit-system', label: '系统状态', icon: SystemIcon, page: withAuth(function (props) { return h(SystemPage, Object.assign({}, props, { ui: ctx })) }), order: 34 },
         ]
         panels.forEach(function (panel) {
           ctx.slots.inject('main', function () {
