@@ -3605,6 +3605,15 @@ window.__ModuleLoader__.load({
             return h('button', { key: 'rh-' + pair[1], onClick: function () { goPanel(pair[1]) },
               style: { padding: '5px 10px', borderRadius: '7px', border: '1px solid ' + COLORS.accent, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, pair[0])
           })),
+        dashboard.count === 0 ? h('div', { style: { marginBottom: '14px', padding: '16px 18px', borderRadius: '12px', border: '1px solid ' + COLORS.accent, background: 'rgba(47,124,246,0.06)' } },
+          h('div', { style: { fontSize: '14px', fontWeight: 600, marginBottom: '4px' } }, '三步开始第一次审计'),
+          h('div', { style: { fontSize: '12px', color: COLORS.muted, marginBottom: '10px' } }, '不需要记流程，按顺序点即可：'),
+          h('div', { style: { display: 'flex', gap: '10px', flexWrap: 'wrap' } },
+            [['1  新建项目', 'audit-companies'], ['2  导入科目余额表 / 账表', 'audit-companies'], ['3  生成第一份底稿', 'audit-companies']].map(function (pair) {
+              return h('button', { key: 'onb-' + pair[0], onClick: function () { goPanel(pair[1]) },
+                style: { padding: '9px 14px', borderRadius: '8px', border: '1px solid ' + COLORS.accent, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, pair[0])
+            }),
+            h('button', { onClick: function () { goPanel('audit-guide') }, style: { padding: '9px 14px', borderRadius: '8px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '查看使用指南'))) : null,
         showGuide ? h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', padding: '10px 14px', borderRadius: '10px', background: 'rgba(47,124,246,0.08)', border: '1px solid ' + COLORS.accent, marginBottom: '12px', fontSize: '12px' } },
           h('span', null, '第一次使用？侧栏「使用指南」有 5 步上手流程：新建项目 → 导入数据 → 执行程序 → 报告 → 归档。'),
           h('button', { onClick: dismissGuide, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '知道了')) : null,
