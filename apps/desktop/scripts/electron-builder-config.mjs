@@ -44,6 +44,28 @@ import {
  * @param {string | undefined} preparedRuntimeVersion - Version that private tree declares, which qualification rewrites away from the product version.
  * @returns {object} electron-builder configuration.
  */
+async function patchRuntimeCliLaunchers(resourcesDir, productFilename) {
+  const { readFile, writeFile } = await import('node:fs/promises')
+  const binDir = join(resourcesDir, 'runtime', 'cli', 'bin')
+  const patched = []
+  for (const name of ['dsh', 'dsh.cmd', 'command-path.ps1']) {
+    const path = join(binDir, name)
+    try {
+      const original = await readFile(path, 'utf8')
+      const next = original
+        .replaceAll('DeepSeek Harness', productFilename)
+        .replaceAll('DeepSeek-Harness', productFilename)
+      if (next !== original) {
+        await writeFile(path, next)
+        patched.push(name)
+      }
+    } catch (error) {
+      if (error?.code !== 'ENOENT') throw error
+    }
+  }
+  if (patched.length > 0) console.info(`patched runtime CLI launchers: ${patched.join(', ')}`)
+}
+
 export function createElectronBuilderConfig(
   env = process.env,
   hostPlatform = process.platform,
