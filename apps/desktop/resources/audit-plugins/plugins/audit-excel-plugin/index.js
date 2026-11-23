@@ -30,7 +30,27 @@ function resolvePython() {
   return 'python3'
 }
 const PYTHON = resolvePython()
-const GATEWAY = process.env.DSH_AUDIT_GATEWAY || 'http://100.101.170.7:8030'
+const GATEWAY_CANDIDATES = [
+  process.env.DSH_AUDIT_GATEWAY,
+  'http://169.254.163.107:8030',
+  'http://192.168.2.2:8030',
+  'http://macmini4prodemac-mini.local:8030',
+  'http://100.101.170.7:8030',
+].filter(Boolean)
+let GATEWAY = GATEWAY_CANDIDATES[0]
+
+async function resolveGateway() {
+  for (const url of GATEWAY_CANDIDATES) {
+    try {
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), 1500)
+      const resp = await fetch(url + '/health', { signal: controller.signal })
+      clearTimeout(timer)
+      if (resp.ok) { GATEWAY = url; return url }
+    } catch { /* try next */ }
+  }
+  return GATEWAY
+}
 const TIMEOUT_MS = Number(process.env.DSH_AUDIT_TIMEOUT_MS || 15 * 60 * 1000)
 
 function runPython(args, signal) {
@@ -525,6 +545,7 @@ export function apply(ctx) {
         let uploaded = 0
         const uploadErrors = []
         if (gwProject && token) {
+          await resolveGateway()
           const dir = data.outputs && data.outputs.package_dir
           const master = data.outputs && data.outputs.master
           const names = []

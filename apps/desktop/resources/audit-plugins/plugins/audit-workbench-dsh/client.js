@@ -4,7 +4,44 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const h = React.createElement
 
-    const BASE = 'http://100.101.170.7:8030'
+    // 网关地址：直链优先，自动回退（链路本地 → 直链静态IP → Bonjour → Tailscale）
+    const GATEWAY_KEY = 'auditdesk.gateway'
+    const GATEWAY_CANDIDATES = [
+      'http://169.254.163.107:8030',              // Thunderbolt/USB 直链（链路本地，最快）
+      'http://192.168.2.2:8030',                  // 直链（如已配静态 IP）
+      'http://macmini4prodemac-mini.local:8030',  // Bonjour 自动发现
+      'http://100.101.170.7:8030',                // Tailscale（兜底）
+    ]
+    function readGatewayOverride() {
+      try { return localStorage.getItem(GATEWAY_KEY) || '' } catch (e) { return '' }
+    }
+    let BASE = readGatewayOverride() || GATEWAY_CANDIDATES[0]
+    let gatewayProbe = null
+    let gatewayInfo = { url: BASE, via: '未探测' }
+    function probeGateway(timeoutMs) {
+      if (gatewayProbe) return gatewayProbe
+      const override = readGatewayOverride()
+      const candidates = override
+        ? [override].concat(GATEWAY_CANDIDATES.filter(function (url) { return url !== override }))
+        : GATEWAY_CANDIDATES.slice()
+      gatewayProbe = Promise.all(candidates.map(function (url) {
+        const controller = new AbortController()
+        const timer = setTimeout(function () { controller.abort() }, timeoutMs || 1800)
+        return fetch(url + '/health', { signal: controller.signal })
+          .then(function (resp) { clearTimeout(timer); return resp.ok ? url : null })
+          .catch(function () { clearTimeout(timer); return null })
+      })).then(function (results) {
+        const hit = results.filter(Boolean)[0]
+        if (hit) {
+          BASE = hit
+          gatewayInfo = { url: hit, via: hit === GATEWAY_CANDIDATES[0] ? '直链' : hit === GATEWAY_CANDIDATES[3] ? 'Tailscale' : '备用地址' }
+          try { localStorage.setItem(GATEWAY_KEY, hit) } catch (e) {}
+        }
+        return BASE
+      })
+      return gatewayProbe
+    }
+    probeGateway()
     const AUTH_KEY = 'auditdesk.auth'
     let authState = { token: null, user: null }
     try {
@@ -110,10 +147,27 @@ window.__ModuleLoader__.load({
       const opts = options || {}
       const headers = { 'X-KB-Token': currentToken() }
       if (opts.body) headers['Content-Type'] = 'application/json'
-      return fetch(url.toString(), {
-        method: opts.method || 'GET',
-        headers: headers,
-        body: opts.body ? JSON.stringify(opts.body) : undefined,
+      const doFetch = function () {
+        return fetch(url.toString(), {
+          method: opts.method || 'GET',
+          headers: headers,
+          body: opts.body ? JSON.stringify(opts.body) : undefined,
+        })
+      }
+      return doFetch().catch(function (error) {
+        // 网络层失败（如直链断开）→ 重新探测网关后重试一次
+        gatewayProbe = null
+        return probeGateway(1200).then(function () {
+          const retry = new URL(BASE + path)
+          Object.keys(params || {}).forEach(function (key) {
+            if (params[key] !== undefined && params[key] !== null && params[key] !== '') retry.searchParams.set(key, params[key])
+          })
+          return fetch(retry.toString(), {
+            method: opts.method || 'GET',
+            headers: headers,
+            body: opts.body ? JSON.stringify(opts.body) : undefined,
+          })
+        }).catch(function () { throw error })
       }).then(function (resp) {
         if (!resp.ok) {
           return resp.text().then(function (text) {
