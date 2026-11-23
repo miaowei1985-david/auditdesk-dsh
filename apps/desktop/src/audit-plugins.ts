@@ -10,7 +10,7 @@ function log(message: string): void {
   if (!logPath) return
   try { appendFileSync(logPath, `${new Date().toISOString()} ${message}\n`) } catch { /* best effort */ }
 }
-const PLUGIN_NAMES = ['audit-workbench-dsh', 'audit-kb-dsh', 'audit-p0-dsh', 'audit-event-auditor-dsh'] as const
+const PLUGIN_NAMES = ['audit-workbench-dsh', 'audit-kb-dsh', 'audit-p0-dsh', 'audit-event-auditor-dsh', 'audit-excel-plugin'] as const
 
 interface ProfileManifest {
   dependencies?: Record<string, string>

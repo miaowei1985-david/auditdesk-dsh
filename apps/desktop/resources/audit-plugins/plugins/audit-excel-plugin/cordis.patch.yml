@@ -1,0 +1,4 @@
+- insert:
+    - id: audit-excel
+      name: '@local/audit-excel'
+      config: {}

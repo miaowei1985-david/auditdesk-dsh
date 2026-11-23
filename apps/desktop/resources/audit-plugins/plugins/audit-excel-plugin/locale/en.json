@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "Audit workpaper filling",
+    "description": "Fill firm audit templates from a client's trial balance, statements and vouchers, returning line-by-line tie-out results.",
+    "detail": "docs/DETAIL.md"
+  }
+}

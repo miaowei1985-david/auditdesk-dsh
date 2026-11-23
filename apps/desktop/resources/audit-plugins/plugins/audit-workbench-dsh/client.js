@@ -870,24 +870,7 @@ window.__ModuleLoader__.load({
               h('button', { onClick: function () { if (props.onDownloadWorkpaper) props.onDownloadWorkpaper(item) },
                 style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '下载')))
         })
-        const fillCard = h('div', { style: { margin: '10px 14px', padding: '10px 12px', borderRadius: '10px', border: '1px solid ' + COLORS.accent, background: 'rgba(47,124,246,0.04)' } },
-          h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px', flexWrap: 'wrap' } },
-            h('div', null,
-              h('div', { style: { fontSize: '13px', fontWeight: 600 } }, '事务所标准底稿（Excel 模板）'),
-              h('div', { style: { fontSize: '11px', color: COLORS.muted, marginTop: '2px' } }, '用事务所模板生成已填底稿：自动填被审计单位/期间/编制人+科目余额，Excel 打开即用')),
-            h('button', { onClick: function () { if (props.onFillStandardWorkpapers) props.onFillStandardWorkpapers() }, disabled: props.fillingTemplates || readOnly,
-              style: { padding: '6px 12px', borderRadius: '7px', border: 0, background: readOnly ? 'rgba(127,127,127,0.3)' : COLORS.accent, color: '#fff', fontSize: '12px', cursor: 'pointer', opacity: props.fillingTemplates ? 0.6 : 1 } },
-              props.fillingTemplates ? '生成中…' : '生成并下载 ZIP')),
-          h('div', { style: { display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '8px', fontSize: '11px' } },
-            (props.templateList || []).map(function (item) {
-              const checked = (props.templateSel || []).indexOf(item.key) >= 0
-              return h('label', { key: 'tpl-' + item.key, style: { display: 'inline-flex', alignItems: 'center', gap: '4px', cursor: 'pointer' } },
-                h('input', { type: 'checkbox', checked: checked, onChange: function () { if (props.onToggleTemplate) props.onToggleTemplate(item.key) } }),
-                item.title, h('span', { style: { color: COLORS.muted } }, '（' + Math.round((item.size || 0) / 1024) + 'KB）'))
-            })),
-          props.fillTemplateMsg ? h('div', { style: { marginTop: '6px', fontSize: '11px', color: '#b45309' } }, props.fillTemplateMsg) : null)
         return h('div', null,
-          fillCard,
           h(Section, null, h('div', { style: { fontSize: '13px' } }, '审计底稿（审计员产出）'), h('div', { style: { fontSize: '12px', color: COLORS.muted, marginTop: '2px' } }, '按事务所模板与索引号生成，点击状态可切换执行状态')),
           h('div', { style: { padding: '8px 14px 0', display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center', fontSize: '11px' } },
             h('span', { style: { color: COLORS.muted } }, '底稿统计：共 ' + generated.length + ' 份 · 台账 ' + (items ? items.length : 0) + ' 项'),
@@ -917,6 +900,17 @@ window.__ModuleLoader__.load({
               h('button', { onClick: function () { if (props.onGenerateAll) props.onGenerateAll() }, disabled: props.generating || readOnly,
                 style: { padding: '8px 14px', borderRadius: '8px', border: 0, background: '#16a34a', color: '#fff', fontSize: '12px', cursor: 'pointer' } },
                 props.generating ? '生成中…' : '一键生成常用底稿（4 类）'),
+              ['tb', 'fs', 'voucher'].map(function (k) {
+                const label = k === 'tb' ? '余额表' : k === 'fs' ? '报表' : '凭证'
+                const list = props.localAtts || []
+                const value = (props.localAtt && props.localAtt[k]) || ''
+                return h('select', { key: k, value: value, onChange: function (e) { if (props.onLocalAttChange) props.onLocalAttChange(Object.assign({}, props.localAtt || {}, { [k]: e.target.value })) },
+                  style: { padding: '6px 8px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px', maxWidth: '160px' } },
+                  h('option', { value: '' }, label + '：自动'), list.map(function (a) { return h('option', { key: k + a.id, value: a.id }, a.filename) }))
+              }),
+              h('button', { onClick: function () { if (props.onGenerateLocal) props.onGenerateLocal() }, disabled: props.generating || readOnly,
+                style: { padding: '8px 14px', borderRadius: '8px', border: 0, background: '#7c3aed', color: '#fff', fontSize: '12px', cursor: 'pointer' } },
+                props.generating ? '生成中…' : '本机引擎生成（全量勾稽）'),
               h('button', { onClick: function () { if (props.onExportWorkpapers) props.onExportWorkpapers() },
                 style: { padding: '8px 14px', borderRadius: '8px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '打包下载全部底稿（ZIP）'),
               h('button', { onClick: function () { if (props.onExportWorkpaperList) props.onExportWorkpaperList() }, style: { padding: '8px 14px', borderRadius: '8px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '导出底稿台账（CSV）'),
@@ -1370,35 +1364,6 @@ window.__ModuleLoader__.load({
       const inventoryCountsState = React.useState([]); const inventoryCounts = inventoryCountsState[0]; const setInventoryCounts = inventoryCountsState[1]
       const inventoryAttachmentsState = React.useState([]); const inventoryAttachments = inventoryAttachmentsState[0]; const setInventoryAttachments = inventoryAttachmentsState[1]
       const inventoryMetaState = React.useState({}); const inventoryMeta = inventoryMetaState[0]; const setInventoryMeta = inventoryMetaState[1]
-      const templateListState = React.useState([]); const templateList = templateListState[0]; const setTemplateList = templateListState[1]
-      const templateSelState = React.useState([]); const templateSel = templateSelState[0]; const setTemplateSel = templateSelState[1]
-      const fillingTemplatesState = React.useState(false); const fillingTemplates = fillingTemplatesState[0]; const setFillingTemplates = fillingTemplatesState[1]
-      const fillTemplateMsgState = React.useState(''); const fillTemplateMsg = fillTemplateMsgState[0]; const setFillTemplateMsg = fillTemplateMsgState[1]
-      function toggleTemplate(key) {
-        setTemplateSel(function (prev) {
-          const list = prev || []
-          return list.indexOf(key) >= 0 ? list.filter(function (item) { return item !== key }) : list.concat([key])
-        })
-      }
-      function fillStandardWorkpapers() {
-        if (!activeProject || fillingTemplates) return
-        const keys = (templateSel || []).length ? templateSel : ['current_assets']
-        setFillingTemplates(true); setFillTemplateMsg('正在按事务所模板生成已填底稿（约 10-60 秒）…')
-        api('/audit/workpapers/fill-excel', null, { method: 'POST', body: { project: activeProject, templates: keys } })
-          .then(function (d) {
-            setFillTemplateMsg('已生成：' + d.filename + '（' + (d.templates || []).length + ' 册，表头 ' + (d.templates || []).reduce(function (sum, t) { return sum + (t.header_cells || 0) }, 0) + ' 处，科目 ' + (d.templates || []).reduce(function (sum, t) { return sum + (t.tb_cells || 0) }, 0) + ' 处）')
-            return fetch(BASE + '/audit/workpapers/download?workpaper_id=' + d.workpaper_id, { headers: { 'X-KB-Token': currentToken() } })
-          })
-          .then(function (resp) { if (!resp.ok) throw new Error('HTTP ' + resp.status); return resp.blob() })
-          .then(function (blob) {
-            const url = URL.createObjectURL(blob)
-            const a = document.createElement('a'); a.href = url; a.download = '事务所标准底稿.zip'
-            document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url)
-            if (props.onRefreshWorkpapers) props.onRefreshWorkpapers()
-          })
-          .catch(function (e) { setFillTemplateMsg('生成失败：' + String(e)) })
-          .then(function () { setFillingTemplates(false) })
-      }
       const programsState = React.useState([]); const programs = programsState[0]; const setPrograms = programsState[1]
       const newFsState = React.useState(null); const newFsFile = newFsState[0]; const setNewFsFile = newFsState[1]
       const newTbState = React.useState(null); const newTbFile = newTbState[0]; const setNewTbFile = newTbState[1]
@@ -1484,6 +1449,7 @@ window.__ModuleLoader__.load({
       const reviewerState = React.useState('待复核'); const reviewerName = reviewerState[0]; const setReviewerName = reviewerState[1]
       const membersState = React.useState([]); const members = membersState[0]; const setMembers = membersState[1]
       const newMemberState = React.useState(''); const newMemberName = newMemberState[0]; const setNewMemberName = newMemberState[1]
+      const localAttState = React.useState({ tb: '', fs: '', voucher: '' }); const localAtt = localAttState[0]; const setLocalAtt = localAttState[1]
       const dateState = React.useState((function () {
         const now = new Date()
         const pad = function (value) { return String(value).padStart(2, '0') }
@@ -1539,12 +1505,6 @@ window.__ModuleLoader__.load({
           .catch(function () { if (!cancelled) setReportElements({}) })
         api('/audit/misstatements', { project: activeProject }).then(function (d) { if (!cancelled) setMisstates(d || { items: [] }) })
           .catch(function () { if (!cancelled) setMisstates({ items: [] }) })
-        api('/audit/workpaper-templates').then(function (d) {
-          if (cancelled) return
-          const items = (d.items || []).filter(function (item) { return item.available })
-          setTemplateList(items)
-          setTemplateSel(items.filter(function (item) { return item.key !== 'cutoff' }).map(function (item) { return item.key }))
-        }).catch(function () { if (!cancelled) { setTemplateList([]); setTemplateSel([]) } })
         api('/audit/programs', { project: activeProject }).then(function (d) { if (!cancelled) setPrograms(d.items || []) })
           .catch(function () { if (!cancelled) setPrograms([]) })
         api('/audit/events', { project: activeProject, item_type: 'program', limit: 30 }).then(function (d) { if (!cancelled) setProgramEvents(d.events || []) })
@@ -2472,6 +2432,65 @@ window.__ModuleLoader__.load({
             setGenerateMessage('提交后台任务失败：' + String(error && error.message ? error.message : error))
           })
       }
+
+      function localAttachments() {
+        const out = []
+        ;((pbc || [])).forEach(function (it) {
+          ;((it.attachments) || []).forEach(function (a) { out.push({ id: String(a.id), filename: a.filename, pbc: it.name }) })
+        })
+        return out
+      }
+      function generateLocalWorkpapers() {
+        if (!activeProject || generating) return
+        setGenerating(true)
+        setGenerateMessage('本机引擎：正在读取资料清单…')
+        const token = currentToken()
+        const atts = localAttachments()
+        function byId(id) { return atts.filter(function (a) { return a.id === String(id) })[0] }
+        function pick(re) { return atts.filter(function (a) { return re.test(a.filename || '') })[0] }
+        const tb = byId(localAtt.tb) || pick(/(科目余额表|余额表)/)
+        const fs = byId(localAtt.fs) || pick(/(资产负债表|财务报表|报表)/)
+        const voucher = byId(localAtt.voucher) || pick(/(序时账|凭证|明细账)/)
+        Promise.resolve().then(function () {
+          if (!tb || !fs) throw new Error('资料清单里没找到科目余额表或财务报表，请在上方下拉框选择')
+          function load(a) {
+            return fetch(BASE + '/audit/pbc/download?attachment_id=' + a.id, { headers: { 'X-KB-Token': token } })
+              .then(function (r) { if (!r.ok) throw new Error('下载失败：' + a.filename); return r.blob() })
+              .then(function (b) {
+                return new Promise(function (resolve, reject) {
+                  const fr = new FileReader()
+                  fr.onload = function () { resolve({ name: a.filename, data: String(fr.result).split(',')[1] }) }
+                  fr.onerror = reject
+                  fr.readAsDataURL(b)
+                })
+              })
+          }
+          return Promise.all([load(tb), load(fs), voucher ? load(voucher) : Promise.resolve(null)])
+        }).then(function (files) {
+          const p = project.filter(function (x) { return x.id === activeProject })[0] || {}
+          return fetch('/api/audit-fill/run', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ company: activeCompany, client: p.name || activeCompany, period: p.period || '2025',
+              project: activeProject, token: token,
+              tb: files[0], fs: files[1], voucher: files[2] || undefined }),
+          }).then(function (r) { return r.json() })
+        }).then(function (d) {
+          if (!d || !d.ok) throw new Error((d && d.error) || '本机引擎生成失败')
+          const lines = d.lines || []
+          const ok = lines.filter(function (l) { return l.diff === 0 }).length
+          const bad = lines.filter(function (l) { return l.diff !== null && l.diff !== undefined && Math.abs(l.diff) > 0.01 })
+          setGenerating(false)
+          setGenerateMessage('本机引擎：勾稽 ' + ok + '/' + lines.length + ' 一致' +
+            (bad.length ? '；差异 ' + bad.length + ' 项：' + bad.slice(0, 3).map(function (b) { return b.line + ' ' + Number(b.diff).toFixed(2) }).join('、') : '') +
+            (d.uploaded ? '；已回传网关 ' + d.uploaded + ' 个文件' : '') +
+            (d.upload_errors && d.upload_errors.length ? '（回传失败：' + d.upload_errors.join('；') + '）' : '') +
+            (d.outputs && d.outputs.package_dir ? '；本机输出 ' + d.outputs.package_dir : ''))
+        }).catch(function (e) {
+          setGenerating(false)
+          setGenerateMessage('本机引擎：' + String(e && e.message ? e.message : e))
+        })
+      }
+
       function escalateApprovals() {
         setEscalateMessage('正在扫描超期审批…')
         api('/audit/approvals/escalate', null, { method: 'POST', body: { days: 2 } })
@@ -2806,7 +2825,7 @@ window.__ModuleLoader__.load({
         onOpenRename: openRenameDialog, onOpenDelete: function () { setMgmtError(''); setDeleteOpen(true) },
         onExportArchive: exportArchive, onVerifyArchiveFile: verifyArchiveFile, archiveVerifyMessage: archiveVerifyMessage, onEscalateApprovals: escalateApprovals, escalateMessage: escalateMessage, exporting: exporting,
         report: report, reportLoading: reportLoading, analysis: analysis, matHistory: matHistory,
-        importMessage: importMessage, onImportData: importProjectData, onImportFinancialStatements: importFinancialStatements, onValidateImportFile: validateImportFile, multiFile: multiFile, multiSheets: multiSheets, multiSheetIndex: multiSheetIndex, multiKind: multiKind, multiLoading: multiLoading, onChooseMultiSheetFile: chooseMultiSheetFile, onDownloadImportTemplate: downloadImportTemplate, onDownloadFinancialTemplate: downloadFinancialTemplate, onSetMultiSheetIndex: setMultiSheetIndex, onSetMultiKind: setMultiKind, onSubmitMultiSheet: submitMultiSheet, onGenerateTrialBalance: generateTrialBalance, onRefreshWorkpapers: refreshWorkpapers, confirmations: confirmations, inventoryCounts: inventoryCounts, inventoryAttachments: inventoryAttachments, inventoryMeta: inventoryMeta, onUpdateInventoryMeta: updateInventoryMeta, onSaveInventoryMeta: saveInventoryMeta, onExportInventorySummary: exportInventorySummary, onAskAiNextSteps: askAiNextSteps, onGenerateSubsequentEvents: generateSubsequentEvents, onGenerateGoingConcern: generateGoingConcern, onGenerateRelatedParties: generateRelatedParties, onGenerateContingencies: generateContingencies, onGenerateOpeningBalances: generateOpeningBalances, generatedKind: generatedKind, onSetGeneratedKind: setGeneratedKind, checklistKind: checklistKind, onSetChecklistKind: setChecklistKind, onGenerateChecklist: generateChecklist, programs: programs, onUpdateProgramRow: updateProgramRow, onSavePrograms: savePrograms, onCompletePrograms: completePrograms, templateList: templateList, templateSel: templateSel, onToggleTemplate: toggleTemplate, onFillStandardWorkpapers: fillStandardWorkpapers, fillingTemplates: fillingTemplates, fillTemplateMsg: fillTemplateMsg, onExportPrograms: exportPrograms, programEvents: programEvents, onExportProgramsXlsx: exportProgramsXlsx, onExportProgramHistory: exportProgramHistory, onExportInventoryExceptions: exportInventoryExceptions, dataEvents: dataEvents, onUploadInventoryAttachment: uploadInventoryAttachment, onPreviewInventoryAttachment: previewInventoryAttachment, onUpdateInventoryRow: updateInventoryRow, onSaveInventoryCounts: saveInventoryCounts, onConfirmInventory: confirmInventory, onSyncConfirmations: syncConfirmations, onCycleConfirmation: cycleConfirmation, onReplyConfirmation: replyConfirmation, onExportConfirmationDifferences: exportConfirmationDifferences, onUploadConfirmationAttachment: uploadConfirmationAttachment, onDownloadConfirmationAttachment: downloadConfirmationAttachment, onPreviewConfirmationAttachment: previewConfirmationAttachment,
+        importMessage: importMessage, onImportData: importProjectData, onImportFinancialStatements: importFinancialStatements, onValidateImportFile: validateImportFile, multiFile: multiFile, multiSheets: multiSheets, multiSheetIndex: multiSheetIndex, multiKind: multiKind, multiLoading: multiLoading, onChooseMultiSheetFile: chooseMultiSheetFile, onDownloadImportTemplate: downloadImportTemplate, onDownloadFinancialTemplate: downloadFinancialTemplate, onSetMultiSheetIndex: setMultiSheetIndex, onSetMultiKind: setMultiKind, onSubmitMultiSheet: submitMultiSheet, onGenerateTrialBalance: generateTrialBalance, onRefreshWorkpapers: refreshWorkpapers, confirmations: confirmations, inventoryCounts: inventoryCounts, inventoryAttachments: inventoryAttachments, inventoryMeta: inventoryMeta, onUpdateInventoryMeta: updateInventoryMeta, onSaveInventoryMeta: saveInventoryMeta, onExportInventorySummary: exportInventorySummary, onAskAiNextSteps: askAiNextSteps, onGenerateSubsequentEvents: generateSubsequentEvents, onGenerateGoingConcern: generateGoingConcern, onGenerateRelatedParties: generateRelatedParties, onGenerateContingencies: generateContingencies, onGenerateOpeningBalances: generateOpeningBalances, generatedKind: generatedKind, onSetGeneratedKind: setGeneratedKind, checklistKind: checklistKind, onSetChecklistKind: setChecklistKind, onGenerateChecklist: generateChecklist, programs: programs, onUpdateProgramRow: updateProgramRow, onSavePrograms: savePrograms, onCompletePrograms: completePrograms,  onExportPrograms: exportPrograms, programEvents: programEvents, onExportProgramsXlsx: exportProgramsXlsx, onExportProgramHistory: exportProgramHistory, onExportInventoryExceptions: exportInventoryExceptions, dataEvents: dataEvents, onUploadInventoryAttachment: uploadInventoryAttachment, onPreviewInventoryAttachment: previewInventoryAttachment, onUpdateInventoryRow: updateInventoryRow, onSaveInventoryCounts: saveInventoryCounts, onConfirmInventory: confirmInventory, onSyncConfirmations: syncConfirmations, onCycleConfirmation: cycleConfirmation, onReplyConfirmation: replyConfirmation, onExportConfirmationDifferences: exportConfirmationDifferences, onUploadConfirmationAttachment: uploadConfirmationAttachment, onDownloadConfirmationAttachment: downloadConfirmationAttachment, onPreviewConfirmationAttachment: previewConfirmationAttachment,
         onConfirmMateriality: confirmMateriality, onGenerateRiskDocx: generateRiskDocx,
         onLoadChecklist: loadReportChecklist, onLoadOpinion: loadReportOpinion,
         onGenerateDraft: generateReportDraft, onDownloadDraft: downloadReportDraft,
@@ -2818,7 +2837,7 @@ window.__ModuleLoader__.load({
         onAddMember: addProjectMember, onRemoveMember: removeProjectMember,
         generatedDate: generatedDate, onGeneratedDateChange: setGeneratedDate,
         onOpenWorkpaperIndex: openWorkpaperByIndex, onGenerateWorkpaper: generateWorkpaper,
-        onGenerateAll: generateAllWorkpapers, onExportWorkpapers: exportWorkpapersZip, reportVersionFilter: reportVersionFilter, onSetReportVersionFilter: setReportVersionFilter, approvalFilter: approvalFilter, onSetApprovalFilter: setApprovalFilter, onExportApprovals: exportApprovals, todoOverdueOnly: todoOverdueOnly, onSetTodoOverdueOnly: setTodoOverdueOnly, wpStatusFilter: wpStatusFilter, onSetWpStatusFilter: setWpStatusFilter, wpSearch: wpSearch, onSetWpSearch: setWpSearch, onExportWorkpaperList: exportWorkpaperListCsv, onJumpTodoZone: jumpTodoZone, onJumpZone: function (name) { setZone(name) }, onVerifyWorkpapersZip: verifyWorkpapersZip, wpsVerifyMessage: wpsVerifyMessage,
+        onGenerateAll: generateAllWorkpapers, onGenerateLocal: generateLocalWorkpapers, localAtt: localAtt, onLocalAttChange: setLocalAtt, localAtts: localAttachments(), onExportWorkpapers: exportWorkpapersZip, reportVersionFilter: reportVersionFilter, onSetReportVersionFilter: setReportVersionFilter, approvalFilter: approvalFilter, onSetApprovalFilter: setApprovalFilter, onExportApprovals: exportApprovals, todoOverdueOnly: todoOverdueOnly, onSetTodoOverdueOnly: setTodoOverdueOnly, wpStatusFilter: wpStatusFilter, onSetWpStatusFilter: setWpStatusFilter, wpSearch: wpSearch, onSetWpSearch: setWpSearch, onExportWorkpaperList: exportWorkpaperListCsv, onJumpTodoZone: jumpTodoZone, onJumpZone: function (name) { setZone(name) }, onVerifyWorkpapersZip: verifyWorkpapersZip, wpsVerifyMessage: wpsVerifyMessage,
         onDownloadWorkpaper: downloadGeneratedWorkpaper, onPreviewWorkpaper: previewGeneratedWorkpaper,
         newPbcName: newPbcName, onPbcNameChange: setNewPbcName, onAddPbc: addPbcItem,
         onDeletePbc: deletePbcItem, onUploadAttachment: uploadPbcAttachment,
