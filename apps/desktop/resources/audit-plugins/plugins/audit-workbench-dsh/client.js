@@ -4847,7 +4847,11 @@ window.__ModuleLoader__.load({
                 }
                 return h('div', { className: 'ad-row-meta' }, c.action)
               })())
-          })))
+          })),
+        home.cards.length > 6
+          ? h('div', { style: { fontSize: '11px', color: COLORS.muted, marginTop: '6px' } },
+              '另有 ' + (home.cards.length - 6) + ' 个进行中项目（按优先级已折叠），进「项目」查看全部 ' + home.cards.length + ' 个。')
+          : null)
     }
 
     function DashboardPage(props) {
