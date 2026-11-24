@@ -3577,13 +3577,14 @@ window.__ModuleLoader__.load({
             }
           }).catch(function () {})
       }
-      function downloadGeneratedWorkpaper(item) {
-        fetch(BASE + '/audit/workpapers/download?workpaper_id=' + item.id, { headers: { 'X-KB-Token': currentToken() } })
+      function downloadGeneratedWorkpaper(item, sheet) {
+        const dlUrl = BASE + '/audit/workpapers/download?workpaper_id=' + item.id + (sheet ? '&sheet=' + encodeURIComponent(sheet) : '')
+        fetch(dlUrl, { headers: { 'X-KB-Token': currentToken() } })
           .then(function (resp) { if (!resp.ok) throw new Error('HTTP ' + resp.status); return resp.blob() })
           .then(function (blob) {
             const url = URL.createObjectURL(blob)
             const anchor = document.createElement('a')
-            anchor.href = url; anchor.download = item.filename
+            anchor.href = url; anchor.download = sheet ? (item.filename.replace(/\.xlsx$/i, '') + '_' + sheet + '.xlsx') : item.filename
             document.body.appendChild(anchor); anchor.click(); anchor.remove()
             URL.revokeObjectURL(url)
           }).catch(function () {})
@@ -3788,7 +3789,11 @@ window.__ModuleLoader__.load({
               h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { setPreviewZoom(1) }, style: { border: 0, background: 'transparent', color: COLORS.muted, fontSize: '12px', cursor: 'pointer' } }, Math.round(previewZoom * 100) + '%'),
               h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { setPreviewZoom(function (value) { return Math.min(3, Math.round((value + 0.1) * 10) / 10) }) }, style: { border: '1px solid ' + COLORS.line, background: 'transparent', color: COLORS.muted, fontSize: '12px', cursor: 'pointer', width: '28px', height: '24px', borderRadius: '6px' } }, '+'),
               h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (preview.url) window.open(preview.url, '_blank', 'noopener') }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '新窗口打开'),
-              h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (preview.onDownload) preview.onDownload() }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '下载'),
+              h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () {
+                if (preview.item && previewSheets.current) downloadGeneratedWorkpaper(preview.item, previewSheets.current)
+                else if (preview.onDownload) preview.onDownload()
+              }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } },
+                (preview.item && previewSheets.current) ? '下载本表' : '下载'),
               h(ui.Button, { variant: 'outline', size: 'sm', onClick: closeAttachmentPreview, style: { border: 0, background: 'transparent', color: COLORS.muted, fontSize: '12px', cursor: 'pointer' } }, '关闭'))),
           h('div', { style: { flex: 1, minHeight: 0, background: '#fff' } },
             String(preview.type).indexOf('image/') === 0
