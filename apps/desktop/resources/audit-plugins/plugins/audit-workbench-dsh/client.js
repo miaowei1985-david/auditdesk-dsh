@@ -4088,7 +4088,18 @@ window.__ModuleLoader__.load({
     }
 
     // ---------- 操作留痕 ----------
-    const TYPE_NAMES = { pbc: '资料清单', workpaper: '底稿', approval: '审批', pbc_attachment: '附件', member: '成员', program: '审计程序', report: '报告', materiality: '重要性', data: '数据', inventory: '存货监盘', confirmation: '函证', risk: '风险评估', archive: '归档包', drill: '演练', backup: '备份' }
+    // 覆盖数据里实际出现的全部 item_type（漏一个就意味着该类记录筛不到）
+    const TYPE_NAMES = {
+      pbc: '资料清单', workpaper: '底稿', approval: '审批', pbc_attachment: '附件',
+      member: '成员', program: '审计程序', report: '报告', materiality: '重要性',
+      data: '数据', inventory: '存货监盘', confirmation: '函证', risk: '风险评估',
+      archive: '归档包', drill: '演练', backup: '备份',
+      alert: '告警', client: '客户', client_check: '客户底稿核对', contract: '合同',
+      evidence: '证据', invoice: '发票', kb_review: '知识库审校', kb_sync: '知识库同步',
+      mapping_rules: '映射规则', misstatement: '错报', program_catalog: '程序库',
+      project: '项目', report_push: '报告推送', report_seal: '报告盖章',
+      stage: '流程节点', workpapers_verify: '底稿校验',
+    }
 
     function EventsPage() {
       const savedFilters = (function () {
