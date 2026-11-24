@@ -3,6 +3,8 @@ window.__ModuleLoader__.load({
   factory(require) {
     const React = require('react')
     const h = React.createElement
+    // DSH 原生 UI 原子组件（Button/Input/Switch/Pill/Tag/StateDot 等）
+    const ui = require('@deepseek-ai/dsh-client-ui-primitives')
 
     // 网关地址：直链优先，自动回退（链路本地 → 直链静态IP → Bonjour → Tailscale）
     const GATEWAY_KEY = 'auditdesk.gateway'
@@ -128,7 +130,7 @@ window.__ModuleLoader__.load({
         return h('div', { style: { height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 } },
           h('div', { style: { display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '10px', padding: '5px 14px', borderBottom: '1px solid ' + COLORS.line, fontSize: '12px', flexShrink: 0 } },
             h('span', { style: { color: COLORS.muted } }, auth.user.name + '（' + auth.user.role + '）'),
-            h('button', { onClick: auth.logout, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '退出')),
+            h(ui.Button, { variant: 'outline', size: 'sm', onClick: auth.logout, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '退出')),
           h('div', { style: { flex: 1, minHeight: 0 } }, h(PageComponent, Object.assign({}, props, { auth: auth }))))
       }
     }
@@ -211,6 +213,10 @@ window.__ModuleLoader__.load({
       '.ad-more[open] summary::before{content:"\\2212"}',
       '.ad-more summary:hover{color:var(--dsw-alias-label-primary)}',
       '.ad-tile{flex:1 1 260px;min-width:260px;padding:14px 16px;border-radius:12px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1)}',
+      '.ad-iw{width:100%;box-sizing:border-box}',
+      '.ad-iw input{width:100%;background:transparent;border:0;outline:none;color:inherit;font-size:13px}',
+      '.ad-ml6{margin-left:6px}',
+      '.ad-tabs-fit{width:fit-content}',
       '.ad-tile.wide{flex:2 1 420px;min-width:420px}',
       'body:not([data-ds-dark-theme]) .ad-tile{box-shadow:var(--dsw-shadow-lv1),var(--dsw-shadow-lv1-blur)}',
       '.ad-card summary{list-style:none;cursor:pointer}',
@@ -274,11 +280,14 @@ window.__ModuleLoader__.load({
     }
 
     function Badge(props) {
-      return h('span', {
-        style: { fontSize: '11px', padding: '1px 7px', borderRadius: '9px', whiteSpace: 'nowrap',
-          color: props.tone === 'ok' ? '#166534' : props.tone === 'warn' ? '#92400e' : props.tone === 'bad' ? '#991b1b' : COLORS.muted,
-          background: props.tone === 'ok' ? 'rgba(22,163,74,0.12)' : props.tone === 'warn' ? 'rgba(217,119,6,0.14)' : props.tone === 'bad' ? 'rgba(220,38,38,0.12)' : COLORS.bg },
-      }, props.children)
+      const tone = props.tone === 'ok' ? 'success' : props.tone === 'warn' ? 'warning' : props.tone === 'bad' ? 'danger' : 'neutral'
+      return h(ui.Tag, { tone: tone }, props.children)
+    }
+
+    // 状态胶囊：内部走 DSH 原生 Tag
+    function AStatus(props) {
+      const tone = props.tone === 'ok' ? 'success' : props.tone === 'warn' ? 'warning' : props.tone === 'bad' ? 'danger' : 'neutral'
+      return h(ui.Tag, { tone: tone, className: props.className }, props.children)
     }
 
     function Section(props) {
@@ -535,19 +544,19 @@ window.__ModuleLoader__.load({
               h('h1', { className: 'ad-title' }, props.company + ' / ' + (props.project ? props.project.name : '')),
               h('div', { className: 'ad-sub' }, roleName + ' · ' + (props.project ? props.project.period : '') + ' · ' + ((props.project && props.project.business_type) || '年报审计'))),
             h('div', { className: 'ad-actions' },
-              nextAction ? h('button', { className: 'ad-btn primary', onClick: function () { if (props.onJumpZone) props.onJumpZone(nextAction[1]) } }, '下一步：' + nextAction[0]) : null,
-              h('button', { className: 'ad-btn', onClick: function () { if (props.onExportArchive) props.onExportArchive() }, disabled: props.exporting }, props.exporting ? '打包中…' : '导出归档包'))),
+              nextAction ? h(ui.Button, { variant: 'primary', size: 'sm', onClick: function () { if (props.onJumpZone) props.onJumpZone(nextAction[1]) } }, '下一步：' + nextAction[0]) : null,
+              h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onExportArchive) props.onExportArchive() }, disabled: props.exporting }, props.exporting ? '打包中…' : '导出归档包'))),
           h('details', { className: 'ad-more' },
             h('summary', null, '项目操作'),
             h('div', { className: 'ad-actions' },
               (['partner', 'kb-admin', 'admin'].indexOf(((props.auth && props.auth.user) || {}).role) >= 0 && !readOnly)
-                ? h('button', { className: 'ad-btn', onClick: function () { if (props.onOpenRename) props.onOpenRename() } }, '重命名') : null,
+                ? h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onOpenRename) props.onOpenRename() } }, '重命名') : null,
               (['partner', 'kb-admin', 'admin'].indexOf(((props.auth && props.auth.user) || {}).role) >= 0)
-                ? h('button', { className: 'ad-btn', onClick: function () { if (props.onOpenDelete) props.onOpenDelete() }, style: { color: 'var(--dsw-alias-state-error-primary)' } }, '删除项目') : null,
+                ? h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onOpenDelete) props.onOpenDelete() }, style: { color: 'var(--dsw-alias-state-error-primary)' } }, '删除项目') : null,
               h('label', { className: 'ad-btn' }, '校验归档包', h('input', { type: 'file', accept: '.zip', style: { display: 'none' }, onChange: function (e) { const f = e.target.files && e.target.files[0]; if (f && props.onVerifyArchiveFile) props.onVerifyArchiveFile(f); e.target.value = '' } })),
-              readOnly ? h('span', { className: 'ad-pill warn' }, '已归档 · 只读')
+              readOnly ? h(AStatus, { tone: 'warn' }, '已归档 · 只读')
                 : (['partner', 'kb-admin', 'admin'].indexOf(((props.auth && props.auth.user) || {}).role) >= 0
-                    ? h('button', { className: 'ad-btn', onClick: function () { if (props.onArchiveProject) props.onArchiveProject() } }, '归档项目') : null))),
+                    ? h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onArchiveProject) props.onArchiveProject() } }, '归档项目') : null))),
           props.archiveVerifyMessage ? h('div', { className: 'ad-note' }, props.archiveVerifyMessage) : null,
           h(FlowPanel, { projectId: props.project ? props.project.id : '', onJumpZone: props.onJumpZone }),
           h(ProjectFieldsPanel, { projectId: props.project ? props.project.id : '' }),
@@ -568,15 +577,15 @@ window.__ModuleLoader__.load({
             memberItems.length ? memberItems.map(function (m) {
               return h('div', { key: 'mem-' + m.id, className: 'ad-row' },
                 h('div', { className: 'ad-row-meta' }, m.name + '（' + m.role + '）'),
-                h('button', { className: 'ad-btn quiet', onClick: function () { if (props.onRemoveMember) props.onRemoveMember(m) } }, '移除'))
+                h(ui.Button, { variant: 'ghost', size: 'sm', onClick: function () { if (props.onRemoveMember) props.onRemoveMember(m) } }, '移除'))
             }) : h('div', { className: 'ad-row-meta' }, '暂无成员'),
             h('div', { className: 'ad-form', style: { marginTop: '8px' } },
-              h('label', { className: 'ad-field' }, '添加成员', h('input', { className: 'ad-input', value: props.newMemberName || '', onChange: function (e) { if (props.onNewMemberNameChange) props.onNewMemberNameChange(e.target.value) }, placeholder: '用户名（如 partner）' })),
-              h('div', { className: 'ad-form-actions' }, h('button', { className: 'ad-btn', onClick: function () { if (props.onAddMember) props.onAddMember(props.newMemberName || '') } }, '添加')))),
+              h('label', { className: 'ad-field' }, '添加成员', h(ui.Input, { className: 'ad-iw', value: props.newMemberName || '', onChange: function (e) { if (props.onNewMemberNameChange) props.onNewMemberNameChange(e.target.value) }, placeholder: '用户名（如 partner）' })),
+              h('div', { className: 'ad-form-actions' }, h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onAddMember) props.onAddMember(props.newMemberName || '') } }, '添加')))),
           h('div', { className: 'ad-card' },
             h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' } },
               h('div', { style: { fontSize: '13px', fontWeight: 650 } }, '我的待办' + (props.todoOverdueOnly ? '（仅超期）' : '')),
-              h('button', { className: 'ad-btn quiet', onClick: function () { if (props.onSetTodoOverdueOnly) props.onSetTodoOverdueOnly(!props.todoOverdueOnly) } }, props.todoOverdueOnly ? '查看全部' : '只看超期')),
+              h(ui.Button, { variant: 'ghost', size: 'sm', onClick: function () { if (props.onSetTodoOverdueOnly) props.onSetTodoOverdueOnly(!props.todoOverdueOnly) } }, props.todoOverdueOnly ? '查看全部' : '只看超期')),
             myApprovals.length
               ? myApprovals.map(function (item) {
                   const urgent = item.kind === '归档校验' || item.kind === '报告复核'
@@ -587,9 +596,9 @@ window.__ModuleLoader__.load({
                       item.overdue_days ? h(Badge, { tone: item.overdue_days > 7 ? 'bad' : 'warn' }, '超期 ' + item.overdue_days + ' 天') : null,
                       h('span', { style: { color: COLORS.accent, cursor: 'pointer' }, title: '跳转到相关分区', onClick: function () { if (props.onJumpTodoZone) props.onJumpTodoZone(item.kind) } }, '待你审批：' + item.title + (item.kind ? '（' + item.kind + '）' : ''))),
                     readOnly ? null : h('div', { style: { display: 'flex', gap: '6px', flexShrink: 0 } },
-                      h('button', { onClick: function () { if (props.onDecideApproval) props.onDecideApproval(item, 'approve', '确认通过') },
+                      h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onDecideApproval) props.onDecideApproval(item, 'approve', '确认通过') },
                         style: { padding: '3px 8px', borderRadius: '6px', border: 0, background: '#16a34a', color: '#fff', fontSize: '11px', cursor: 'pointer' } }, '通过'),
-                      h('button', { onClick: function () { if (props.onDecideApproval) props.onDecideApproval(item, 'reject', '已驳回，请重新处理') },
+                      h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onDecideApproval) props.onDecideApproval(item, 'reject', '已驳回，请重新处理') },
                         style: { padding: '3px 8px', borderRadius: '6px', border: '1px solid #b91c1c', background: 'transparent', color: '#b91c1c', fontSize: '11px', cursor: 'pointer' } }, '驳回')))
                 })
               : h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '暂无指派给你的审批；资料清单待补 ' + (pbcCounts['待补'] || 0) + ' 项')),
@@ -618,11 +627,11 @@ window.__ModuleLoader__.load({
             h('div', null,
               h('h1', { className: 'ad-title' }, '风险评估'),
               h('div', { className: 'ad-sub' }, '数字来自客户报表。重要性须由经理或合伙人确认，不能把测算当成结论。')),
-            readOnly ? null : h('button', { className: 'ad-btn primary', onClick: function () { if (props.onGenerateRiskDocx) props.onGenerateRiskDocx() } }, '生成风险评估底稿')),
+            readOnly ? null : h(ui.Button, { variant: 'primary', size: 'sm', onClick: function () { if (props.onGenerateRiskDocx) props.onGenerateRiskDocx() } }, '生成风险评估底稿')),
           readOnly ? null : h('details', { className: 'ad-more' },
             h('summary', null, '检查表与后续程序'),
             h('div', { className: 'ad-actions' },
-              h('button', { className: 'ad-btn', onClick: function () { if (props.onAskAiNextSteps) props.onAskAiNextSteps() } }, 'AI 建议后续程序'),
+              h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onAskAiNextSteps) props.onAskAiNextSteps() } }, 'AI 建议后续程序'),
               h('select', { className: 'ad-input', style: { width: 'auto' }, value: props.checklistKind, onChange: function (e) { if (props.onSetChecklistKind) props.onSetChecklistKind(e.target.value) } },
                 h('option', { value: 'subsequent' }, '期后事项检查表'),
                 h('option', { value: 'going' }, '持续经营评估'),
@@ -633,7 +642,7 @@ window.__ModuleLoader__.load({
                 h('option', { value: 'fixed_assets' }, '固定资产审计底稿'),
                 h('option', { value: 'payroll' }, '应付职工薪酬审计底稿'),
                 h('option', { value: 'taxes' }, '应交税费审计底稿')),
-              h('button', { className: 'ad-btn', onClick: function () { if (props.onGenerateChecklist) props.onGenerateChecklist() } }, '生成检查表'))),
+              h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onGenerateChecklist) props.onGenerateChecklist() } }, '生成检查表'))),
           h('div', { style: { display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '12px' } },
             h('div', { className: 'ad-tile' },
               h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' } },
@@ -659,9 +668,9 @@ window.__ModuleLoader__.load({
                     h('input', { value: matNote, onChange: function (e) { setMatNote(e.target.value) }, placeholder: '确认说明（选填）',
                       style: { padding: '5px 8px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }),
                     h('div', { style: { display: 'flex', gap: '6px' } },
-                      h('button', { onClick: function () { if (props.onConfirmMateriality) props.onConfirmMateriality({ basis: materiality.basis, overall: Number(matOverall), performance: Number(matPerf), trivial: Number(matTrivial), note: matNote }); setMatEditing(false) },
+                      h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onConfirmMateriality) props.onConfirmMateriality({ basis: materiality.basis, overall: Number(matOverall), performance: Number(matPerf), trivial: Number(matTrivial), note: matNote }); setMatEditing(false) },
                         style: { flex: 1, padding: '6px 10px', borderRadius: '7px', border: 0, background: COLORS.accent, color: 'var(--dsw-alias-label-primary-foreground)', fontSize: '12px', cursor: 'pointer' } }, '确认'),
-                      h('button', { onClick: function () { setMatEditing(false) },
+                      h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { setMatEditing(false) },
                         style: { padding: '6px 10px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '取消')))
                 : h('div', null,
                     [['基准', materiality.basis], ['整体重要性', materiality.overall.toLocaleString()], ['实际执行重要性（75%）', materiality.performance.toLocaleString()], ['明显微小错报（5%）', materiality.trivial.toLocaleString()]].map(function (row, index) {
@@ -669,7 +678,7 @@ window.__ModuleLoader__.load({
                         h('span', { style: { color: COLORS.muted } }, row[0]), h('span', null, row[1]))
                     }),
                     materiality.confirmed ? h('div', { style: { fontSize: '11px', color: COLORS.muted, marginTop: '4px' } }, '确认人：' + (materiality.confirmed_by || '') + ' · ' + (materiality.confirmed_at || '') + (materiality.note ? ' · ' + materiality.note : '')) : null,
-                    (readOnly || !canConfirmMateriality) ? null : h('button', { onClick: function () { setMatEditing(true) },
+                    (readOnly || !canConfirmMateriality) ? null : h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { setMatEditing(true) },
                       style: { marginTop: '8px', padding: '6px 10px', borderRadius: '7px', border: '1px solid ' + COLORS.accent, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, materiality.confirmed ? '修改重要性' : '确认重要性')))
               : h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '缺少可用基准，无法自动测算')),
             card('备选基准测算', (analysis.benchmarks || []).map(function (item) { return [item.name, item.amount.toLocaleString()] })),
@@ -702,7 +711,7 @@ window.__ModuleLoader__.load({
             return h('div', { style: { marginTop: '12px', padding: '14px', borderRadius: '12px', border: '1px solid ' + COLORS.line } },
               h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' } },
                 h('div', { style: { fontSize: '13px', fontWeight: 600 } }, '试算平衡'),
-                readOnly ? null : h('button', { className: 'ad-btn quiet', onClick: function () { if (props.onGenerateTrialBalance) props.onGenerateTrialBalance() } }, '试算平衡底稿')),
+                readOnly ? null : h(ui.Button, { variant: 'ghost', size: 'sm', onClick: function () { if (props.onGenerateTrialBalance) props.onGenerateTrialBalance() } }, '试算平衡底稿')),
               h('div', { style: { display: 'flex', gap: '10px', flexWrap: 'wrap' } },
                 card('科目余额表', [
                   ['借方发生额合计', Number(tb.debit || 0).toLocaleString()],
@@ -723,14 +732,14 @@ window.__ModuleLoader__.load({
           h('div', { className: 'ad-card' },
             h('div', { className: 'ad-head', style: { marginBottom: '8px' } },
               h('div', { className: 'ad-row-title' }, '凭证抽样'),
-              (sampleResult && sampleResult.available && !readOnly) ? h('button', { onClick: exportSamplingWorkpaper,
+              (sampleResult && sampleResult.available && !readOnly) ? h(ui.Button, { variant: 'outline', size: 'sm', onClick: exportSamplingWorkpaper,
                 className: 'ad-btn quiet' }, '抽样底稿') : null),
             readOnly ? null : h('div', { style: { display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '8px' } },
               h('span', { style: { fontSize: '12px', color: COLORS.muted } }, '样本量'),
               h('input', { value: sampleSize, onChange: function (e) { setSampleSize(e.target.value) }, style: { width: '64px', padding: '5px 8px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }),
               h('span', { style: { fontSize: '12px', color: COLORS.muted } }, '种子'),
               h('input', { value: sampleSeed, onChange: function (e) { setSampleSeed(e.target.value) }, style: { width: '64px', padding: '5px 8px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }),
-              h('button', { className: 'ad-btn primary', onClick: runSampling, disabled: sampling }, sampling ? '抽样中…' : '执行抽样')),
+              h(ui.Button, { variant: 'primary', size: 'sm', onClick: runSampling, disabled: sampling }, sampling ? '抽样中…' : '执行抽样')),
             sampleResult && sampleResult.available ? h('div', null,
               h('div', { style: { fontSize: '12px', color: COLORS.muted, marginBottom: '6px' } },
                 '总体 ' + sampleResult.population_count + ' 笔 / 合计 ' + Number(sampleResult.total).toLocaleString() + ' · 间隔 ' + Number(sampleResult.interval).toLocaleString() + ' · 覆盖率 ' + sampleResult.coverage + '%'),
@@ -747,15 +756,15 @@ window.__ModuleLoader__.load({
               readOnly ? null : h('details', { className: 'ad-more', style: { margin: 0 } },
                 h('summary', null, '导出'),
                 h('div', { className: 'ad-actions' },
-                  h('button', { className: 'ad-btn', onClick: exportCutoff }, '截止测试底稿'),
-                  h('button', { className: 'ad-btn', onClick: exportInventoryCount }, '存货监盘表')))),
+                  h(ui.Button, { variant: 'outline', size: 'sm', onClick: exportCutoff }, '截止测试底稿'),
+                  h(ui.Button, { variant: 'outline', size: 'sm', onClick: exportInventoryCount }, '存货监盘表')))),
             readOnly ? null : h('div', { style: { display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '6px' } },
               h('span', { style: { fontSize: '12px', color: COLORS.muted } }, '截止日'),
               h('input', { value: cutoffAsOf, onChange: function (e) { setCutoffAsOf(e.target.value) }, placeholder: 'YYYY-MM-DD', style: { width: '110px', padding: '5px 8px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }),
               h('span', { style: { fontSize: '12px', color: COLORS.muted } }, '前后'),
               h('input', { value: cutoffDays, onChange: function (e) { setCutoffDays(e.target.value) }, style: { width: '52px', padding: '5px 8px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }),
               h('span', { style: { fontSize: '12px', color: COLORS.muted } }, '天'),
-              h('button', { className: 'ad-btn primary', onClick: runCutoff }, '执行截止测试')),
+              h(ui.Button, { variant: 'primary', size: 'sm', onClick: runCutoff }, '执行截止测试')),
             cutoffResult && cutoffResult.available ? h('div', { style: { fontSize: '12px', color: COLORS.muted } },
               '截止日 ' + cutoffResult.asof + '：日前 ' + cutoffResult.before_count + ' 笔 / 日后 ' + cutoffResult.after_count + ' 笔'
               + (cutoffResult.before_count + cutoffResult.after_count === 0 ? '（无临近凭证，调整截止日或天数）' : ''))
@@ -764,13 +773,13 @@ window.__ModuleLoader__.load({
               h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' } },
                 h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '存货监盘录入（' + props.inventoryCounts.length + '）'),
                 readOnly ? null : h('div', { className: 'ad-actions' },
-                  h('button', { className: 'ad-btn primary', onClick: function () { if (props.onSaveInventoryCounts) props.onSaveInventoryCounts() } }, '保存录入'),
+                  h(ui.Button, { variant: 'primary', size: 'sm', onClick: function () { if (props.onSaveInventoryCounts) props.onSaveInventoryCounts() } }, '保存录入'),
                   h('details', { className: 'ad-more', style: { margin: 0 } },
                     h('summary', null, '更多'),
                     h('div', { className: 'ad-actions' },
-                      h('button', { className: 'ad-btn', onClick: function () { if (props.onExportInventorySummary) props.onExportInventorySummary() } }, '导出汇总'),
-                      h('button', { className: 'ad-btn quiet', onClick: function () { if (props.onExportInventoryExceptions) props.onExportInventoryExceptions() } }, '差异清单'),
-                      h('button', { className: 'ad-btn', onClick: function () { if (props.onConfirmInventory) props.onConfirmInventory() } }, '确认监盘'))))),
+                      h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onExportInventorySummary) props.onExportInventorySummary() } }, '导出汇总'),
+                      h(ui.Button, { variant: 'ghost', size: 'sm', onClick: function () { if (props.onExportInventoryExceptions) props.onExportInventoryExceptions() } }, '差异清单'),
+                      h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onConfirmInventory) props.onConfirmInventory() } }, '确认监盘'))))),
               h('div', { style: { display: 'grid', gridTemplateColumns: '60px 1fr 90px 70px 70px 70px 1fr 60px', gap: '6px', fontSize: '11px', color: COLORS.muted, padding: '3px 0' } },
                 h('span', null, '编码'), h('span', null, '名称'), h('span', null, '账面金额'), h('span', null, '账面数量'), h('span', null, '实盘数量'), h('span', null, '差异'), h('span', null, '备注'), h('span', null, '状态')),
               (props.inventoryCounts || []).map(function (row) {
@@ -790,13 +799,13 @@ window.__ModuleLoader__.load({
                 h('span', { style: { color: COLORS.muted } }, '陪同人'),
                 h('input', { value: (props.inventoryMeta && props.inventoryMeta.client_rep) || '', onChange: function (e) { if (props.onUpdateInventoryMeta) props.onUpdateInventoryMeta('client_rep', e.target.value) }, placeholder: '客户陪同人', style: { width: '100px', padding: '3px 6px', borderRadius: '5px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px' } }),
                 h('input', { value: (props.inventoryMeta && props.inventoryMeta.note) || '', onChange: function (e) { if (props.onUpdateInventoryMeta) props.onUpdateInventoryMeta('note', e.target.value) }, placeholder: '监盘说明', style: { flex: 1, minWidth: '100px', padding: '3px 6px', borderRadius: '5px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px' } }),
-                readOnly ? null : h('button', { onClick: function () { if (props.onSaveInventoryMeta) props.onSaveInventoryMeta() }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '11px', cursor: 'pointer' } }, '保存监盘信息')),
+                readOnly ? null : h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onSaveInventoryMeta) props.onSaveInventoryMeta() }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '11px', cursor: 'pointer' } }, '保存监盘信息')),
               h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px', marginTop: '6px', fontSize: '12px', flexWrap: 'wrap' } },
                 h('span', { style: { color: COLORS.muted } }, '盘点表扫描件（' + (props.inventoryAttachments || []).length + '）'),
                 readOnly ? null : h('label', { style: { color: COLORS.accent, cursor: 'pointer' } },
                   '上传扫描件', h('input', { type: 'file', style: { display: 'none' }, onChange: function (e) { const f = e.target.files && e.target.files[0]; if (f && props.onUploadInventoryAttachment) props.onUploadInventoryAttachment(f); e.target.value = '' } })),
                 (props.inventoryAttachments || []).map(function (item) {
-                  return h('button', { key: 'invatt-' + item.id, onClick: function () { if (props.onPreviewInventoryAttachment) props.onPreviewInventoryAttachment(item) },
+                  return h(ui.Button, { variant: 'outline', size: 'sm', key: 'invatt-' + item.id, onClick: function () { if (props.onPreviewInventoryAttachment) props.onPreviewInventoryAttachment(item) },
                     style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '查看 ' + item.filename)
                 }))) : null),
           (function () {
@@ -807,8 +816,8 @@ window.__ModuleLoader__.load({
               h('div', { className: 'ad-head', style: { marginBottom: '8px' } },
                 h('div', { className: 'ad-row-title' }, '函证与账龄'),
                 readOnly ? null : h('div', { className: 'ad-actions' },
-                  confirmation.available ? h('button', { className: 'ad-btn', onClick: exportConfirmation }, '函证清单') : null,
-                  aging.available ? h('button', { className: 'ad-btn quiet', onClick: exportAging }, '账龄分析') : null)),
+                  confirmation.available ? h(ui.Button, { variant: 'outline', size: 'sm', onClick: exportConfirmation }, '函证清单') : null,
+                  aging.available ? h(ui.Button, { variant: 'ghost', size: 'sm', onClick: exportAging }, '账龄分析') : null)),
               h('div', { style: { display: 'flex', gap: '10px', flexWrap: 'wrap' } },
                 h('div', { style: { flex: '1 1 260px', minWidth: '260px', fontSize: '12px' } },
                   h('div', { style: { color: COLORS.muted, marginBottom: '4px' } }, '函证清单'),
@@ -832,8 +841,8 @@ window.__ModuleLoader__.load({
                 h('div', { className: 'ad-head', style: { marginBottom: '8px' } },
                   h('div', { className: 'ad-row-title' }, '回函跟踪'),
                   readOnly ? null : h('div', { className: 'ad-actions' },
-                    h('button', { className: 'ad-btn primary', onClick: function () { if (props.onSyncConfirmations) props.onSyncConfirmations() } }, '同步台账'),
-                    h('button', { className: 'ad-btn quiet', onClick: function () { if (props.onExportConfirmationDifferences) props.onExportConfirmationDifferences() } }, '差异调节表'))),
+                    h(ui.Button, { variant: 'primary', size: 'sm', onClick: function () { if (props.onSyncConfirmations) props.onSyncConfirmations() } }, '同步台账'),
+                    h(ui.Button, { variant: 'ghost', size: 'sm', onClick: function () { if (props.onExportConfirmationDifferences) props.onExportConfirmationDifferences() } }, '差异调节表'))),
                 (props.confirmations || []).length
                   ? (props.confirmations || []).map(function (item) {
                       const replied = Math.abs(Number(item.replied_amount || 0)) > 0 || item.status === '已回函'
@@ -842,8 +851,8 @@ window.__ModuleLoader__.load({
                           h('div', { className: 'ad-row-title' }, item.code + ' ' + item.name),
                           h('div', { className: 'ad-row-meta' }, '账面 ' + Number(item.balance).toLocaleString() + (replied ? ' · 回函 ' + Number(item.replied_amount).toLocaleString() + ' · 差异 ' + Number(item.difference).toLocaleString() : '')),
                           h('div', { className: 'ad-actions', style: { marginTop: '6px' } },
-                            (!readOnly && item.status !== '已回函') ? h('button', { className: 'ad-btn quiet', onClick: function () { setReplyItem(replyItem === item.id ? null : item.id); setReplyAmount(String(item.balance)); setReplyNote('') } }, '登记回函') : null,
-                            item.attachment_name ? h('button', { onClick: function () { if (props.onPreviewConfirmationAttachment) props.onPreviewConfirmationAttachment(item) },
+                            (!readOnly && item.status !== '已回函') ? h(ui.Button, { variant: 'ghost', size: 'sm', onClick: function () { setReplyItem(replyItem === item.id ? null : item.id); setReplyAmount(String(item.balance)); setReplyNote('') } }, '登记回函') : null,
+                            item.attachment_name ? h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onPreviewConfirmationAttachment) props.onPreviewConfirmationAttachment(item) },
                               style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '11px', cursor: 'pointer' } }, '查看扫描件') : null,
                             readOnly ? null : h('label', { style: { color: COLORS.muted, fontSize: '11px', cursor: 'pointer' } },
                               '上传扫描件', h('input', { type: 'file', style: { display: 'none' }, onChange: function (e) { const f = e.target.files && e.target.files[0]; if (f && props.onUploadConfirmationAttachment) props.onUploadConfirmationAttachment(item.id, f); e.target.value = '' } })),
@@ -852,7 +861,7 @@ window.__ModuleLoader__.load({
                         replyItem === item.id ? h('div', { style: { display: 'flex', gap: '6px', marginTop: '4px' } },
                           h('input', { value: replyAmount, onChange: function (e) { setReplyAmount(e.target.value) }, placeholder: '回函金额', style: { width: '110px', padding: '4px 7px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }),
                           h('input', { value: replyNote, onChange: function (e) { setReplyNote(e.target.value) }, placeholder: '差异说明', style: { flex: 1, minWidth: '80px', padding: '4px 7px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }),
-                          h('button', { onClick: function () { if (props.onReplyConfirmation) props.onReplyConfirmation(item.id, Number(replyAmount) || 0, replyNote); setReplyItem(null) },
+                          h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onReplyConfirmation) props.onReplyConfirmation(item.id, Number(replyAmount) || 0, replyNote); setReplyItem(null) },
                             style: { padding: '4px 10px', borderRadius: '6px', border: 0, background: COLORS.accent, color: 'var(--dsw-alias-label-primary-foreground)', fontSize: '11px', cursor: 'pointer' } }, '保存')) : null)
                     })
                   : h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '尚未同步，点击「同步台账」生成')))
@@ -882,7 +891,7 @@ window.__ModuleLoader__.load({
                   h('span', { onClick: function () { if (props.onPreviewAttachment) props.onPreviewAttachment(att) }, title: '点击预览',
                     style: { padding: '2px 8px', borderRadius: '8px', background: COLORS.bg, fontSize: '11px', cursor: 'pointer', color: COLORS.accent } },
                     att.filename + ' ' + fmtSize(att.size)),
-                  h('button', { onClick: function () { if (props.onCheckAttachment) props.onCheckAttachment(att) },
+                  h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onCheckAttachment) props.onCheckAttachment(att) },
                     title: '核对数字勾稽/公式/账面差异',
                     style: { padding: '2px 6px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '10px', cursor: 'pointer' } }, '核对'))
               })
@@ -899,7 +908,7 @@ window.__ModuleLoader__.load({
                           if (file && props.onUploadAttachment) props.onUploadAttachment(item, file)
                           event.target.value = ''
                         } })),
-                    readOnly ? null : h('button', { className: 'ad-btn quiet', onClick: function () { if (props.onDeletePbc) props.onDeletePbc(item) }, 'data-pbc-delete': String(item.id) }, '删除'),
+                    readOnly ? null : h(ui.Button, { variant: 'ghost', size: 'sm', onClick: function () { if (props.onDeletePbc) props.onDeletePbc(item) }, 'data-pbc-delete': String(item.id) }, '删除'),
                     h('span', {
                       onClick: function () { if (!readOnly && props.onCyclePbc) props.onCyclePbc(item) },
                       title: '点击切换：未交 → 待补 → 已交',
@@ -909,7 +918,7 @@ window.__ModuleLoader__.load({
             }) : [h('div', { key: 'empty', className: 'ad-row-meta' }, '暂无资料清单，先新增应收资料')])
         const checkPanel = props.clientCheckMsg ? h('div', { style: { marginTop: '10px', padding: '10px', borderRadius: '8px', border: '1px solid ' + COLORS.line, fontSize: '12px' } },
           h('div', { style: { fontWeight: 600, marginBottom: '4px' } }, props.clientCheckMsg),
-          props.clientCheck ? h('button', { onClick: function () { if (props.onExportClientCheck) props.onExportClientCheck() },
+          props.clientCheck ? h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onExportClientCheck) props.onExportClientCheck() },
             style: { marginBottom: '6px', padding: '4px 10px', borderRadius: '7px', border: '1px solid ' + COLORS.accent, background: 'transparent', color: COLORS.accent, fontSize: '11px', cursor: 'pointer' } }, '导出核对记录（Word）') : null,
           props.clientCheck ? h('div', null,
             h('div', { style: { color: COLORS.muted, marginBottom: '6px' } }, '文件：' + (props.clientCheck.filename || '') + ' · 共 ' + ((props.clientCheck.summary || {}).total || 0) + ' 项（高 ' + ((props.clientCheck.summary || {}).high || 0) + ' / 中 ' + ((props.clientCheck.summary || {}).medium || 0) + '）'),
@@ -917,12 +926,12 @@ window.__ModuleLoader__.load({
               return h('div', { key: 'cc-' + i, style: { padding: '3px 0', borderTop: i ? '1px dashed ' + COLORS.line : 'none' } },
                 h('span', { style: { color: f.severity === 'high' ? '#b91c1c' : '#b45309', marginRight: '6px' } }, f.severity === 'high' ? '高' : '中'),
                 f.sheet + '!' + f.cell + '：' + f.message,
-                h('button', { onClick: function () { if (props.onAddMisstatement) props.onAddMisstatement(f) },
+                h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onAddMisstatement) props.onAddMisstatement(f) },
                   style: { marginLeft: '8px', padding: '1px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '10px', cursor: 'pointer' } }, '记入未更正'))
             })) : null) : null
         const addForm = h('div', { className: 'ad-form', style: { marginTop: '12px' } },
-          h('label', { className: 'ad-field' }, '新增资料', h('input', { className: 'ad-input', value: props.newPbcName || '', onChange: function (event) { if (props.onPbcNameChange) props.onPbcNameChange(event.target.value) }, placeholder: '如：银行开户许可证' })),
-          readOnly ? null : h('div', { className: 'ad-form-actions' }, h('button', { className: 'ad-btn primary', onClick: function () { if (props.onAddPbc) props.onAddPbc(props.newPbcName || '') } }, '新增')))
+          h('label', { className: 'ad-field' }, '新增资料', h(ui.Input, { className: 'ad-iw', value: props.newPbcName || '', onChange: function (event) { if (props.onPbcNameChange) props.onPbcNameChange(event.target.value) }, placeholder: '如：银行开户许可证' })),
+          readOnly ? null : h('div', { className: 'ad-form-actions' }, h(ui.Button, { variant: 'primary', size: 'sm', onClick: function () { if (props.onAddPbc) props.onAddPbc(props.newPbcName || '') } }, '新增')))
         return h('div', { className: 'ad-zone-page' },
           h('div', { className: 'ad-head' },
             h('div', null,
@@ -932,14 +941,14 @@ window.__ModuleLoader__.load({
             h('div', { style: { fontSize: '13px', fontWeight: 600, marginBottom: '6px' } }, '项目数据导入'),
             h('div', { style: { fontSize: '11px', color: COLORS.muted, marginBottom: '8px' } }, '导入科目余额表与序时账后，可执行试算平衡、勾稽与抽样程序（支持 .xlsx / .xls / .csv）。'),
             readOnly ? h('div', { className: 'ad-row-meta' }, '项目已归档，不可导入') : h('div', { className: 'ad-form' },
-              h('label', { className: 'ad-field' }, '科目余额表', h('input', { className: 'ad-input', type: 'file', accept: '.xlsx,.xls,.csv', onChange: function (e) { const f = e.target.files && e.target.files[0]; if (f && props.onImportData) props.onImportData('tb', f); e.target.value = '' } })),
-              h('label', { className: 'ad-field' }, '序时账', h('input', { className: 'ad-input', type: 'file', accept: '.xlsx,.xls,.csv', onChange: function (e) { const f = e.target.files && e.target.files[0]; if (f && props.onImportData) props.onImportData('journal', f); e.target.value = '' } })),
-              h('label', { className: 'ad-field' }, '财务报表', h('input', { className: 'ad-input', type: 'file', accept: '.xlsx', onChange: function (e) { const f = e.target.files && e.target.files[0]; if (f && props.onImportFinancialStatements) props.onImportFinancialStatements(f); e.target.value = '' } }))),
+              h('label', { className: 'ad-field' }, '科目余额表', h(ui.Input, { className: 'ad-iw', type: 'file', accept: '.xlsx,.xls,.csv', onChange: function (e) { const f = e.target.files && e.target.files[0]; if (f && props.onImportData) props.onImportData('tb', f); e.target.value = '' } })),
+              h('label', { className: 'ad-field' }, '序时账', h(ui.Input, { className: 'ad-iw', type: 'file', accept: '.xlsx,.xls,.csv', onChange: function (e) { const f = e.target.files && e.target.files[0]; if (f && props.onImportData) props.onImportData('journal', f); e.target.value = '' } })),
+              h('label', { className: 'ad-field' }, '财务报表', h(ui.Input, { className: 'ad-iw', type: 'file', accept: '.xlsx', onChange: function (e) { const f = e.target.files && e.target.files[0]; if (f && props.onImportFinancialStatements) props.onImportFinancialStatements(f); e.target.value = '' } }))),
             h('div', { style: { display: 'flex', gap: '10px', marginTop: '6px', fontSize: '11px' } },
               h('span', { style: { color: COLORS.muted } }, '标准模板：'),
-              h('button', { onClick: function () { if (props.onDownloadImportTemplate) props.onDownloadImportTemplate('tb') }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '11px', cursor: 'pointer' } }, '下载科目余额表模板'),
-              h('button', { onClick: function () { if (props.onDownloadImportTemplate) props.onDownloadImportTemplate('journal') }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '11px', cursor: 'pointer' } }, '下载序时账模板'),
-              h('button', { onClick: function () { if (props.onDownloadFinancialTemplate) props.onDownloadFinancialTemplate() }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '11px', cursor: 'pointer' } }, '下载财务报表模板')),
+              h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onDownloadImportTemplate) props.onDownloadImportTemplate('tb') }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '11px', cursor: 'pointer' } }, '下载科目余额表模板'),
+              h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onDownloadImportTemplate) props.onDownloadImportTemplate('journal') }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '11px', cursor: 'pointer' } }, '下载序时账模板'),
+              h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onDownloadFinancialTemplate) props.onDownloadFinancialTemplate() }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '11px', cursor: 'pointer' } }, '下载财务报表模板')),
             readOnly ? null : h('div', { style: { marginTop: '8px', paddingTop: '8px', borderTop: '1px dashed ' + COLORS.line, display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center', fontSize: '11px' } },
               h('label', { style: { padding: '5px 10px', borderRadius: '7px', border: '1px solid ' + COLORS.line, color: COLORS.muted, cursor: 'pointer' } },
                 props.multiLoading ? '读取中…' : '多工作表文件', h('input', { type: 'file', accept: '.xlsx,.xls', style: { display: 'none' }, onChange: function (e) { const f = e.target.files && e.target.files[0]; if (f && props.onChooseMultiSheetFile) props.onChooseMultiSheetFile(f); e.target.value = '' } })),
@@ -947,11 +956,11 @@ window.__ModuleLoader__.load({
                 h('option', { value: 'tb' }, '科目余额表'), h('option', { value: 'journal' }, '序时账')) : null,
               (props.multiSheets || []).length ? h('select', { value: props.multiSheetIndex, onChange: function (e) { if (props.onSetMultiSheetIndex) props.onSetMultiSheetIndex(e.target.value) }, style: { padding: '4px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px' } },
                 props.multiSheets.map(function (name, index) { return h('option', { key: name + index, value: String(index) }, name) })) : null,
-              (props.multiSheets || []).length ? h('button', { onClick: function () { if (props.onSubmitMultiSheet) props.onSubmitMultiSheet('validate') }, style: { padding: '5px 10px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px', cursor: 'pointer' } }, '校验所选') : null,
-              (props.multiSheets || []).length ? h('button', { onClick: function () { if (props.onSubmitMultiSheet) props.onSubmitMultiSheet('import') }, style: { padding: '5px 10px', borderRadius: '7px', border: 0, background: COLORS.accent, color: 'var(--dsw-alias-label-primary-foreground)', fontSize: '11px', cursor: 'pointer' } }, '导入所选') : null),
+              (props.multiSheets || []).length ? h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onSubmitMultiSheet) props.onSubmitMultiSheet('validate') }, style: { padding: '5px 10px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px', cursor: 'pointer' } }, '校验所选') : null,
+              (props.multiSheets || []).length ? h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onSubmitMultiSheet) props.onSubmitMultiSheet('import') }, style: { padding: '5px 10px', borderRadius: '7px', border: 0, background: COLORS.accent, color: 'var(--dsw-alias-label-primary-foreground)', fontSize: '11px', cursor: 'pointer' } }, '导入所选') : null),
             props.importMessage ? h('div', { style: { display: 'flex', gap: '8px', alignItems: 'center', marginTop: '8px', flexWrap: 'wrap' } },
               h('div', { style: { fontSize: '12px', color: props.importMessage.indexOf('失败') >= 0 ? '#b91c1c' : '#16a34a' } }, props.importMessage),
-              (props.importMessage.indexOf('勾稽提示') >= 0 && !readOnly) ? h('button', { onClick: function () { if (props.onGenerateTrialBalance) props.onGenerateTrialBalance() },
+              (props.importMessage.indexOf('勾稽提示') >= 0 && !readOnly) ? h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onGenerateTrialBalance) props.onGenerateTrialBalance() },
                 style: { padding: '4px 10px', borderRadius: '6px', border: '1px solid ' + COLORS.accent, background: 'transparent', color: COLORS.accent, fontSize: '11px', cursor: 'pointer' } }, '生成试算平衡底稿') : null) : null,
             (props.dataEvents || []).length ? h('div', { style: { marginTop: '8px', fontSize: '11px', color: COLORS.muted } },
               h('div', { style: { marginBottom: '3px' } }, '最近导入：'),
@@ -1000,9 +1009,9 @@ window.__ModuleLoader__.load({
               h('span', { style: { fontSize: '12px' } }, item.filename),
               h('span', { style: { fontSize: '11px', color: COLORS.muted } }, Math.round((item.size || 0) / 1024) + 'KB · ' + item.created_by + ' · ' + item.created_at)),
             h('div', { style: { display: 'flex', gap: '12px' } },
-              h('button', { onClick: function () { if (props.onPreviewWorkpaper) props.onPreviewWorkpaper(item) },
+              h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onPreviewWorkpaper) props.onPreviewWorkpaper(item) },
                 style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '预览'),
-              h('button', { onClick: function () { if (props.onDownloadWorkpaper) props.onDownloadWorkpaper(item) },
+              h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onDownloadWorkpaper) props.onDownloadWorkpaper(item) },
                 style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '下载')))
         })
         return h('div', { className: 'ad-zone-page' },
@@ -1010,7 +1019,7 @@ window.__ModuleLoader__.load({
             h('div', null,
               h('h1', { className: 'ad-title' }, '底稿'),
               h('div', { className: 'ad-sub' }, '按模板生成。点击状态只改执行进度，不代表已复核。')),
-            h('button', { className: 'ad-btn primary', disabled: props.generating || readOnly, onClick: function () { if (props.onGenerateAll) props.onGenerateAll() } }, props.generating ? '生成中…' : '生成常用底稿')),
+            h(ui.Button, { variant: 'primary', size: 'sm', disabled: props.generating || readOnly, onClick: function () { if (props.onGenerateAll) props.onGenerateAll() } }, props.generating ? '生成中…' : '生成常用底稿')),
           h(EngineFillsPanel, { projectId: props.project ? props.project.id : '' }),
           h('div', { style: { padding: '8px 14px 0', display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center', fontSize: '11px' } },
             h('span', { style: { color: COLORS.muted } }, '底稿统计：共 ' + generated.length + ' 份 · 台账 ' + (items ? items.length : 0) + ' 项'),
@@ -1038,7 +1047,7 @@ window.__ModuleLoader__.load({
                 (props.members || []).map(function (m) { return h('option', { key: m.id, value: m.name }, '复核人：' + m.name) })),
               h('input', { type: 'date', value: props.generatedDate || '', onChange: function (e) { if (props.onGeneratedDateChange) props.onGeneratedDateChange(e.target.value) },
                 style: { padding: '6px 8px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }),
-              h('button', { className: 'ad-btn', disabled: props.generating || readOnly, onClick: function () { if (props.onGenerateLocal) props.onGenerateLocal() } }, '本机引擎生成'),
+              h(ui.Button, { variant: 'outline', size: 'sm', disabled: props.generating || readOnly, onClick: function () { if (props.onGenerateLocal) props.onGenerateLocal() } }, '本机引擎生成'),
               ['tb', 'fs', 'voucher'].map(function (k) {
                 const label = k === 'tb' ? '余额表' : k === 'fs' ? '报表' : '凭证'
                 const list = props.localAtts || []
@@ -1047,8 +1056,8 @@ window.__ModuleLoader__.load({
                   style: { padding: '6px 8px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px', maxWidth: '160px' } },
                   h('option', { value: '' }, label + '：自动'), list.map(function (a) { return h('option', { key: k + a.id, value: a.id }, a.filename) }))
               }),
-              h('button', { className: 'ad-btn', onClick: function () { if (props.onExportWorkpapers) props.onExportWorkpapers() } }, '打包下载'),
-              h('button', { className: 'ad-btn quiet', onClick: function () { if (props.onExportWorkpaperList) props.onExportWorkpaperList() } }, '导出台账'),
+              h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onExportWorkpapers) props.onExportWorkpapers() } }, '打包下载'),
+              h(ui.Button, { variant: 'ghost', size: 'sm', onClick: function () { if (props.onExportWorkpaperList) props.onExportWorkpaperList() } }, '导出台账'),
               h('label', { className: 'ad-btn' }, '校验底稿包', h('input', { type: 'file', accept: '.zip', style: { display: 'none' }, onChange: function (e) { const f = e.target.files && e.target.files[0]; if (f && props.onVerifyWorkpapersZip) props.onVerifyWorkpapersZip(f); e.target.value = '' } })),
               props.wpsVerifyMessage ? h('span', { style: { fontSize: '11px', color: props.wpsVerifyMessage.indexOf('通过') >= 0 && props.wpsVerifyMessage.indexOf('未') < 0 ? '#16a34a' : '#b45309' } }, props.wpsVerifyMessage) : null,
               h('select', { className: 'ad-input', style: { width: 'auto' }, value: wpKind, onChange: function (e) { setWpKind(e.target.value) } },
@@ -1056,7 +1065,7 @@ window.__ModuleLoader__.load({
                 h('option', { value: 'receivable' }, '应收账款 ZE'),
                 h('option', { value: 'inventory' }, '存货 ZJ'),
                 h('option', { value: 'revenue' }, '营业收入成本 SA')),
-              h('button', { className: 'ad-btn', disabled: props.generating || readOnly, onClick: function () { if (props.onGenerateWorkpaper) props.onGenerateWorkpaper(wpKind) } }, '生成所选'),
+              h(ui.Button, { variant: 'outline', size: 'sm', disabled: props.generating || readOnly, onClick: function () { if (props.onGenerateWorkpaper) props.onGenerateWorkpaper(wpKind) } }, '生成所选'),
               props.generateMessage ? h('span', { className: 'ad-row-meta' }, props.generateMessage) : null),
             generated.length ? h('div', null,
               h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px', margin: '6px 0' } },
@@ -1112,13 +1121,13 @@ window.__ModuleLoader__.load({
             h('div', null,
               h('h1', { className: 'ad-title' }, '审计程序'),
               h('div', { className: 'ad-sub' }, (((props.project || {}).business_type) || '年报审计') + ' · ' + rows.length + ' 项。改完点保存。')),
-            readOnly ? null : h('button', { className: 'ad-btn primary', onClick: function () { if (props.onSavePrograms) props.onSavePrograms() } }, '保存')),
+            readOnly ? null : h(ui.Button, { variant: 'primary', size: 'sm', onClick: function () { if (props.onSavePrograms) props.onSavePrograms() } }, '保存')),
           h('details', { className: 'ad-more' },
             h('summary', null, '导出与补全'),
             h('div', { className: 'ad-actions' },
-              h('button', { className: 'ad-btn', onClick: function () { if (props.onExportPrograms) props.onExportPrograms() } }, '导出 Word'),
-              h('button', { className: 'ad-btn', onClick: function () { if (props.onExportProgramsXlsx) props.onExportProgramsXlsx() } }, '导出 Excel'),
-              readOnly ? null : h('button', { className: 'ad-btn', onClick: function () { if (props.onCompletePrograms) props.onCompletePrograms() } }, '补全程序清单'))),
+              h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onExportPrograms) props.onExportPrograms() } }, '导出 Word'),
+              h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onExportProgramsXlsx) props.onExportProgramsXlsx() } }, '导出 Excel'),
+              readOnly ? null : h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onCompletePrograms) props.onCompletePrograms() } }, '补全程序清单'))),
           h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', margin: '8px 0 2px', fontSize: '11px', color: COLORS.muted } },
             h('span', null, '数据来源：'),
             ['账载', '外部', '现场', '程序'].map(function (src) {
@@ -1163,7 +1172,7 @@ window.__ModuleLoader__.load({
           (props.programEvents || []).filter(function (event) { return event.old_status }).length ? h('div', { style: { marginTop: '16px', padding: '14px', borderRadius: '12px', border: '1px solid ' + COLORS.line } },
             h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' } },
               h('div', { style: { fontSize: '13px', fontWeight: 600 } }, '最近变更（' + (props.programEvents || []).filter(function (event) { return event.old_status }).length + '）'),
-              h('button', { onClick: function () { if (props.onExportProgramHistory) props.onExportProgramHistory() }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '导出变更历史 Excel')),
+              h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onExportProgramHistory) props.onExportProgramHistory() }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '导出变更历史 Excel')),
             (props.programEvents || []).filter(function (event) { return event.old_status }).slice(0, 10).map(function (event, index) {
               return h('div', { key: 'pe-' + index, style: { display: 'flex', justifyContent: 'space-between', gap: '10px', fontSize: '12px', padding: '3px 0', borderBottom: '1px solid ' + COLORS.line } },
                 h('span', null, (event.item_name || '') + '：' + (event.old_status || '') + ' → ' + (event.new_status || '') + '（' + (event.actor || '') + '）'),
@@ -1211,7 +1220,7 @@ window.__ModuleLoader__.load({
                     style: { marginTop: '8px', marginRight: '6px', padding: '6px 8px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } },
                     approverMembers.map(function (m) { return h('option', { key: m.id, value: m.username }, '审批人：' + m.name) })))
                 }
-                actions.push(h('button', { key: 'submit', onClick: function () { if (props.onSubmitApproval) props.onSubmitApproval(item, approvers[item.id] || (approverMembers[0] && approverMembers[0].username)) },
+                actions.push(h(ui.Button, { variant: 'outline', size: 'sm', key: 'submit', onClick: function () { if (props.onSubmitApproval) props.onSubmitApproval(item, approvers[item.id] || (approverMembers[0] && approverMembers[0].username)) },
                   style: { marginTop: '8px', padding: '6px 12px', borderRadius: '7px', border: 0, background: COLORS.accent, color: 'var(--dsw-alias-label-primary-foreground)', fontSize: '12px', cursor: 'pointer' } }, '提交审批'))
               }
               const isAssigned = !item.assigned_username || item.assigned_username === user.username || user.role === 'kb-admin' || user.role === 'admin'
@@ -1225,9 +1234,9 @@ window.__ModuleLoader__.load({
                 actions.push(h('input', { key: 'op', placeholder: '审批意见', value: opinions[item.id] || '',
                   onChange: function (e) { const v = e.target.value; setOpinions(function (prev) { const next = Object.assign({}, prev); next[item.id] = v; return next }) },
                   style: { marginTop: '8px', width: '260px', padding: '6px 8px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }))
-                actions.push(h('button', { key: 'ok', onClick: function () { if (props.onDecideApproval) props.onDecideApproval(item, 'approve', opinions[item.id] || '') },
+                actions.push(h(ui.Button, { variant: 'outline', size: 'sm', key: 'ok', onClick: function () { if (props.onDecideApproval) props.onDecideApproval(item, 'approve', opinions[item.id] || '') },
                   style: { marginTop: '8px', marginLeft: '6px', padding: '6px 12px', borderRadius: '7px', border: 0, background: '#16a34a', color: '#fff', fontSize: '12px', cursor: 'pointer' } }, '通过'))
-                actions.push(h('button', { key: 'no', onClick: function () { if (props.onDecideApproval) props.onDecideApproval(item, 'reject', opinions[item.id] || '') },
+                actions.push(h(ui.Button, { variant: 'outline', size: 'sm', key: 'no', onClick: function () { if (props.onDecideApproval) props.onDecideApproval(item, 'reject', opinions[item.id] || '') },
                   style: { marginTop: '8px', marginLeft: '6px', padding: '6px 12px', borderRadius: '7px', border: 0, background: '#dc2626', color: '#fff', fontSize: '12px', cursor: 'pointer' } }, '驳回'))
               }
               const meta = [
@@ -1247,14 +1256,14 @@ window.__ModuleLoader__.load({
 
             }) : [h('div', { key: 'empty', style: { padding: '14px', fontSize: '12px', color: COLORS.muted } }, '暂无审批事项')])
         const identityBar = h('div', { className: 'ad-toolbar', style: { marginBottom: '12px' } },
-          h('span', { className: 'ad-pill ' + (canApprove ? 'ok' : 'warn') }, user.name + ' · ' + (canApprove ? '可审批' : '只读/提交')),
+          h(AStatus, { tone: canApprove ? 'ok' : 'warn' }, user.name + ' · ' + (canApprove ? '可审批' : '只读/提交')),
           h('select', { className: 'ad-input', style: { width: 'auto' }, value: statusFilter, onChange: function (e) { if (props.onSetApprovalFilter) props.onSetApprovalFilter(e.target.value) } },
             h('option', { value: 'all' }, '全部状态（' + (items ? items.length : 0) + '）'),
             h('option', { value: '待提交' }, '待提交'),
             h('option', { value: '待审批' }, '待审批'),
             h('option', { value: '已通过' }, '已通过'),
             h('option', { value: '已驳回' }, '已驳回')),
-          h('button', { className: 'ad-btn', onClick: function () { if (props.onExportApprovals) props.onExportApprovals() } }, '导出'))
+          h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onExportApprovals) props.onExportApprovals() } }, '导出'))
         if (readOnly) {
           return h('div', { style: { padding: '20px', maxWidth: '720px' } },
             h('div', { style: { fontSize: '14px', marginBottom: '6px' } }, '审批状态'),
@@ -1270,7 +1279,7 @@ window.__ModuleLoader__.load({
             h('div', null,
               h('h1', { className: 'ad-title' }, '审批'),
               h('div', { className: 'ad-sub' }, '提交后等指派人通过或驳回。超期提醒不代替审批。')),
-            canApprove ? h('button', { className: 'ad-btn', onClick: function () { if (props.onEscalateApprovals) props.onEscalateApprovals() } }, '超期提醒') : null),
+            canApprove ? h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onEscalateApprovals) props.onEscalateApprovals() } }, '超期提醒') : null),
           props.escalateMessage ? h('div', { className: 'ad-note' }, props.escalateMessage) : null,
           identityBar,
           h('div', null, rows), eventsBlock('approval'))
@@ -1282,7 +1291,7 @@ window.__ModuleLoader__.load({
         const draft = report.draft || null
         const statusTone = function (status) { return status === 'OK' ? 'ok' : status === 'TODO' ? 'warn' : 'bad' }
         const button = function (label, onClick, disabled) {
-          return h('button', { onClick: onClick, disabled: disabled,
+          return h(ui.Button, { variant: 'outline', size: 'sm', onClick: onClick, disabled: disabled,
             style: { padding: '8px 14px', borderRadius: '8px', border: '1px solid ' + COLORS.accent, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, label)
         }
         return h('div', { className: 'ad-zone-page' },
@@ -1290,7 +1299,7 @@ window.__ModuleLoader__.load({
             h('div', null,
               h('h1', { className: 'ad-title' }, '报告'),
               h('div', { className: 'ad-sub' }, '初稿来自项目数据。出具前必须人工复核，系统不代下审计结论。')),
-            h('button', { className: 'ad-btn primary', disabled: readOnly || props.reportLoading, onClick: function () { if (props.onGenerateDraft) props.onGenerateDraft() } }, props.reportLoading ? '生成中…' : '生成报告初稿')),
+            h(ui.Button, { variant: 'primary', size: 'sm', disabled: readOnly || props.reportLoading, onClick: function () { if (props.onGenerateDraft) props.onGenerateDraft() } }, props.reportLoading ? '生成中…' : '生成报告初稿')),
           h(ReportOverviewPanel, { projectId: props.project ? props.project.id : '' }),
           h('div', { className: 'ad-form' },
             h('div', { className: 'ad-row-title', style: { gridColumn: '1 / -1' } }, '报告要素'),
@@ -1307,7 +1316,7 @@ window.__ModuleLoader__.load({
             h('label', { className: 'ad-field' }, '其他事项段',
               h('textarea', { className: 'ad-input', value: (tmpElements.other_matters !== undefined ? tmpElements.other_matters : (props.reportElements || {}).other_matters) || '', rows: 2, onChange: function (e) { setTmpElements(function (p) { return Object.assign({}, p, { other_matters: e.target.value }) }) } })),
             h('div', { className: 'ad-form-actions' },
-              h('button', { className: 'ad-btn primary', onClick: function () { if (props.onSaveReportElements) props.onSaveReportElements(Object.assign({}, props.reportElements || {}, tmpElements)) } }, '保存'),
+              h(ui.Button, { variant: 'primary', size: 'sm', onClick: function () { if (props.onSaveReportElements) props.onSaveReportElements(Object.assign({}, props.reportElements || {}, tmpElements)) } }, '保存'),
               props.reportElementsMsg ? h('span', { className: 'ad-row-meta' }, props.reportElementsMsg) : null)),
           props.completeness && !props.completeness.ready ? h('div', { style: { marginBottom: '10px', fontSize: '12px', color: '#b45309' } }, '⚠ 报告完整性未完成（' + props.completeness.ok_count + '/' + props.completeness.count + '）：建议先处理未完成项再定稿/出具。') : null,
           props.completeness ? h('div', { style: { marginBottom: '12px', padding: '10px 12px', borderRadius: '10px', border: '1px solid ' + (props.completeness.ready ? '#16a34a' : COLORS.line), fontSize: '12px' } },
@@ -1321,12 +1330,12 @@ window.__ModuleLoader__.load({
             })) : null,
           report.message ? h('div', { style: { fontSize: '12px', color: '#b45309', marginBottom: '10px' } }, report.message) : null,
           h('div', { className: 'ad-actions', style: { marginBottom: '16px' } },
-            h('button', { className: 'ad-btn', onClick: function () { if (props.onLoadChecklist) props.onLoadChecklist() } }, '检查清单'),
-            h('button', { className: 'ad-btn', onClick: function () { if (props.onLoadOpinion) props.onLoadOpinion() } }, '审计意见'),
-            draft ? h('button', { className: 'ad-btn', onClick: function () { if (props.onExportDocx) props.onExportDocx(draft.version_id) } }, '导出 Word') : null,
-            draft ? h('button', { className: 'ad-btn', onClick: function () { if (props.onExportPdf) props.onExportPdf(draft.version_id) } }, '导出 PDF') : null,
-            h('button', { className: 'ad-btn', onClick: function () { if (props.onGenerateLetter) props.onGenerateLetter() } }, '管理层声明书'),
-            h('button', { className: 'ad-btn quiet', onClick: function () { if (props.onLoadVersions) props.onLoadVersions() } }, '历史版本')),
+            h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onLoadChecklist) props.onLoadChecklist() } }, '检查清单'),
+            h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onLoadOpinion) props.onLoadOpinion() } }, '审计意见'),
+            draft ? h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onExportDocx) props.onExportDocx(draft.version_id) } }, '导出 Word') : null,
+            draft ? h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onExportPdf) props.onExportPdf(draft.version_id) } }, '导出 PDF') : null,
+            h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onGenerateLetter) props.onGenerateLetter() } }, '管理层声明书'),
+            h(ui.Button, { variant: 'ghost', size: 'sm', onClick: function () { if (props.onLoadVersions) props.onLoadVersions() } }, '历史版本')),
           checklist.length ? h('div', { style: { marginBottom: '16px' } },
             h('div', { style: { fontSize: '13px', fontWeight: 600, marginBottom: '6px' } }, '报告检查清单（' + checklist.length + '）'),
             checklist.map(function (item, index) {
@@ -1346,8 +1355,8 @@ window.__ModuleLoader__.load({
                   h('span', null, item.description + (item.source ? '（' + item.source + '）' : '') + ' · 金额 ' + (item.amount || 0)),
                   h('span', { style: { display: 'flex', gap: '6px', alignItems: 'center' } },
                     h(Badge, { tone: item.status === '已调整' ? 'ok' : item.status === '已询问' ? 'warn' : 'bad' }, item.status),
-                    item.status !== '已询问' ? h('button', { onClick: function () { if (props.onUpdateMisstatement) props.onUpdateMisstatement(item.id, '已询问') }, style: { padding: '1px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '10px', cursor: 'pointer' } }, '已询问') : null,
-                    item.status !== '已调整' ? h('button', { onClick: function () { if (props.onUpdateMisstatement) props.onUpdateMisstatement(item.id, '已调整') }, style: { padding: '1px 6px', borderRadius: '6px', border: '1px solid #16a34a', background: 'transparent', color: '#16a34a', fontSize: '10px', cursor: 'pointer' } }, '已调整') : null))
+                    item.status !== '已询问' ? h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onUpdateMisstatement) props.onUpdateMisstatement(item.id, '已询问') }, style: { padding: '1px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '10px', cursor: 'pointer' } }, '已询问') : null,
+                    item.status !== '已调整' ? h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onUpdateMisstatement) props.onUpdateMisstatement(item.id, '已调整') }, style: { padding: '1px 6px', borderRadius: '6px', border: '1px solid #16a34a', background: 'transparent', color: '#16a34a', fontSize: '10px', cursor: 'pointer' } }, '已调整') : null))
               }))
           })(),
           h(KamPanel, { projectId: props.project ? props.project.id : '' }),
@@ -1376,11 +1385,11 @@ window.__ModuleLoader__.load({
                   h('span', { style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, version.filename + ' · ' + version.created_by + ' · ' + version.created_at + (version.status === '已复核' && version.reviewed_by ? (' · 复核：' + version.reviewed_by + (version.finalized_at ? '（' + version.finalized_at + '）' : '')) : '')),
                   h(Badge, { tone: (version.status === '已定稿' || version.status === '已复核') ? 'ok' : version.status === '复核中' ? 'warn' : 'muted' }, version.status || '草稿')),
                 h('div', { style: { display: 'flex', gap: '10px' } },
-                  version.status !== '已定稿' ? h('button', { onClick: function () { if (props.onSubmitReview) props.onSubmitReview(version.id) }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '提交复核') : null,
-                  (version.status !== '已定稿' && canFinalize) ? h('button', { onClick: function () { if (props.onFinalizeReport) props.onFinalizeReport(version.id) }, style: { border: 0, background: 'transparent', color: '#16a34a', fontSize: '12px', cursor: 'pointer' } }, '定稿') : null,
-                  h('button', { onClick: function () { if (props.onDownloadVersion) props.onDownloadVersion(version.id) }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '下载 MD'),
-                  h('button', { onClick: function () { if (props.onExportDocx) props.onExportDocx(version.id) }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '导出 Word'),
-                  h('button', { onClick: function () { if (props.onExportPdf) props.onExportPdf(version.id) }, style: { border: 0, background: 'transparent', color: '#b91c1c', fontSize: '12px', cursor: 'pointer' } }, '导出 PDF')))
+                  version.status !== '已定稿' ? h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onSubmitReview) props.onSubmitReview(version.id) }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '提交复核') : null,
+                  (version.status !== '已定稿' && canFinalize) ? h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onFinalizeReport) props.onFinalizeReport(version.id) }, style: { border: 0, background: 'transparent', color: '#16a34a', fontSize: '12px', cursor: 'pointer' } }, '定稿') : null,
+                  h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onDownloadVersion) props.onDownloadVersion(version.id) }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '下载 MD'),
+                  h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onExportDocx) props.onExportDocx(version.id) }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '导出 Word'),
+                  h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onExportPdf) props.onExportPdf(version.id) }, style: { border: 0, background: 'transparent', color: '#b91c1c', fontSize: '12px', cursor: 'pointer' } }, '导出 PDF')))
             })) : null,
           h(ReportSealPanel, { projectId: props.project ? props.project.id : '' }))
       }
@@ -1391,8 +1400,8 @@ window.__ModuleLoader__.load({
               h('h1', { className: 'ad-title' }, '归档'),
               h('div', { className: 'ad-sub' }, readOnly ? '项目已归档，只读。' : '归档后项目锁定，只能查看和下载。归档包可单独导出。')),
             h('div', { className: 'ad-actions' },
-              h('button', { className: 'ad-btn', onClick: function () { if (props.onExportArchive) props.onExportArchive() }, disabled: props.exporting }, props.exporting ? '打包中…' : '导出归档包'),
-              readOnly ? null : h('button', { className: 'ad-btn primary', onClick: function () { if (props.onArchiveProject) props.onArchiveProject() } }, '归档项目'))),
+              h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onExportArchive) props.onExportArchive() }, disabled: props.exporting }, props.exporting ? '打包中…' : '导出归档包'),
+              readOnly ? null : h(ui.Button, { variant: 'primary', size: 'sm', onClick: function () { if (props.onArchiveProject) props.onArchiveProject() } }, '归档项目'))),
           h(ArchivePackagePanel, { projectId: props.project ? props.project.id : '' }),
           h(ProjectFieldsPanel, { projectId: props.project ? props.project.id : '' }),
           readOnly ? h('div', { className: 'ad-note' }, '项目已归档：所有写操作已锁定，仅可查看/下载。') : null)
@@ -2913,12 +2922,12 @@ window.__ModuleLoader__.load({
           h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', borderBottom: '1px solid ' + COLORS.line } },
             h('div', { style: { fontSize: '13px', fontWeight: 600 } }, preview.attachment.filename),
             h('div', { style: { display: 'flex', gap: '10px' } },
-              h('button', { onClick: function () { setPreviewZoom(function (value) { return Math.max(0.5, Math.round((value - 0.1) * 10) / 10) }) }, style: { border: '1px solid ' + COLORS.line, background: 'transparent', color: COLORS.muted, fontSize: '12px', cursor: 'pointer', width: '28px', height: '24px', borderRadius: '6px' } }, '−'),
-              h('button', { onClick: function () { setPreviewZoom(1) }, style: { border: 0, background: 'transparent', color: COLORS.muted, fontSize: '12px', cursor: 'pointer' } }, Math.round(previewZoom * 100) + '%'),
-              h('button', { onClick: function () { setPreviewZoom(function (value) { return Math.min(3, Math.round((value + 0.1) * 10) / 10) }) }, style: { border: '1px solid ' + COLORS.line, background: 'transparent', color: COLORS.muted, fontSize: '12px', cursor: 'pointer', width: '28px', height: '24px', borderRadius: '6px' } }, '+'),
-              h('button', { onClick: function () { if (preview.url) window.open(preview.url, '_blank', 'noopener') }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '新窗口打开'),
-              h('button', { onClick: function () { if (preview.onDownload) preview.onDownload() }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '下载'),
-              h('button', { onClick: closeAttachmentPreview, style: { border: 0, background: 'transparent', color: COLORS.muted, fontSize: '12px', cursor: 'pointer' } }, '关闭'))),
+              h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { setPreviewZoom(function (value) { return Math.max(0.5, Math.round((value - 0.1) * 10) / 10) }) }, style: { border: '1px solid ' + COLORS.line, background: 'transparent', color: COLORS.muted, fontSize: '12px', cursor: 'pointer', width: '28px', height: '24px', borderRadius: '6px' } }, '−'),
+              h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { setPreviewZoom(1) }, style: { border: 0, background: 'transparent', color: COLORS.muted, fontSize: '12px', cursor: 'pointer' } }, Math.round(previewZoom * 100) + '%'),
+              h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { setPreviewZoom(function (value) { return Math.min(3, Math.round((value + 0.1) * 10) / 10) }) }, style: { border: '1px solid ' + COLORS.line, background: 'transparent', color: COLORS.muted, fontSize: '12px', cursor: 'pointer', width: '28px', height: '24px', borderRadius: '6px' } }, '+'),
+              h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (preview.url) window.open(preview.url, '_blank', 'noopener') }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '新窗口打开'),
+              h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (preview.onDownload) preview.onDownload() }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '下载'),
+              h(ui.Button, { variant: 'outline', size: 'sm', onClick: closeAttachmentPreview, style: { border: 0, background: 'transparent', color: COLORS.muted, fontSize: '12px', cursor: 'pointer' } }, '关闭'))),
           h('div', { style: { flex: 1, minHeight: 0, background: '#fff' } },
             String(preview.type).indexOf('image/') === 0
               ? h('img', { src: preview.url, style: { maxWidth: '100%', maxHeight: '100%', display: 'block', margin: '0 auto' } })
@@ -2936,8 +2945,8 @@ window.__ModuleLoader__.load({
                 '确认删除项目「' + activeProject + '」？其资料清单、底稿台账、成员、审批、会话关联等数据将一并删除，已生成文件保留在磁盘。'),
           mgmtError ? h('div', { style: { fontSize: '12px', color: '#b91c1c', marginBottom: '8px' } }, mgmtError) : null,
           h('div', { style: { display: 'flex', justifyContent: 'flex-end', gap: '8px' } },
-            h('button', { onClick: function () { setRenameOpen(false); setDeleteOpen(false); setMgmtError('') }, style: { padding: '7px 12px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: '#111', fontSize: '12px', cursor: 'pointer' } }, '取消'),
-            h('button', { onClick: renameOpen ? submitRename : submitDelete, style: { padding: '7px 12px', borderRadius: '7px', border: 0, background: renameOpen ? COLORS.accent : '#b91c1c', color: renameOpen ? 'var(--dsw-alias-label-primary-foreground)' : '#fff', fontSize: '12px', cursor: 'pointer' } }, renameOpen ? '保存' : '确认删除'))))
+            h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { setRenameOpen(false); setDeleteOpen(false); setMgmtError('') }, style: { padding: '7px 12px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: '#111', fontSize: '12px', cursor: 'pointer' } }, '取消'),
+            h(ui.Button, { variant: 'outline', size: 'sm', onClick: renameOpen ? submitRename : submitDelete, style: { padding: '7px 12px', borderRadius: '7px', border: 0, background: renameOpen ? COLORS.accent : '#b91c1c', color: renameOpen ? 'var(--dsw-alias-label-primary-foreground)' : '#fff', fontSize: '12px', cursor: 'pointer' } }, renameOpen ? '保存' : '确认删除'))))
         : null
 
       const zoneProps = {
@@ -2974,7 +2983,7 @@ window.__ModuleLoader__.load({
         h('div', { className: 'ad-rail' },
           h('div', { className: 'ad-rail-h' },
             h('div', null, '项目'),
-            h('button', { className: 'ad-btn quiet', onClick: function () { setShowCreate(!showCreate); setCreateError(''); api('/audit/contracts').then(function (d) { setContracts(d.items || []) }).catch(function () {}) } }, '+ 新建')),
+            h(ui.Button, { variant: 'ghost', size: 'sm', onClick: function () { setShowCreate(!showCreate); setCreateError(''); api('/audit/contracts').then(function (d) { setContracts(d.items || []) }).catch(function () {}) } }, '+ 新建')),
           h('div', { style: { padding: '0 12px 8px', display: 'flex', gap: '6px' } },
             h('input', { value: search, onChange: function (e) { setSearch(e.target.value) }, placeholder: '搜索客户/项目…', style: inputStyle }),
             h('select', { value: statusFilter, onChange: function (e) { setStatusFilter(e.target.value) }, style: Object.assign({}, inputStyle, { width: '86px', flexShrink: 0 }) },
@@ -2985,9 +2994,9 @@ window.__ModuleLoader__.load({
             h('label', { className: 'ad-field' }, '合同', h('select', { className: 'ad-input', value: contractId, onChange: function (e) { const v = e.target.value; setContractId(v); const ct = (contracts || []).filter(function (x) { return String(x.id) === String(v) })[0]; if (ct && ct.client_name) setNewClient(ct.client_name) } },
               h('option', { value: '' }, '必选'),
               (contracts || []).map(function (c) { return h('option', { key: 'ct-' + c.id, value: String(c.id) }, c.client_name + (c.project_name ? ' · ' + c.project_name : '') + ' · ' + c.status) }))),
-            h('label', { className: 'ad-field' }, '被审计单位', h('input', { className: 'ad-input', value: newClient, onChange: function (e) { setNewClient(e.target.value) } })),
-            h('label', { className: 'ad-field' }, '项目名称', h('input', { className: 'ad-input', value: newName, onChange: function (e) { setNewName(e.target.value) }, placeholder: '如 2026年度审计' })),
-            h('label', { className: 'ad-field' }, '期间', h('input', { className: 'ad-input', value: newPeriod, onChange: function (e) { setNewPeriod(e.target.value) }, placeholder: '如 2026' })),
+            h('label', { className: 'ad-field' }, '被审计单位', h(ui.Input, { className: 'ad-iw', value: newClient, onChange: function (e) { setNewClient(e.target.value) } })),
+            h('label', { className: 'ad-field' }, '项目名称', h(ui.Input, { className: 'ad-iw', value: newName, onChange: function (e) { setNewName(e.target.value) }, placeholder: '如 2026年度审计' })),
+            h('label', { className: 'ad-field' }, '期间', h(ui.Input, { className: 'ad-iw', value: newPeriod, onChange: function (e) { setNewPeriod(e.target.value) }, placeholder: '如 2026' })),
             h('label', { className: 'ad-field' }, '业务类型', h('select', { className: 'ad-input', value: businessType, onChange: function (e) { setBusinessType(e.target.value) } },
               ['年报审计', '专项审计', '内控审计'].map(function (name) { return h('option', { key: name, value: name }, name) }))),
             h('div', { style: { fontSize: '11px', color: COLORS.muted } }, '可选：创建后立即导入（也可稍后上传）'),
@@ -3002,8 +3011,8 @@ window.__ModuleLoader__.load({
               h('input', { type: 'file', accept: '.xlsx,.xls,.csv', style: { display: 'none' }, onChange: function (e) { setNewJournalFile(e.target.files && e.target.files[0] || null); e.target.value = '' } })),
             createError ? h('div', { style: { fontSize: '11px', color: '#b91c1c' } }, createError) : null,
             h('div', { className: 'ad-form-actions' },
-              h('button', { className: 'ad-btn primary', onClick: createProject, disabled: creating }, creating ? '创建中…' : '创建'),
-              h('button', { className: 'ad-btn', onClick: function () { setShowCreate(false); setCreateError('') } }, '取消'))) : null,
+              h(ui.Button, { variant: 'primary', size: 'sm', onClick: createProject, disabled: creating }, creating ? '创建中…' : '创建'),
+              h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { setShowCreate(false); setCreateError('') } }, '取消'))) : null,
           (pinnedProjects || []).length ? h('div', { style: { padding: '0 10px 8px' } },
             h('div', { style: { fontSize: '11px', color: COLORS.muted, marginBottom: '4px' } }, '已固定'),
             pinnedProjects.map(function (item) {
@@ -3012,10 +3021,10 @@ window.__ModuleLoader__.load({
                 h('span', { style: { display: 'flex', flexDirection: 'column', minWidth: 0 } },
                   h('span', { style: { display: 'flex', gap: '4px', alignItems: 'center', minWidth: 0 } },
                     h('span', { style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, '★ ' + item.project),
-                    (pendingCounts || {})[item.project] ? h('button', { title: '查看待审批', onClick: function (e) { e.stopPropagation(); setActiveCompany(item.company); setActiveProject(item.project); setZone('审批状态') },
+                    (pendingCounts || {})[item.project] ? h(ui.Button, { variant: 'outline', size: 'sm', title: '查看待审批', onClick: function (e) { e.stopPropagation(); setActiveCompany(item.company); setActiveProject(item.project); setZone('审批状态') },
                       style: { border: 0, borderRadius: '8px', background: 'rgba(180,83,9,0.12)', color: '#b45309', fontSize: '10px', padding: '1px 6px', cursor: 'pointer', flexShrink: 0 } }, pendingCounts[item.project] + ' 待审') : null),
                   (function () { const meta = projectMeta(item); return meta ? h('span', { style: { fontSize: '10px', color: COLORS.muted } }, (meta.status || '-') + (meta.period ? ' · ' + meta.period : '')) : null })()),
-                h('button', { onClick: function (e) { e.stopPropagation(); togglePinProject(item) }, style: { border: 0, background: 'transparent', color: COLORS.muted, cursor: 'pointer', fontSize: '11px', flexShrink: 0 } }, '取消固定'))
+                h(ui.Button, { variant: 'outline', size: 'sm', onClick: function (e) { e.stopPropagation(); togglePinProject(item) }, style: { border: 0, background: 'transparent', color: COLORS.muted, cursor: 'pointer', fontSize: '11px', flexShrink: 0 } }, '取消固定'))
             })) : null,
           h('div', { style: { padding: '0 8px 12px' } }, visibleCompanies.length ? visibleCompanies.map(function (c) {
             const active = c.name === activeCompany
@@ -3031,19 +3040,19 @@ window.__ModuleLoader__.load({
           }) : h('div', { style: { padding: '10px', fontSize: '12px', color: COLORS.muted } }, '没有匹配的项目'))),
         h('div', { style: { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' } },
           h('div', { className: 'ad-zones' },
-            activeProject ? h('button', { className: 'ad-btn quiet', style: { alignSelf: 'flex-end', flexShrink: 0, marginRight: '10px', marginBottom: '4px', minHeight: '30px' }, onClick: function () { setActiveProject(null) } }, '← 项目列表') : null,
+            activeProject ? h(ui.Button, { variant: 'ghost', size: 'sm', style: { alignSelf: 'flex-end', flexShrink: 0, marginRight: '10px', marginBottom: '4px', minHeight: '30px' }, onClick: function () { setActiveProject(null) } }, '← 项目列表') : null,
             [{ label: '执行', items: ['概览', '风险评估', '审计程序', '资料清单', '审计底稿', '项目对话'] }, { label: '交付', items: ['报告', '审批状态', '归档'] }].map(function (group) {
               return h('div', { key: group.label, className: 'ad-zone-group' },
                 h('span', { className: 'ad-zone-label' }, group.label),
                 group.items.map(function (name) {
                   const active = zone === name
-                  return h('button', { key: name, 'data-zone': name, className: 'ad-tab' + (active ? ' on' : ''), onClick: function () { setZone(name) } }, name)
+                  return h(ui.Button, { variant: 'outline', size: 'sm', key: name, 'data-zone': name, className: 'ad-tab' + (active ? ' on' : ''), onClick: function () { setZone(name) } }, name)
                 }))
             })),
           readOnly
             ? h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 14px', background: 'rgba(180,83,9,0.10)', color: '#b45309', fontSize: '12px', borderBottom: '1px solid ' + COLORS.line } },
                 h('span', null, '项目已归档：所有写操作已锁定，仅可查看/下载。'),
-                isManager ? h('button', { onClick: unarchiveProject, style: { padding: '5px 10px', borderRadius: '7px', border: '1px solid #b45309', background: 'transparent', color: '#b45309', fontSize: '12px', cursor: 'pointer' } }, '解除归档') : null)
+                isManager ? h(ui.Button, { variant: 'outline', size: 'sm', onClick: unarchiveProject, style: { padding: '5px 10px', borderRadius: '7px', border: '1px solid #b45309', background: 'transparent', color: '#b45309', fontSize: '12px', cursor: 'pointer' } }, '解除归档') : null)
             : null,
           h('div', { style: { flex: 1, overflow: 'auto' } },
             project ? h(Zone, zoneProps) : h(Empty, null, activeCompany ? '选择右侧项目查看四个分区' : '选择公司开始'))),
@@ -3121,20 +3130,20 @@ window.__ModuleLoader__.load({
         })))
       const searchBox = h('div', { style: { padding: '12px', borderBottom: '1px solid ' + COLORS.line } },
         h('div', { style: { display: 'flex', gap: '6px' } },
-          h('input', { className: 'ad-input', value: q, onChange: function (e) { setQ(e.target.value) },
+          h(ui.Input, { className: 'ad-iw', value: q, onChange: function (e) { setQ(e.target.value) },
             onKeyDown: function (e) { if (e.key === 'Enter') runSearch() }, placeholder: '检索准则、法规或模板' }),
-          h('button', { className: 'ad-btn primary', onClick: runSearch, disabled: searching }, searching ? '检索中' : '检索')),
+          h(ui.Button, { variant: 'primary', size: 'sm', onClick: runSearch, disabled: searching }, searching ? '检索中' : '检索')),
         error ? h('div', { style: { fontSize: '12px', color: '#b91c1c', marginTop: '8px' } }, error) : null)
       const statusBox = isKbAdmin && kbStatus ? h('div', { style: { padding: '8px 12px', borderBottom: '1px solid ' + COLORS.line, fontSize: '11px', color: COLORS.muted } },
         h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
           h('div', { style: { fontWeight: 600, color: COLORS.text } }, '知识库状态'),
-          h('button', { onClick: loadPending, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '10px', cursor: 'pointer' } }, '刷新')),
+          h(ui.Button, { variant: 'outline', size: 'sm', onClick: loadPending, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '10px', cursor: 'pointer' } }, '刷新')),
         h('div', { style: { marginTop: '3px', lineHeight: 1.8 } },
           '已发布 ' + ((kbStatus.counts || {}).approved || 0) + ' · 待审 ' + ((kbStatus.counts || {}).pending || 0) +
           ' · 过期 ' + ((kbStatus.counts || {}).expired || 0) + ' · 索引 ' + (kbStatus.chunks || 0) + ' 块'),
         kbStatus.last_reviewed ? h('div', null, '最近发布：' + kbStatus.last_reviewed.title + '（' + kbStatus.last_reviewed.at + '）') : null,
         kbStatus.last_sync ? h('div', null, '最近巡检：' + (kbStatus.last_sync.at || '') + '，新增 ' + (kbStatus.last_sync.added || 0) + ' 篇') : null,
-        h('button', { onClick: toggleExpiring, style: { marginTop: '3px', border: 0, background: 'transparent', color: COLORS.accent, fontSize: '10px', cursor: 'pointer', padding: 0 } }, (kbExpiring ? '收起' : '失效/到期提醒') + '（' + ((kbStatus.counts || {}).expired || 0) + '）'),
+        h(ui.Button, { variant: 'outline', size: 'sm', onClick: toggleExpiring, style: { marginTop: '3px', border: 0, background: 'transparent', color: COLORS.accent, fontSize: '10px', cursor: 'pointer', padding: 0 } }, (kbExpiring ? '收起' : '失效/到期提醒') + '（' + ((kbStatus.counts || {}).expired || 0) + '）'),
         kbExpiring && kbExpiring.items && kbExpiring.items.length ? h('div', { style: { marginTop: '2px', maxHeight: '120px', overflow: 'auto' } },
           kbExpiring.items.slice(0, 12).map(function (item, i) {
             return h('div', { key: 'kbexp-' + (item.id || i), style: { padding: '1px 0', color: '#b45309' } },
@@ -3150,15 +3159,15 @@ window.__ModuleLoader__.load({
       const pendingBox = isKbAdmin && (pendingDocs.length > 0 || pendingMsg) ? h('div', { style: { padding: '10px 12px', borderBottom: '1px solid ' + COLORS.line, background: 'rgba(180,83,9,0.06)' } },
         h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' } },
           h('div', { style: { fontSize: '12px', fontWeight: 600, color: '#b45309' } }, '待审文档（' + pendingDocs.length + '）'),
-          h('button', { onClick: loadPending, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '11px', cursor: 'pointer' } }, '刷新')),
+          h(ui.Button, { variant: 'outline', size: 'sm', onClick: loadPending, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '11px', cursor: 'pointer' } }, '刷新')),
         pendingDocs.slice(0, 5).map(function (item) {
           return h('div', { key: 'kb-pending-' + item.id, style: { padding: '5px 0', borderBottom: '1px dashed ' + COLORS.line, fontSize: '11px' } },
             h('div', { style: { color: COLORS.text, marginBottom: '3px' } }, item.title + (item.docno ? '（' + item.docno + '）' : '')),
             h('div', { style: { display: 'flex', gap: '8px', alignItems: 'center', color: COLORS.muted } },
               h('span', null, (CAT[item.code] || item.code) + (item.source_url ? ' · 官网' : '') + ' · ' + (item.added_at || '')),
-              h('button', { disabled: pendingBusy, onClick: function () { decidePending(item.id, 'approve') },
+              h(ui.Button, { variant: 'outline', size: 'sm', disabled: pendingBusy, onClick: function () { decidePending(item.id, 'approve') },
                 style: { padding: '2px 8px', borderRadius: '6px', border: 0, background: '#16a34a', color: '#fff', fontSize: '10px', cursor: 'pointer' } }, '通过'),
-              h('button', { disabled: pendingBusy, onClick: function () { decidePending(item.id, 'reject') },
+              h(ui.Button, { variant: 'outline', size: 'sm', disabled: pendingBusy, onClick: function () { decidePending(item.id, 'reject') },
                 style: { padding: '2px 8px', borderRadius: '6px', border: '1px solid #b91c1c', background: 'transparent', color: '#b91c1c', fontSize: '10px', cursor: 'pointer' } }, '驳回')))
         }),
         pendingMsg ? h('div', { style: { marginTop: '6px', fontSize: '11px', color: '#b45309' } }, pendingMsg) : null) : null
@@ -3294,13 +3303,13 @@ window.__ModuleLoader__.load({
         h('label', { className: 'ad-field' }, '项目', h('select', { className: 'ad-input', value: project, onChange: function (e) { setProject(e.target.value) } },
           h('option', { value: '' }, '全部'),
           projects.map(function (p) { return h('option', { key: p.id, value: p.id }, p.client + ' / ' + p.name) }))),
-        h('label', { className: 'ad-field' }, '操作人', h('input', { className: 'ad-input', value: actor, onChange: function (e) { setActor(e.target.value) } })),
+        h('label', { className: 'ad-field' }, '操作人', h(ui.Input, { className: 'ad-iw', value: actor, onChange: function (e) { setActor(e.target.value) } })),
         h('label', { className: 'ad-field' }, '类型', h('select', { className: 'ad-input', value: type, onChange: function (e) { setType(e.target.value) } },
           h('option', { value: '' }, '全部'),
           Object.keys(TYPE_NAMES).map(function (key) { return h('option', { key: key, value: key }, TYPE_NAMES[key]) }))),
-        h('label', { className: 'ad-field' }, '开始', h('input', { className: 'ad-input', value: startDate, onChange: function (e) { setStartDate(e.target.value) }, type: 'date' })),
-        h('label', { className: 'ad-field' }, '结束', h('input', { className: 'ad-input', value: endDate, onChange: function (e) { setEndDate(e.target.value) }, type: 'date' })),
-        h('div', { className: 'ad-form-actions' }, h('button', { className: 'ad-btn primary', onClick: function () { load(1) } }, loading ? '查询中…' : '查询')))
+        h('label', { className: 'ad-field' }, '开始', h(ui.Input, { className: 'ad-iw', value: startDate, onChange: function (e) { setStartDate(e.target.value) }, type: 'date' })),
+        h('label', { className: 'ad-field' }, '结束', h(ui.Input, { className: 'ad-iw', value: endDate, onChange: function (e) { setEndDate(e.target.value) }, type: 'date' })),
+        h('div', { className: 'ad-form-actions' }, h(ui.Button, { variant: 'primary', size: 'sm', onClick: function () { load(1) } }, loading ? '查询中…' : '查询')))
 
       const rows = events.map(function (item) {
         return h('div', { key: item.id, style: { display: 'grid', gridTemplateColumns: '150px 90px 1fr 90px', gap: '10px', padding: '7px 16px', borderBottom: '1px solid ' + COLORS.line, fontSize: '12px', alignItems: 'center' } },
@@ -3316,14 +3325,14 @@ window.__ModuleLoader__.load({
             h('h1', { className: 'ad-title' }, '留痕'),
             h('div', { className: 'ad-sub' }, '共 ' + total + ' 条 · 第 ' + page + ' / ' + Math.max(1, Math.ceil(total / 100)) + ' 页')),
           h('div', { className: 'ad-actions' },
-            h('button', { className: 'ad-btn quiet', disabled: page <= 1, onClick: function () { if (page > 1) load(page - 1) } }, '上一页'),
-            h('button', { className: 'ad-btn quiet', disabled: page * 100 >= total, onClick: function () { if (page * 100 < total) load(page + 1) } }, '下一页'))),
+            h(ui.Button, { variant: 'ghost', size: 'sm', disabled: page <= 1, onClick: function () { if (page > 1) load(page - 1) } }, '上一页'),
+            h(ui.Button, { variant: 'ghost', size: 'sm', disabled: page * 100 >= total, onClick: function () { if (page * 100 < total) load(page + 1) } }, '下一页'))),
         h('details', { className: 'ad-more' },
           h('summary', null, '清除与导出'),
           h('div', { className: 'ad-actions' },
-            h('button', { className: 'ad-btn', onClick: resetFilters }, '清除筛选'),
-            h('button', { className: 'ad-btn', onClick: exportCsv }, '导出全部'),
-            h('button', { className: 'ad-btn quiet', onClick: exportPageCsv }, '导出当前页'))),
+            h(ui.Button, { variant: 'outline', size: 'sm', onClick: resetFilters }, '清除筛选'),
+            h(ui.Button, { variant: 'outline', size: 'sm', onClick: exportCsv }, '导出全部'),
+            h(ui.Button, { variant: 'ghost', size: 'sm', onClick: exportPageCsv }, '导出当前页'))),
         filterBar,
         error ? h('div', { style: { padding: '10px 16px', color: '#b91c1c', fontSize: '12px' } }, error) : null,
         h('div', { style: { flex: 1, overflow: 'auto' } },
@@ -3409,11 +3418,11 @@ window.__ModuleLoader__.load({
         message ? h('div', { className: 'ad-note' }, message) : null,
         error ? h('div', { className: 'ad-note' }, error) : null,
         h('div', { className: 'ad-form' },
-          h('label', { className: 'ad-field' }, '用户名', h('input', { className: 'ad-input', value: newUser.username, onChange: function (e) { setNewUser(Object.assign({}, newUser, { username: e.target.value })) }, placeholder: '登录名' })),
-          h('label', { className: 'ad-field' }, '姓名', h('input', { className: 'ad-input', value: newUser.name, onChange: function (e) { setNewUser(Object.assign({}, newUser, { name: e.target.value })) } })),
-          h('label', { className: 'ad-field' }, '初始密码', h('input', { className: 'ad-input', value: newUser.password, onChange: function (e) { setNewUser(Object.assign({}, newUser, { password: e.target.value })) }, placeholder: '至少 6 位' })),
+          h('label', { className: 'ad-field' }, '用户名', h(ui.Input, { className: 'ad-iw', value: newUser.username, onChange: function (e) { setNewUser(Object.assign({}, newUser, { username: e.target.value })) }, placeholder: '登录名' })),
+          h('label', { className: 'ad-field' }, '姓名', h(ui.Input, { className: 'ad-iw', value: newUser.name, onChange: function (e) { setNewUser(Object.assign({}, newUser, { name: e.target.value })) } })),
+          h('label', { className: 'ad-field' }, '初始密码', h(ui.Input, { className: 'ad-iw', value: newUser.password, onChange: function (e) { setNewUser(Object.assign({}, newUser, { password: e.target.value })) }, placeholder: '至少 6 位' })),
           h('label', { className: 'ad-field' }, '角色', h('select', { className: 'ad-input', value: newUser.role, onChange: function (e) { setNewUser(Object.assign({}, newUser, { role: e.target.value })) } }, roleOptions.map(function (item) { return h('option', { key: item[0], value: item[0] }, item[1]) }))),
-          h('div', { className: 'ad-form-actions' }, h('button', { className: 'ad-btn primary', onClick: createUser }, '创建'))),
+          h('div', { className: 'ad-form-actions' }, h(ui.Button, { variant: 'primary', size: 'sm', onClick: createUser }, '创建'))),
         loading ? h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '加载中…') : null,
         users.map(function (user) {
           const active = user.active === 1 || user.active === true
@@ -3425,12 +3434,12 @@ window.__ModuleLoader__.load({
               roleOptions.map(function (item) { return h('option', { key: item[0], value: item[0] }, item[1]) })),
             h('span', null, h(Badge, { tone: active ? 'ok' : 'bad' }, active ? '启用' : '停用')),
             h('div', { style: { display: 'flex', gap: '4px' } },
-              h('button', { onClick: function () { toggleUserStatus(user) }, style: { padding: '6px 8px', borderRadius: '6px', border: '1px solid ' + (active ? '#b91c1c' : '#16a34a'), background: 'transparent', color: active ? '#b91c1c' : '#16a34a', fontSize: '11px', cursor: 'pointer' } }, active ? '停用' : '启用'),
+              h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { toggleUserStatus(user) }, style: { padding: '6px 8px', borderRadius: '6px', border: '1px solid ' + (active ? '#b91c1c' : '#16a34a'), background: 'transparent', color: active ? '#b91c1c' : '#16a34a', fontSize: '11px', cursor: 'pointer' } }, active ? '停用' : '启用'),
             resetUser === user.username
               ? h('div', { style: { display: 'flex', gap: '4px' } },
                   h('input', { value: resetPassword, onChange: function (e) { setResetPassword(e.target.value) }, placeholder: '新密码', style: Object.assign({}, inputStyle, { width: '90px' }) }),
-                  h('button', { onClick: submitReset, style: { padding: '6px 8px', borderRadius: '6px', border: 0, background: COLORS.accent, color: 'var(--dsw-alias-label-primary-foreground)', fontSize: '11px', cursor: 'pointer' } }, '保存'))
-              : h('button', { onClick: function () { setResetUser(user.username); setResetPassword('') }, style: { padding: '6px 8px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px', cursor: 'pointer' } }, '重置密码')))
+                  h(ui.Button, { variant: 'outline', size: 'sm', onClick: submitReset, style: { padding: '6px 8px', borderRadius: '6px', border: 0, background: COLORS.accent, color: 'var(--dsw-alias-label-primary-foreground)', fontSize: '11px', cursor: 'pointer' } }, '保存'))
+              : h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { setResetUser(user.username); setResetPassword('') }, style: { padding: '6px 8px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px', cursor: 'pointer' } }, '重置密码')))
         }))
     }
 
@@ -3674,7 +3683,7 @@ window.__ModuleLoader__.load({
         return h('div', { style: { padding: '18px', maxWidth: '960px', height: '100%', overflow: 'auto', boxSizing: 'border-box' } },
           h('div', { style: { fontSize: '15px', fontWeight: 600, marginBottom: '8px' } }, '系统状态'),
           h('div', { style: { fontSize: '12px', color: COLORS.muted } }, loading ? '加载中…' : (error || '暂无数据')),
-          h('button', { onClick: load, style: { marginTop: '10px', padding: '7px 12px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '刷新'))
+          h(ui.Button, { variant: 'outline', size: 'sm', onClick: load, style: { marginTop: '10px', padding: '7px 12px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '刷新'))
       }
       const backupStatusText = (health.backup && health.backup.last_backup ? ('上次：' + (health.backup.last_backup_at || '-') + ' · 下次约 ' + Math.max(0, Math.ceil(((health.backup.next_due_seconds || 0) / 3600))) + ' 小时后 · 自动备份每 ' + (health.backup.interval_hours || 24) + ' 小时') : ('自动备份：每 ' + (((health.backup || {}).interval_hours) || 24) + ' 小时检查一次')) + ' · 共 ' + backups.length + ' 份 · 总占用 ' + formatBytes(backups.reduce(function (sum, item) { return sum + (item.size || 0) }, 0)) + ' · 保留最近 ' + (((health.backup || {}).keep) || 10) + ' 份' + (health.last_drill ? (' · 最近演练：' + (String(health.last_drill.status || '').indexOf('PASS') === 0 ? '通过' : '异常') + '（' + (health.last_drill.at || '') + '）') : '')
       return h('div', { className: 'ad-zone-page' },
@@ -3683,8 +3692,8 @@ window.__ModuleLoader__.load({
             h('h1', { className: 'ad-title' }, '系统'),
             h('div', { className: 'ad-sub' }, '服务时间 ' + health.server_time + ' · 网关 mini4pro:8030')),
           h('div', { className: 'ad-actions' },
-            h('button', { className: 'ad-btn primary', onClick: load }, loading ? '刷新中…' : '刷新'),
-            isAdmin ? h('button', { className: 'ad-btn', onClick: exportOpsReport }, '运维报告') : null)),
+            h(ui.Button, { variant: 'primary', size: 'sm', onClick: load }, loading ? '刷新中…' : '刷新'),
+            isAdmin ? h(ui.Button, { variant: 'outline', size: 'sm', onClick: exportOpsReport }, '运维报告') : null)),
         message ? h('div', { style: { fontSize: '12px', color: '#16a34a', marginBottom: '8px' } }, message) : null,
         error ? h('div', { style: { fontSize: '12px', color: '#b91c1c', marginBottom: '8px' } }, error) : null,
         h('div', { className: 'ad-kpis' },
@@ -3703,23 +3712,23 @@ window.__ModuleLoader__.load({
             h('div', null,
               h('div', { className: 'ad-row-title' }, '审批超期扫描'),
               h('div', { className: 'ad-row-meta' }, (health.escalation ? (health.escalation.auto ? '已启用' : '已关闭') + ' · 每 ' + health.escalation.interval_hours + ' 小时' : '未配置') + ' · 最近 ' + ((health.escalation && health.escalation.last_run) || '待运行'))),
-            h('button', { className: 'ad-btn quiet', onClick: runEscalationNow }, '立即扫描')),
+            h(ui.Button, { variant: 'ghost', size: 'sm', onClick: runEscalationNow }, '立即扫描')),
           h('div', { className: 'ad-row' },
             h('div', null,
               h('div', { className: 'ad-row-title' }, '运维报告推送'),
               h('div', { className: 'ad-row-meta' }, (health.report_push ? (health.report_push.auto ? '已启用' : '已关闭') + ' · 每日 ' + health.report_push.hour + ':00' : '未配置') + ' · 最近 ' + ((health.report_push && health.report_push.last_at) || '待运行'))),
-            h('button', { className: 'ad-btn quiet', onClick: pushOpsReport }, '立即推送')),
+            h(ui.Button, { variant: 'ghost', size: 'sm', onClick: pushOpsReport }, '立即推送')),
           h('div', { className: 'ad-row' },
             h('div', null,
               h('div', { className: 'ad-row-title' }, '自动备份'),
               h('div', { className: 'ad-row-meta' }, (health.backup ? (health.backup.auto ? '已启用' : '已关闭') + ' · 每 ' + health.backup.interval_hours + ' 小时' : '未配置') + ' · 最近 ' + ((health.backup && health.backup.last_backup_at) || '无'))),
-            h('button', { className: 'ad-btn quiet', onClick: drillBackup }, '恢复演练'))) : null,
+            h(ui.Button, { variant: 'ghost', size: 'sm', onClick: drillBackup }, '恢复演练'))) : null,
         isAdmin ? h('div', { className: 'ad-card' },
           h('div', { className: 'ad-head', style: { marginBottom: '8px' } },
             h('div', { className: 'ad-row-title' }, '知识库定时更新'),
             h('div', { className: 'ad-actions' },
-              h('button', { className: 'ad-btn quiet', onClick: loadKbSync }, '刷新'),
-              h('button', { className: 'ad-btn primary', onClick: runKbSync, disabled: kbSync && kbSync.state && kbSync.state.running }, kbSync && kbSync.state && kbSync.state.running ? '检查中…' : '立即检查'))),
+              h(ui.Button, { variant: 'ghost', size: 'sm', onClick: loadKbSync }, '刷新'),
+              h(ui.Button, { variant: 'primary', size: 'sm', onClick: runKbSync, disabled: kbSync && kbSync.state && kbSync.state.running }, kbSync && kbSync.state && kbSync.state.running ? '检查中…' : '立即检查'))),
           h('div', { style: { fontSize: '12px', color: COLORS.muted, lineHeight: 1.8 } },
             '自动检查：' + (kbSync && kbSync.config && kbSync.config.auto ? ('每日 ' + kbSync.config.hour + ':00') : '已关闭')
             + ' · 最近：' + ((kbSync && kbSync.last && kbSync.last.at) || '尚未运行')
@@ -3738,8 +3747,8 @@ window.__ModuleLoader__.load({
           h('div', { className: 'ad-head', style: { marginBottom: '8px' } },
             h('div', { className: 'ad-row-title' }, 'AI 行为审计'),
             h('div', { className: 'ad-actions' },
-              auditEvents ? h('button', { className: 'ad-btn quiet', onClick: exportAuditEvents }, '导出') : null,
-              h('button', { className: 'ad-btn', onClick: loadAuditEvents }, '刷新'))),
+              auditEvents ? h(ui.Button, { variant: 'ghost', size: 'sm', onClick: exportAuditEvents }, '导出') : null,
+              h(ui.Button, { variant: 'outline', size: 'sm', onClick: loadAuditEvents }, '刷新'))),
           auditEventsMsg ? h('div', { style: { fontSize: '12px', color: '#b45309' } }, auditEventsMsg) : null,
           auditEvents ? (function () {
             const counts = auditEvents.counts || {}
@@ -3766,7 +3775,7 @@ window.__ModuleLoader__.load({
           sysEvent ? h('div', { style: { width: '100%', marginTop: '6px', paddingTop: '6px', borderTop: '1px dashed ' + COLORS.line, fontSize: '11px' } },
             h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' } },
               h('div', { style: { fontWeight: 600 } }, '最近明细（' + sysEvents.length + '）'),
-              h('button', { onClick: function () {
+              h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () {
                 try { localStorage.setItem('auditdesk.events.type', sysEvent || '') } catch (e) {}
                 try { localStorage.setItem('auditdesk.settings.tab', 'events') } catch (e) {}
                 try { window.dispatchEvent(new CustomEvent('auditdesk:goto-settings-tab', { detail: 'events' })) } catch (e) {}
@@ -3789,7 +3798,7 @@ window.__ModuleLoader__.load({
               h('input', { type: 'number', min: 1, value: settings.interval_hours || 6, onChange: function (e) { setSettings(Object.assign({}, settings, { interval_hours: Number(e.target.value) || 6 })) }, style: { width: '64px', padding: '4px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit' } })),
             h('label', { style: { display: 'flex', gap: '6px', alignItems: 'center' } }, '去重（小时）',
               h('input', { type: 'number', min: 1, value: settings.dedupe_hours || 24, onChange: function (e) { setSettings(Object.assign({}, settings, { dedupe_hours: Number(e.target.value) || 24 })) }, style: { width: '64px', padding: '4px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit' } })),
-            h('button', { className: 'ad-btn quiet', onClick: function () { saveSettings(settings, backupSettings, reportPushSettings, (kbSync && kbSync.config) || kbSync) } }, '保存全部设置'),
+            h(ui.Button, { variant: 'ghost', size: 'sm', onClick: function () { saveSettings(settings, backupSettings, reportPushSettings, (kbSync && kbSync.config) || kbSync) } }, '保存全部设置'),
             settingsMessage ? h('span', { style: { color: '#16a34a' } }, settingsMessage) : null),
           h('div', { style: { marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed ' + COLORS.line, display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', fontSize: '12px' } },
             h('div', { style: { fontWeight: 600, width: '100%', marginBottom: '2px' } }, '数据库自动备份'),
@@ -3820,21 +3829,21 @@ window.__ModuleLoader__.load({
               h('div', { className: 'ad-row-title' }, '数据库备份'),
               h('div', { className: 'ad-row-meta' }, '保留最近 ' + (((health.backup || {}).keep) || 10) + ' 份')),
             h('div', { className: 'ad-actions' },
-              h('button', { className: 'ad-btn primary', onClick: createBackup }, '立即备份'))),
+              h(ui.Button, { variant: 'primary', size: 'sm', onClick: createBackup }, '立即备份'))),
           h('details', { className: 'ad-more' },
             h('summary', null, '检查、演练与清理'),
             h('div', { className: 'ad-actions' },
-              h('button', { className: 'ad-btn', onClick: function () { checkAutoBackup(false) } }, '检查自动备份'),
-              h('button', { className: 'ad-btn', onClick: drillBackup }, '恢复演练'),
-              h('button', { className: 'ad-btn', onClick: loadDrillHistory }, drillEvents ? '收起演练记录' : '演练记录'),
-              h('button', { className: 'ad-btn quiet', onClick: function () { pruneBackups(0) } }, '清理旧备份'),
-              h('label', { className: 'ad-row-meta' }, '清理早于 ', h('input', { className: 'ad-input', type: 'number', min: 1, value: pruneDays, onChange: function (e) { setPruneDays(Number(e.target.value) || 30) }, style: { width: '64px', display: 'inline-block' } }), ' 天'),
-              h('button', { className: 'ad-btn quiet', onClick: function () { pruneBackups(pruneDays) } }, '按天数清理'))),
+              h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { checkAutoBackup(false) } }, '检查自动备份'),
+              h(ui.Button, { variant: 'outline', size: 'sm', onClick: drillBackup }, '恢复演练'),
+              h(ui.Button, { variant: 'outline', size: 'sm', onClick: loadDrillHistory }, drillEvents ? '收起演练记录' : '演练记录'),
+              h(ui.Button, { variant: 'ghost', size: 'sm', onClick: function () { pruneBackups(0) } }, '清理旧备份'),
+              h('label', { className: 'ad-row-meta' }, '清理早于 ', h(ui.Input, { className: 'ad-iw', type: 'number', min: 1, value: pruneDays, onChange: function (e) { setPruneDays(Number(e.target.value) || 30) }, style: { width: '64px', display: 'inline-block' } }), ' 天'),
+              h(ui.Button, { variant: 'ghost', size: 'sm', onClick: function () { pruneBackups(pruneDays) } }, '按天数清理'))),
           backupVerifyMessage ? h('div', { style: { fontSize: '12px', marginBottom: '6px', color: backupVerifyMessage.indexOf('通过') >= 0 ? '#16a34a' : '#b45309' } }, backupVerifyMessage) : null,
           drillEvents ? h('div', { style: { marginBottom: '8px', padding: '8px', borderRadius: '8px', background: 'rgba(127,127,127,0.06)', fontSize: '11px' } },
             h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' } },
               h('div', { style: { fontWeight: 600 } }, '最近恢复演练记录（' + drillEvents.length + '）'),
-              drillEvents.length ? h('button', { onClick: exportDrillHistory, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '11px', cursor: 'pointer' } }, '导出 CSV') : null),
+              drillEvents.length ? h(ui.Button, { variant: 'outline', size: 'sm', onClick: exportDrillHistory, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '11px', cursor: 'pointer' } }, '导出 CSV') : null),
             drillEvents.length ? drillEvents.map(function (event) {
               return h('div', { key: 'drill-' + event.id, style: { display: 'flex', justifyContent: 'space-between', gap: '10px', padding: '2px 0' } },
                 h('span', null, (event.item_name || '') + ' · ' + (event.new_status || '') + ' · ' + (event.actor || '')),
@@ -3845,27 +3854,27 @@ window.__ModuleLoader__.load({
               h('span', null, item.filename + ' · ' + formatBytes(item.size)),
               h('div', { style: { display: 'flex', gap: '10px' } },
                 h('span', { style: { color: COLORS.muted } }, item.created_at),
-                h('button', { onClick: function () { verifyBackup(item.filename) }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '校验'),
-                h('button', { onClick: function () { downloadBackup(item.filename) }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '下载'),
-                h('button', { onClick: function () { openRestore(item) }, style: { border: 0, background: 'transparent', color: '#b45309', fontSize: '12px', cursor: 'pointer' } }, '恢复'),
-                h('button', { onClick: function () { setDeleteBackupName(item.filename) }, style: { border: 0, background: 'transparent', color: '#b91c1c', fontSize: '12px', cursor: 'pointer' } }, '删除')))
+                h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { verifyBackup(item.filename) }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '校验'),
+                h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { downloadBackup(item.filename) }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '下载'),
+                h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { openRestore(item) }, style: { border: 0, background: 'transparent', color: '#b45309', fontSize: '12px', cursor: 'pointer' } }, '恢复'),
+                h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { setDeleteBackupName(item.filename) }, style: { border: 0, background: 'transparent', color: '#b91c1c', fontSize: '12px', cursor: 'pointer' } }, '删除')))
           }) : h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '还没有备份'),
           deleteBackupName ? h('div', { style: { marginTop: '8px', padding: '8px', borderRadius: '8px', background: 'rgba(185,28,28,0.10)', fontSize: '12px', color: '#b91c1c' } },
             '确认删除备份 ' + deleteBackupName + '？删除后不可恢复。',
             h('div', { style: { display: 'flex', gap: '8px', marginTop: '6px' } },
-              h('button', { onClick: function () { deleteBackup(deleteBackupName) }, style: { padding: '5px 10px', borderRadius: '6px', border: 0, background: '#b91c1c', color: '#fff', fontSize: '12px', cursor: 'pointer' } }, '确认删除'),
-              h('button', { onClick: function () { setDeleteBackupName('') }, style: { padding: '5px 10px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '取消'))) : null,
+              h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { deleteBackup(deleteBackupName) }, style: { padding: '5px 10px', borderRadius: '6px', border: 0, background: '#b91c1c', color: '#fff', fontSize: '12px', cursor: 'pointer' } }, '确认删除'),
+              h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { setDeleteBackupName('') }, style: { padding: '5px 10px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '取消'))) : null,
           restoreName ? h('div', { style: { marginTop: '8px', padding: '8px', borderRadius: '8px', background: 'rgba(180,83,9,0.10)', fontSize: '12px', color: '#b45309' } },
             '确认用 ' + restoreName + ' 覆盖当前数据库？系统会先自动创建安全备份。',
             restoreSummary ? h('div', { style: { marginTop: '6px', fontSize: '11px', lineHeight: 1.7 } }, '完整性：' + (restoreSummary.ok ? '通过' : '未通过（' + (restoreSummary.integrity || '') + '）') + ' · 表 ' + restoreSummary.tables + ' 张 · 项目 ' + restoreSummary.projects + ' 个 · ' + formatBytes(restoreSummary.size || 0)) : h('div', { style: { marginTop: '6px', fontSize: '11px', color: COLORS.muted } }, '正在校验备份完整性…'),
             h('div', { style: { display: 'flex', gap: '8px', marginTop: '6px' } },
-              h('button', { onClick: function () { restoreBackup(restoreName) }, disabled: !restoreSummary || !restoreSummary.ok,
+              h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { restoreBackup(restoreName) }, disabled: !restoreSummary || !restoreSummary.ok,
                 style: { padding: '5px 10px', borderRadius: '6px', border: 0, background: '#b45309', color: '#fff', fontSize: '12px', cursor: 'pointer', opacity: (!restoreSummary || !restoreSummary.ok) ? 0.5 : 1 } }, '确认恢复'),
-              h('button', { onClick: function () { setRestoreName(''); setRestoreSummary(null) }, style: { padding: '5px 10px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '取消'))) : null) : null,
+              h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { setRestoreName(''); setRestoreSummary(null) }, style: { padding: '5px 10px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '取消'))) : null) : null,
         h('div', { className: 'ad-card' },
           h('div', { className: 'ad-head', style: { marginBottom: '8px' } },
             h('div', { className: 'ad-row-title' }, '最近任务'),
-            h('button', { className: 'ad-btn quiet', onClick: load }, '刷新')),
+            h(ui.Button, { variant: 'ghost', size: 'sm', onClick: load }, '刷新')),
           jobs.length ? jobs.map(function (job) {
             return h('div', { key: 'job-' + job.id, className: 'ad-row' },
               h('div', { style: { minWidth: 0 } },
@@ -3873,8 +3882,8 @@ window.__ModuleLoader__.load({
                 h('div', { className: 'ad-row-meta' }, (job.project_id || '') + (job.message ? ' · ' + job.message : ''))),
               h('div', { className: 'ad-actions' },
                 h(Badge, { tone: job.status === '已完成' ? 'ok' : job.status === '部分失败' ? 'bad' : job.status === '已取消' ? 'muted' : 'warn' }, job.status),
-                (job.status === '部分失败' || job.status === '失败') ? h('button', { className: 'ad-btn quiet', onClick: function () { retryJob(job) } }, '重试') : null,
-                (job.status === '排队中' || job.status === '执行中') ? h('button', { className: 'ad-btn quiet', onClick: function () { cancelJob(job) } }, '取消') : null))
+                (job.status === '部分失败' || job.status === '失败') ? h(ui.Button, { variant: 'ghost', size: 'sm', onClick: function () { retryJob(job) } }, '重试') : null,
+                (job.status === '排队中' || job.status === '执行中') ? h(ui.Button, { variant: 'ghost', size: 'sm', onClick: function () { cancelJob(job) } }, '取消') : null))
           }) : h('div', { className: 'ad-row-meta' }, '暂无任务'))
         )
     }
@@ -3911,7 +3920,7 @@ window.__ModuleLoader__.load({
             const t = tone[c.priority] || tone.low
             return h('div', { key: 'hc-' + c.project_id, className: 'ad-next-card', onClick: function () { openProject(c) } },
               h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' } },
-                h('span', { className: 'ad-pill ' + (c.priority === 'high' ? 'warn' : ''), style: { color: t.color } }, c.kind),
+                h(AStatus, { tone: c.priority === 'high' ? 'warn' : '' }, c.kind),
                 h('span', { className: 'ad-row-meta' }, c.metric)),
               h('div', { className: 'ad-row-title' }, c.project),
               h('div', { className: 'ad-row-meta' }, c.action))
@@ -3993,7 +4002,7 @@ window.__ModuleLoader__.load({
         return h('div', { style: { padding: '18px' } },
           h('div', { style: { fontSize: '15px', fontWeight: 600, marginBottom: '8px' } }, '今日'),
           h('div', { style: { fontSize: '12px', color: COLORS.muted } }, loading ? '加载中…' : (error || '暂无数据')),
-          h('button', { onClick: load, style: { marginTop: '10px', padding: '7px 12px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '刷新'))
+          h(ui.Button, { variant: 'outline', size: 'sm', onClick: load, style: { marginTop: '10px', padding: '7px 12px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '刷新'))
       }
       const card = function (title, value, hint) {
         return h('div', { className: 'ad-kpi' },
@@ -4028,14 +4037,14 @@ window.__ModuleLoader__.load({
             h('div', { className: 'ad-sub' }, roleLabel + ' · ' + roleHome.hint)),
           h('div', { className: 'ad-actions' },
             roleHome.actions.slice(0, 1).map(function (pair) {
-              return h('button', { key: 'rh-' + pair[1], className: 'ad-btn primary', onClick: function () { goPanel(pair[1]) } }, pair[0])
+              return h(ui.Button, { variant: 'outline', size: 'sm', key: 'rh-' + pair[1], className: 'ad-btn primary', onClick: function () { goPanel(pair[1]) } }, pair[0])
             }),
-            h('button', { className: 'ad-btn quiet', onClick: load }, loading ? '刷新中…' : '刷新'),
+            h(ui.Button, { variant: 'ghost', size: 'sm', onClick: load }, loading ? '刷新中…' : '刷新'),
             h('details', { className: 'ad-more', style: { margin: 0 } },
               h('summary', null, '导出'),
               h('div', { className: 'ad-actions' },
-                h('button', { className: 'ad-btn', onClick: exportDashboard }, 'Excel'),
-                h('button', { className: 'ad-btn', onClick: exportDashboardPdf }, 'PDF'))))),
+                h(ui.Button, { variant: 'outline', size: 'sm', onClick: exportDashboard }, 'Excel'),
+                h(ui.Button, { variant: 'outline', size: 'sm', onClick: exportDashboardPdf }, 'PDF'))))),
         error ? h('div', { className: 'ad-note', style: { color: 'var(--dsw-alias-state-error-primary)' } }, error) : null,
         pendingTotal > 0 ? h('div', { className: 'ad-note' }, '当前待审批 ' + pendingTotal + ' 项。先处理审批，再进项目。') : null,
         h(RoleHomeCards, { ui: props.ui }),
@@ -4044,10 +4053,10 @@ window.__ModuleLoader__.load({
           h('div', { style: { fontSize: '12px', color: COLORS.muted, marginBottom: '10px' } }, '不需要记流程，按顺序点即可：'),
           h('div', { style: { display: 'flex', gap: '10px', flexWrap: 'wrap' } },
             [['1  新建项目', 'audit-companies'], ['2  导入科目余额表 / 账表', 'audit-companies'], ['3  生成第一份底稿', 'audit-companies']].map(function (pair) {
-              return h('button', { key: 'onb-' + pair[0], onClick: function () { goPanel(pair[1]) },
+              return h(ui.Button, { variant: 'outline', size: 'sm', key: 'onb-' + pair[0], onClick: function () { goPanel(pair[1]) },
                 style: { padding: '9px 14px', borderRadius: '8px', border: '1px solid ' + COLORS.accent, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, pair[0])
             }),
-            h('button', { onClick: function () { goPanel('audit-guide') }, style: { padding: '9px 14px', borderRadius: '8px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '查看使用指南'))) : null,
+            h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { goPanel('audit-guide') }, style: { padding: '9px 14px', borderRadius: '8px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '查看使用指南'))) : null,
         h('div', { className: 'ad-kpis' },
           card('项目数', dashboard.count),
           card('进行中', dashboard.active),
@@ -4055,7 +4064,7 @@ window.__ModuleLoader__.load({
           card('待审批', dashboard.approval_pending),
           card('已生成文件', formatBytesLocal(dashboard.generated_bytes))),
         h('div', { className: 'ad-toolbar', style: { marginBottom: '12px' } },
-          h('input', { className: 'ad-input', style: { width: '220px' }, value: keyword, onChange: function (e) { setKeyword(e.target.value) }, placeholder: '搜索客户或项目' }),
+          h(ui.Input, { className: 'ad-iw', style: { width: '220px' }, value: keyword, onChange: function (e) { setKeyword(e.target.value) }, placeholder: '搜索客户或项目' }),
           h('select', { className: 'ad-input', style: { width: 'auto' }, value: statusFilter, onChange: function (e) { setStatusFilter(e.target.value) } },
             h('option', { value: '' }, '全部状态'),
             h('option', { value: '进行中' }, '进行中'),
@@ -4070,7 +4079,7 @@ window.__ModuleLoader__.load({
           rows.map(function (item) {
             return h('div', { key: item.id, className: 'ad-row', style: { cursor: 'pointer' }, onClick: function () { openProject(item) } },
               h('div', { style: { minWidth: 0 } },
-                h('div', { className: 'ad-row-title' }, item.name, (item.data_source === 'test') ? h('span', { className: 'ad-pill warn', style: { marginLeft: '6px' } }, '测试') : null),
+                h('div', { className: 'ad-row-title' }, item.name, (item.data_source === 'test') ? h(AStatus, { tone: 'warn', className: 'ad-ml6' }, '测试') : null),
                 h('div', { className: 'ad-row-meta' }, item.client + ' · ' + (item.period || '-') + ' · 资料 ' + item.pbc_percent + '% · 底稿 ' + item.wp_percent + '% · 程序 ' + (item.program_percent || 0) + '%' + (item.approval_pending ? ' · 待审批 ' + item.approval_pending : ''))),
               h(Badge, { tone: item.status === '已归档' ? 'muted' : 'ok' }, item.status))
           }))))
@@ -4211,22 +4220,27 @@ window.__ModuleLoader__.load({
             h('h1', { className: 'ad-title' }, '程序库'),
             h('div', { className: 'ad-sub' }, '新项目按业务类型套用。改这里只影响之后新建或补全的项目。')),
           canEdit ? h('div', { className: 'ad-actions' },
-            h('button', { className: 'ad-btn primary', onClick: function () { setEditing('new'); setDraft({ category: '', name: '', source: '程序' }) } }, '新增程序'),
-            h('button', { className: 'ad-btn quiet', onClick: resetCatalog }, '恢复默认')) : null),
-        h('div', { className: 'ad-tabs' },
-          TYPES.map(function (type) {
-            return h('button', { key: 'type-' + type, className: 'ad-tab' + (type === businessType ? ' on' : ''), onClick: function () { setBusinessType(type); cancelEdit() } }, type)
+            h(ui.Button, { variant: 'primary', size: 'sm', onClick: function () { setEditing('new'); setDraft({ category: '', name: '', source: '程序' }) } }, '新增程序'),
+            h(ui.Button, { variant: 'ghost', size: 'sm', onClick: resetCatalog }, '恢复默认')) : null),
+        h('div', { className: 'ad-toolbar', style: { marginBottom: '16px' } },
+          h(ui.SegmentedTabs, {
+            className: 'ad-tabs-fit',
+            items: TYPES.map(function (type) { return { value: type, label: type, id: 'ptype-' + type, panelId: 'ptype-panel' } }),
+            value: businessType,
+            onChange: function (v) { setBusinessType(v); cancelEdit() },
+            label: '业务类型',
+            size: 'sm'
           }),
-          h('span', { className: 'ad-row-meta', style: { alignSelf: 'center', marginLeft: '8px' } }, items.length + ' 项' + (loading ? ' · 加载中' : ''))),
+          h('span', { className: 'ad-row-meta' }, items.length + ' 项' + (loading ? ' · 加载中' : ''))),
         msg ? h('div', { className: 'ad-note' }, msg) : null,
         err ? h('div', { className: 'ad-note' }, err) : null,
         editing === 'new' ? h('div', { className: 'ad-form' },
-          h('label', { className: 'ad-field' }, '分类', h('input', { className: 'ad-input', value: draft.category, onChange: function (e) { setDraft(Object.assign({}, draft, { category: e.target.value })) }, placeholder: '如：货币资金' })),
-          h('label', { className: 'ad-field' }, '程序名称', h('input', { className: 'ad-input', value: draft.name, onChange: function (e) { setDraft(Object.assign({}, draft, { name: e.target.value })) }, placeholder: '必填' })),
+          h('label', { className: 'ad-field' }, '分类', h(ui.Input, { className: 'ad-iw', value: draft.category, onChange: function (e) { setDraft(Object.assign({}, draft, { category: e.target.value })) }, placeholder: '如：货币资金' })),
+          h('label', { className: 'ad-field' }, '程序名称', h(ui.Input, { className: 'ad-iw', value: draft.name, onChange: function (e) { setDraft(Object.assign({}, draft, { name: e.target.value })) }, placeholder: '必填' })),
           h('label', { className: 'ad-field' }, '来源', h('select', { className: 'ad-input', value: draft.source, onChange: function (e) { setDraft(Object.assign({}, draft, { source: e.target.value })) } }, ['账载', '外部', '现场', '程序'].map(function (src) { return h('option', { key: 'new-src-' + src, value: src }, src) }))),
           h('div', { className: 'ad-form-actions' },
-            h('button', { className: 'ad-btn primary', onClick: function () { submitSave(0) } }, '添加'),
-            h('button', { className: 'ad-btn', onClick: cancelEdit }, '取消'))) : null,
+            h(ui.Button, { variant: 'primary', size: 'sm', onClick: function () { submitSave(0) } }, '添加'),
+            h(ui.Button, { variant: 'outline', size: 'sm', onClick: cancelEdit }, '取消'))) : null,
         groups.length ? groups.map(function (category) {
           const groupItems = items.filter(function (item) { return (item.category || '其他') === category })
           return h('div', { key: 'cat-' + category, style: { marginBottom: '14px' } },
@@ -4240,14 +4254,14 @@ window.__ModuleLoader__.load({
                   h('input', { value: draft.name, onChange: function (e) { setDraft(Object.assign({}, draft, { name: e.target.value })) }, placeholder: '程序名称', style: Object.assign({}, inputStyle, { flex: 1, minWidth: '180px' }) }),
                   h('select', { value: draft.source, onChange: function (e) { setDraft(Object.assign({}, draft, { source: e.target.value })) }, style: inputStyle },
                     ['账载', '外部', '现场', '程序'].map(function (src) { return h('option', { key: 'edit-src-' + src, value: src }, src) })),
-                  h('button', { onClick: function () { submitSave(item.id) }, style: Object.assign({}, smallBtn, { border: 0, background: COLORS.accent, color: 'var(--dsw-alias-label-primary-foreground)' }) }, '保存'),
-                  h('button', { onClick: cancelEdit, style: smallBtn }, '取消'))
+                  h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { submitSave(item.id) }, style: Object.assign({}, smallBtn, { border: 0, background: COLORS.accent, color: 'var(--dsw-alias-label-primary-foreground)' }) }, '保存'),
+                  h(ui.Button, { variant: 'outline', size: 'sm', onClick: cancelEdit, style: smallBtn }, '取消'))
               }
               return h('div', { key: 'cat-item-' + item.id, style: { display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 120px', gap: '8px', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid ' + COLORS.line, fontSize: '12px' } },
                 h('span', { style: { minWidth: 0 } }, item.name, sourceBadge(item.source)),
                 canEdit ? h('div', { style: { display: 'flex', gap: '6px', justifyContent: 'flex-end' } },
-                  h('button', { onClick: function () { startEdit(item) }, style: smallBtn }, '编辑'),
-                  h('button', { onClick: function () { stopItem(item) }, style: Object.assign({}, smallBtn, { color: '#b91c1c', border: '1px solid #b91c1c' }) }, '停用')) : h('span', { style: { fontSize: '11px', color: COLORS.muted, textAlign: 'right' } }, ''))
+                  h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { startEdit(item) }, style: smallBtn }, '编辑'),
+                  h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { stopItem(item) }, style: Object.assign({}, smallBtn, { color: '#b91c1c', border: '1px solid #b91c1c' }) }, '停用')) : h('span', { style: { fontSize: '11px', color: COLORS.muted, textAlign: 'right' } }, ''))
             }))
         }) : h('div', { style: { padding: '14px', fontSize: '12px', color: COLORS.muted } }, loading ? '加载中…' : '程序库为空，可「恢复默认」或新增程序'),
         h('div', { style: { marginTop: '10px', fontSize: '11px', color: COLORS.muted, lineHeight: 1.8 } },
@@ -4423,7 +4437,7 @@ window.__ModuleLoader__.load({
         h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', gap: '10px', flexWrap: 'wrap' } },
           h('div', { style: { fontSize: '13px', fontWeight: 600 } }, '审计全流程'),
           h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '进度 ' + flow.progress + '% · 下一步：' + flow.next_action),
-          flow.can_confirm ? h('button', { onClick: confirmStage, disabled: confirming, style: { padding: '6px 14px', borderRadius: '8px', border: 0, background: COLORS.accent, color: 'var(--dsw-alias-label-primary-foreground)', fontSize: '12px', cursor: 'pointer' } }, confirming ? '确认中…' : '确认完成，进入下一节点') : null),
+          flow.can_confirm ? h(ui.Button, { variant: 'outline', size: 'sm', onClick: confirmStage, disabled: confirming, style: { padding: '6px 14px', borderRadius: '8px', border: 0, background: COLORS.accent, color: 'var(--dsw-alias-label-primary-foreground)', fontSize: '12px', cursor: 'pointer' } }, confirming ? '确认中…' : '确认完成，进入下一节点') : null),
         h('div', { style: { height: '6px', borderRadius: '3px', background: 'rgba(127,127,127,0.18)', marginBottom: '16px', overflow: 'hidden' } },
           h('div', { style: { width: Math.max(4, flow.progress) + '%', height: '100%', borderRadius: '3px', background: flow.archived ? '#16a34a' : COLORS.accent, transition: 'width .5s ease' } })),
         h('div', { style: { display: 'flex' } },
@@ -4465,7 +4479,7 @@ window.__ModuleLoader__.load({
           h('input', { value: f.service_unit, placeholder: '被服务单位', onChange: function (e) { upd('service_unit', e.target.value) }, style: inp }),
           h('input', { value: f.project_type, placeholder: '项目类型', onChange: function (e) { upd('project_type', e.target.value) }, style: inp }),
           h('select', { value: f.risk_level, onChange: function (e) { upd('risk_level', e.target.value) }, style: inp }, ['A', 'B', 'C'].map(function (t) { return h('option', { key: 'rl-' + t, value: t }, '风险 ' + t) })),
-          h('button', { onClick: save, style: { padding: '4px 10px', borderRadius: '6px', border: 0, background: COLORS.accent, color: 'var(--dsw-alias-label-primary-foreground)', fontSize: '11px', cursor: 'pointer' } }, '保存'),
+          h(ui.Button, { variant: 'outline', size: 'sm', onClick: save, style: { padding: '4px 10px', borderRadius: '6px', border: 0, background: COLORS.accent, color: 'var(--dsw-alias-label-primary-foreground)', fontSize: '11px', cursor: 'pointer' } }, '保存'),
           msg ? h('span', { style: { fontSize: '11px', color: '#16a34a' } }, msg) : null))
     }
 
@@ -4548,7 +4562,7 @@ window.__ModuleLoader__.load({
                 h('span', { style: { color: stColor, flexShrink: 0, fontWeight: 600 } }, e.status),
                 h('span', { style: { flex: '1 1 auto', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, e.item),
                 e.owner ? h('span', { style: { color: COLORS.muted, flexShrink: 0 } }, e.owner + (e.deadline ? ' · ' + e.deadline : '')) : null,
-                e.status !== '已核' ? h('button', { onClick: function () { markDone(e.item_key) }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '11px', cursor: 'pointer', flexShrink: 0 } }, '已核') : null)
+                e.status !== '已核' ? h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { markDone(e.item_key) }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '11px', cursor: 'pointer', flexShrink: 0 } }, '已核') : null)
             }))) : null)
     }
 
@@ -4574,7 +4588,7 @@ window.__ModuleLoader__.load({
           h('div', null,
             h('h1', { className: 'ad-title' }, '底稿引擎'),
             h('div', { className: 'ad-sub' }, '每张表怎么填、哪些是公式。填写结果在项目的底稿页看。')),
-          tpl && tpl.length ? h('span', { className: 'ad-pill ok' }, tpl[0].name + ' ' + tpl[0].version) : null),
+          tpl && tpl.length ? h(AStatus, { tone: 'ok' }, tpl[0].name + ' ' + tpl[0].version) : null),
         logic.general ? h('div', { className: 'ad-note' },
           h('div', { className: 'ad-row-title', style: { marginBottom: '4px' } }, '总要求'),
           logic.general.split('\n').filter(function (l) { return l.trim() }).map(function (l, i) {
@@ -4668,7 +4682,7 @@ window.__ModuleLoader__.load({
       }
       function tabBtn(code, label) {
         const active = tab === code
-        return h('button', { key: 'tab-' + code, onClick: function () { setTab(code) },
+        return h(ui.Button, { variant: 'outline', size: 'sm', key: 'tab-' + code, onClick: function () { setTab(code) },
           style: { padding: '6px 14px', borderRadius: '8px', border: '1px solid ' + (active ? COLORS.accent : COLORS.line), background: active ? 'rgba(47,124,246,0.08)' : 'transparent', color: active ? COLORS.accent : 'inherit', fontSize: '12px', cursor: 'pointer' } }, label)
       }
       const inp = { padding: '6px 9px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' }
@@ -4679,13 +4693,13 @@ window.__ModuleLoader__.load({
         msg ? h('div', { style: { fontSize: '11px', color: '#16a34a', marginBottom: '8px' } }, msg) : null,
         section === 'clients' ? h('div', null,
           h('div', { className: 'ad-form' },
-            h('label', { className: 'ad-field' }, '客户名称', h('input', { className: 'ad-input', value: name, placeholder: '必填', onChange: function (e) { setName(e.target.value) } })),
-            h('label', { className: 'ad-field' }, '统一社会信用代码', h('input', { className: 'ad-input', value: creditCode, onChange: function (e) { setCreditCode(e.target.value) } })),
+            h('label', { className: 'ad-field' }, '客户名称', h(ui.Input, { className: 'ad-iw', value: name, placeholder: '必填', onChange: function (e) { setName(e.target.value) } })),
+            h('label', { className: 'ad-field' }, '统一社会信用代码', h(ui.Input, { className: 'ad-iw', value: creditCode, onChange: function (e) { setCreditCode(e.target.value) } })),
             h('label', { className: 'ad-field' }, '客户类型', h('select', { className: 'ad-input', value: clientType, onChange: function (e) { setClientType(e.target.value) } }, ['其他', '企业', '事业单位', '政府', '个人'].map(function (t) { return h('option', { key: 'ct-' + t, value: t }, t) }))),
-            h('label', { className: 'ad-field' }, '联系信息', h('input', { className: 'ad-input', value: contact, onChange: function (e) { setContact(e.target.value) } })),
-            h('label', { className: 'ad-field' }, '业务责任人', h('input', { className: 'ad-input', value: ownerName, placeholder: '姓名', onChange: function (e) { setOwnerName(e.target.value) } })),
+            h('label', { className: 'ad-field' }, '联系信息', h(ui.Input, { className: 'ad-iw', value: contact, onChange: function (e) { setContact(e.target.value) } })),
+            h('label', { className: 'ad-field' }, '业务责任人', h(ui.Input, { className: 'ad-iw', value: ownerName, placeholder: '姓名', onChange: function (e) { setOwnerName(e.target.value) } })),
             h('label', { className: 'ad-field' }, '风险等级', h('select', { className: 'ad-input', value: riskLevel, onChange: function (e) { setRiskLevel(e.target.value) } }, ['低', '中', '高'].map(function (x) { return h('option', { key: 'rl-' + x, value: x }, x) }))),
-            h('div', { className: 'ad-form-actions' }, h('button', { className: 'ad-btn primary', onClick: createClient }, '建档'))),
+            h('div', { className: 'ad-form-actions' }, h(ui.Button, { variant: 'primary', size: 'sm', onClick: createClient }, '建档'))),
           clients === null ? h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '加载客户…') :
             (clients.length ? clients.map(function (c) {
               return h('div', { key: 'cl-' + c.id, className: 'ad-row', style: { alignItems: 'flex-start' } },
@@ -4697,27 +4711,27 @@ window.__ModuleLoader__.load({
                     h('select', { className: 'ad-input', style: { width: 'auto' }, value: approverPick, onChange: function (e) { setApproverPick(e.target.value) } },
                       h('option', { value: '' }, '选择审批人'),
                       approvers.map(function (a) { return h('option', { key: 'ap-' + a.username, value: a.username }, a.name + '（' + a.role + '）') })),
-                    h('button', { className: 'ad-btn primary', onClick: function () { submitClient(c.id) } }, '提交'),
-                    h('button', { className: 'ad-btn', onClick: function () { setSubmitFor(null); setApproverPick('') } }, '取消')) : null,
+                    h(ui.Button, { variant: 'primary', size: 'sm', onClick: function () { submitClient(c.id) } }, '提交'),
+                    h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { setSubmitFor(null); setApproverPick('') } }, '取消')) : null,
                   decisionFor === c.id ? h('div', { className: 'ad-actions', style: { marginTop: '6px' } },
-                    h('input', { className: 'ad-input', style: { width: '240px' }, value: opinion, placeholder: '审批意见', onChange: function (e) { setOpinion(e.target.value) } }),
-                    h('button', { className: 'ad-btn primary', onClick: function () { decideClient(c.id, 'approve') } }, '通过'),
-                    h('button', { className: 'ad-btn quiet', onClick: function () { decideClient(c.id, 'reject') } }, '驳回'),
-                    h('button', { className: 'ad-btn', onClick: function () { setDecisionFor(null); setOpinion('') } }, '取消')) : null),
+                    h(ui.Input, { className: 'ad-iw', style: { width: '240px' }, value: opinion, placeholder: '审批意见', onChange: function (e) { setOpinion(e.target.value) } }),
+                    h(ui.Button, { variant: 'primary', size: 'sm', onClick: function () { decideClient(c.id, 'approve') } }, '通过'),
+                    h(ui.Button, { variant: 'ghost', size: 'sm', onClick: function () { decideClient(c.id, 'reject') } }, '驳回'),
+                    h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { setDecisionFor(null); setOpinion('') } }, '取消')) : null),
                 h('div', { className: 'ad-actions' },
-                  h('span', { className: 'ad-pill ' + (c.status === '已审批' ? 'ok' : c.status === '已驳回' ? 'warn' : '') }, c.status),
-                  (c.overdue_days > 0) ? h('span', { className: 'ad-pill warn' }, '超期 ' + c.overdue_days + ' 天') : null,
-                  (c.status === '待提交' || c.status === '已驳回') ? h('button', { className: 'ad-btn quiet', onClick: function () { setSubmitFor(c.id); setApproverPick(c.approver_username || '') } }, '提交审批') : null,
-                  (c.status === '待审批' && canApprove) ? h('button', { className: 'ad-btn quiet', onClick: function () { setDecisionFor(c.id); setOpinion('') } }, '审批') : null))
+                  h(AStatus, { tone: c.status === '已审批' ? 'ok' : c.status === '已驳回' ? 'warn' : '' }, c.status),
+                  (c.overdue_days > 0) ? h(AStatus, { tone: 'warn' }, '超期 ' + c.overdue_days + ' 天') : null,
+                  (c.status === '待提交' || c.status === '已驳回') ? h(ui.Button, { variant: 'ghost', size: 'sm', onClick: function () { setSubmitFor(c.id); setApproverPick(c.approver_username || '') } }, '提交审批') : null,
+                  (c.status === '待审批' && canApprove) ? h(ui.Button, { variant: 'ghost', size: 'sm', onClick: function () { setDecisionFor(c.id); setOpinion('') } }, '审批') : null))
             }) : h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '暂无客户，先建档'))
         ) : h('div', null,
           h('div', { className: 'ad-form' },
             h('label', { className: 'ad-field' }, '客户（仅已审批）', h('select', { className: 'ad-input', value: cClient, onChange: function (e) { setCClient(e.target.value) } },
               h('option', { value: '' }, '选择已审批客户'),
               (clients || []).filter(function (c) { return c.status === '已审批' }).map(function (c) { return h('option', { key: 'cc-' + c.id, value: c.name }, c.name) }))),
-            h('label', { className: 'ad-field' }, '项目名称', h('input', { className: 'ad-input', value: cProject, onChange: function (e) { setCProject(e.target.value) } })),
+            h('label', { className: 'ad-field' }, '项目名称', h(ui.Input, { className: 'ad-iw', value: cProject, onChange: function (e) { setCProject(e.target.value) } })),
             h('label', { className: 'ad-field' }, '盖章类型', h('select', { className: 'ad-input', value: cSeal, onChange: function (e) { setCSeal(e.target.value) } }, ['双章', '单章(客户章)'].map(function (t) { return h('option', { key: 'cs-' + t, value: t }, t) }))),
-            h('div', { className: 'ad-form-actions' }, h('button', { className: 'ad-btn primary', onClick: createContract }, '登记'))),
+            h('div', { className: 'ad-form-actions' }, h(ui.Button, { variant: 'primary', size: 'sm', onClick: createContract }, '登记'))),
           contracts === null ? h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '加载合同…') :
             (contracts.length ? contracts.map(function (c) {
               return h('div', { key: 'co-' + c.id, className: 'ad-row' },
@@ -4725,9 +4739,9 @@ window.__ModuleLoader__.load({
                   h('div', { className: 'ad-row-title' }, c.client_name),
                   h('div', { className: 'ad-row-meta' }, [c.project_name, c.seal_type, c.signed_by ? '签署 ' + c.signed_by + (c.signed_at ? '（' + c.signed_at + '）' : '') : ''].filter(Boolean).join(' · '))),
                 h('div', { className: 'ad-actions' },
-                  h('span', { className: 'ad-pill ' + (c.status === '已归档' || c.status === '已签' ? 'ok' : 'warn') }, c.status === '已归档' ? '已归档' : c.status === '已签' ? '已签' : '待签'),
-                  c.status === '待归档' ? h('button', { className: 'ad-btn quiet', onClick: function () { signContract(c.id) } }, '签署') : null,
-                  c.status === '已签' ? h('button', { className: 'ad-btn quiet', onClick: function () { archiveContract(c.id) } }, '归档') : null))
+                  h(AStatus, { tone: c.status === '已归档' || c.status === '已签' ? 'ok' : 'warn' }, c.status === '已归档' ? '已归档' : c.status === '已签' ? '已签' : '待签'),
+                  c.status === '待归档' ? h(ui.Button, { variant: 'ghost', size: 'sm', onClick: function () { signContract(c.id) } }, '签署') : null,
+                  c.status === '已签' ? h(ui.Button, { variant: 'ghost', size: 'sm', onClick: function () { archiveContract(c.id) } }, '归档') : null))
             }) : h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '暂无合同，先登记'))
         ))
     }
@@ -4760,17 +4774,17 @@ window.__ModuleLoader__.load({
             h('div', { className: 'ad-row-title' }, '报告盖章'),
             h('div', { className: 'ad-row-meta' }, seal ? seal.status : '未建。保存不代表已盖章。')),
           h('div', { className: 'ad-actions' },
-            h('button', { className: 'ad-btn primary', onClick: save }, '保存'),
-            seal ? h('button', { className: 'ad-btn', onClick: advance, disabled: seal.status === '已盖章' }, seal.status === '已盖章' ? '已盖章' : '推进状态') : null)),
+            h(ui.Button, { variant: 'primary', size: 'sm', onClick: save }, '保存'),
+            seal ? h(ui.Button, { variant: 'outline', size: 'sm', onClick: advance, disabled: seal.status === '已盖章' }, seal.status === '已盖章' ? '已盖章' : '推进状态') : null)),
         h('div', { className: 'ad-form' },
-          h('label', { className: 'ad-field' }, '报告类型', h('input', { className: 'ad-input', value: f.report_type, onChange: function (e) { upd('report_type', e.target.value) } })),
-          h('label', { className: 'ad-field' }, '盖章类型', h('input', { className: 'ad-input', value: f.seal_type, onChange: function (e) { upd('seal_type', e.target.value) } })),
-          h('label', { className: 'ad-field' }, '用章类别', h('input', { className: 'ad-input', value: f.seal_category, onChange: function (e) { upd('seal_category', e.target.value) } })),
-          h('label', { className: 'ad-field' }, '签字合伙人', h('input', { className: 'ad-input', value: f.signer_partner, onChange: function (e) { upd('signer_partner', e.target.value) } })),
-          h('label', { className: 'ad-field' }, '签字注册会计师', h('input', { className: 'ad-input', value: f.signer_cpa, onChange: function (e) { upd('signer_cpa', e.target.value) } })),
-          h('label', { className: 'ad-field' }, '报告日期', h('input', { className: 'ad-input', value: f.report_date, onChange: function (e) { upd('report_date', e.target.value) } })),
-          h('label', { className: 'ad-field' }, '文号', h('input', { className: 'ad-input', value: f.doc_no, onChange: function (e) { upd('doc_no', e.target.value) } })),
-          h('label', { className: 'ad-field' }, '赋码', h('input', { className: 'ad-input', value: f.codes, onChange: function (e) { upd('codes', e.target.value) } }))),
+          h('label', { className: 'ad-field' }, '报告类型', h(ui.Input, { className: 'ad-iw', value: f.report_type, onChange: function (e) { upd('report_type', e.target.value) } })),
+          h('label', { className: 'ad-field' }, '盖章类型', h(ui.Input, { className: 'ad-iw', value: f.seal_type, onChange: function (e) { upd('seal_type', e.target.value) } })),
+          h('label', { className: 'ad-field' }, '用章类别', h(ui.Input, { className: 'ad-iw', value: f.seal_category, onChange: function (e) { upd('seal_category', e.target.value) } })),
+          h('label', { className: 'ad-field' }, '签字合伙人', h(ui.Input, { className: 'ad-iw', value: f.signer_partner, onChange: function (e) { upd('signer_partner', e.target.value) } })),
+          h('label', { className: 'ad-field' }, '签字注册会计师', h(ui.Input, { className: 'ad-iw', value: f.signer_cpa, onChange: function (e) { upd('signer_cpa', e.target.value) } })),
+          h('label', { className: 'ad-field' }, '报告日期', h(ui.Input, { className: 'ad-iw', value: f.report_date, onChange: function (e) { upd('report_date', e.target.value) } })),
+          h('label', { className: 'ad-field' }, '文号', h(ui.Input, { className: 'ad-iw', value: f.doc_no, onChange: function (e) { upd('doc_no', e.target.value) } })),
+          h('label', { className: 'ad-field' }, '赋码', h(ui.Input, { className: 'ad-iw', value: f.codes, onChange: function (e) { upd('codes', e.target.value) } }))),
         msg ? h('div', { className: 'ad-row-meta' }, msg) : null)
     }
 
@@ -4806,17 +4820,17 @@ window.__ModuleLoader__.load({
         embedded ? null : h('div', { style: { fontSize: '12px', color: COLORS.muted, marginBottom: '10px' } }, '开票申请 → 开具（电子专票/普票，含快递备注）'),
         msg ? h('div', { style: { fontSize: '11px', color: '#16a34a', marginBottom: '8px' } }, msg) : null,
         h('div', { className: 'ad-form' },
-          h('label', { className: 'ad-field' }, '购方名称', h('input', { className: 'ad-input', value: buyer, placeholder: '必填', onChange: function (e) { setBuyer(e.target.value) } })),
+          h('label', { className: 'ad-field' }, '购方名称', h(ui.Input, { className: 'ad-iw', value: buyer, placeholder: '必填', onChange: function (e) { setBuyer(e.target.value) } })),
           h('label', { className: 'ad-field' }, '关联合同', h('select', { className: 'ad-input', value: contractId, onChange: function (e) { setContractId(e.target.value) } },
             h('option', { value: '' }, '不关联'),
             (contracts || []).filter(function (c) { return c.status === '已签' || c.status === '已归档' }).map(function (c) {
               return h('option', { key: 'ic-' + c.id, value: String(c.id) }, c.client_name + (c.project_name ? ' · ' + c.project_name : ''))
             }))),
           h('label', { className: 'ad-field' }, '发票类型', h('select', { className: 'ad-input', value: invType, onChange: function (e) { setInvType(e.target.value) } }, ['电子普票', '电子专票'].map(function (t) { return h('option', { key: 'it-' + t, value: t }, t) }))),
-          h('label', { className: 'ad-field' }, '开票金额', h('input', { className: 'ad-input', value: amount, onChange: function (e) { setAmount(e.target.value) } })),
-          h('label', { className: 'ad-field' }, '开票内容', h('input', { className: 'ad-input', value: content, onChange: function (e) { setContent(e.target.value) } })),
-          h('label', { className: 'ad-field' }, '备注', h('input', { className: 'ad-input', value: note, placeholder: '快递要求等', onChange: function (e) { setNote(e.target.value) } })),
-          h('div', { className: 'ad-form-actions' }, h('button', { className: 'ad-btn primary', onClick: create }, '申请'))),
+          h('label', { className: 'ad-field' }, '开票金额', h(ui.Input, { className: 'ad-iw', value: amount, onChange: function (e) { setAmount(e.target.value) } })),
+          h('label', { className: 'ad-field' }, '开票内容', h(ui.Input, { className: 'ad-iw', value: content, onChange: function (e) { setContent(e.target.value) } })),
+          h('label', { className: 'ad-field' }, '备注', h(ui.Input, { className: 'ad-iw', value: note, placeholder: '快递要求等', onChange: function (e) { setNote(e.target.value) } })),
+          h('div', { className: 'ad-form-actions' }, h(ui.Button, { variant: 'primary', size: 'sm', onClick: create }, '申请'))),
         items === null ? h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '加载发票…') :
           (items.length ? items.map(function (it) {
             return h('div', { key: 'inv-' + it.id, className: 'ad-row' },
@@ -4824,8 +4838,8 @@ window.__ModuleLoader__.load({
                 h('div', { className: 'ad-row-title' }, it.buyer_name),
                 h('div', { className: 'ad-row-meta' }, [it.invoice_type, '¥' + it.amount, it.content, it.note].filter(Boolean).join(' · '))),
               h('div', { className: 'ad-actions' },
-                h('span', { className: 'ad-pill ' + (it.status === '已开' ? 'ok' : 'warn') }, it.status),
-                it.status === '待开' ? h('button', { className: 'ad-btn quiet', onClick: function () { issue(it.id) } }, '开具') : null))
+                h(AStatus, { tone: it.status === '已开' ? 'ok' : 'warn' }, it.status),
+                it.status === '待开' ? h(ui.Button, { variant: 'ghost', size: 'sm', onClick: function () { issue(it.id) } }, '开具') : null))
           }) : h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '暂无发票，先申请'))
       )
     }
@@ -4880,23 +4894,28 @@ window.__ModuleLoader__.load({
           h('div', null,
             h('h1', { className: 'ad-title' }, '映射规则'),
             h('div', { className: 'ad-sub' }, '客户科目对不上标准科目时在这里补。保存后全所生效。')),
-          canEdit ? h('button', { className: 'ad-btn primary', onClick: function () { setEditing('new'); setDraft({ needle: '', std: '', kind: kind, company: '', note: '' }) } }, '新增规则') : null),
-        h('div', { className: 'ad-tabs' },
-          KINDS.map(function (k) {
-            return h('button', { key: 'kind-' + k.code, className: 'ad-tab' + (k.code === kind ? ' on' : ''), onClick: function () { setKind(k.code); cancelEdit() } }, k.label)
+          canEdit ? h(ui.Button, { variant: 'primary', size: 'sm', onClick: function () { setEditing('new'); setDraft({ needle: '', std: '', kind: kind, company: '', note: '' }) } }, '新增规则') : null),
+        h('div', { className: 'ad-toolbar', style: { marginBottom: '16px' } },
+          h(ui.SegmentedTabs, {
+            className: 'ad-tabs-fit',
+            items: KINDS.map(function (k) { return { value: k.code, label: k.label, id: 'kind-' + k.code, panelId: 'kind-panel' } }),
+            value: kind,
+            onChange: function (v) { setKind(v); cancelEdit() },
+            label: '规则类型',
+            size: 'sm'
           }),
-          h('span', { className: 'ad-row-meta', style: { alignSelf: 'center', marginLeft: '8px' } }, items.length + ' 条' + (loading ? ' · 加载中' : ''))),
+          h('span', { className: 'ad-row-meta' }, items.length + ' 条' + (loading ? ' · 加载中' : ''))),
         msg ? h('div', { className: 'ad-note' }, msg) : null,
         err ? h('div', { className: 'ad-note' }, err) : null,
         editing === 'new' ? h('div', { className: 'ad-form' },
-          h('label', { className: 'ad-field' }, '关键词或编码', h('input', { className: 'ad-input', value: draft.needle, onChange: function (e) { setDraft(Object.assign({}, draft, { needle: e.target.value })) }, placeholder: '必填' })),
-          h('label', { className: 'ad-field' }, '标准科目码', h('input', { className: 'ad-input', value: draft.std, onChange: function (e) { setDraft(Object.assign({}, draft, { std: e.target.value })) }, placeholder: '如 1601' })),
+          h('label', { className: 'ad-field' }, '关键词或编码', h(ui.Input, { className: 'ad-iw', value: draft.needle, onChange: function (e) { setDraft(Object.assign({}, draft, { needle: e.target.value })) }, placeholder: '必填' })),
+          h('label', { className: 'ad-field' }, '标准科目码', h(ui.Input, { className: 'ad-iw', value: draft.std, onChange: function (e) { setDraft(Object.assign({}, draft, { std: e.target.value })) }, placeholder: '如 1601' })),
           h('label', { className: 'ad-field' }, '类型', h('select', { className: 'ad-input', value: draft.kind, onChange: function (e) { setDraft(Object.assign({}, draft, { kind: e.target.value })) } }, KINDS.map(function (k) { return h('option', { key: 'new-' + k.code, value: k.code }, k.label) }))),
-          h('label', { className: 'ad-field' }, '客户', h('input', { className: 'ad-input', value: draft.company, onChange: function (e) { setDraft(Object.assign({}, draft, { company: e.target.value })) }, placeholder: '留空表示通用' })),
-          h('label', { className: 'ad-field' }, '备注', h('input', { className: 'ad-input', value: draft.note, onChange: function (e) { setDraft(Object.assign({}, draft, { note: e.target.value })) } })),
+          h('label', { className: 'ad-field' }, '客户', h(ui.Input, { className: 'ad-iw', value: draft.company, onChange: function (e) { setDraft(Object.assign({}, draft, { company: e.target.value })) }, placeholder: '留空表示通用' })),
+          h('label', { className: 'ad-field' }, '备注', h(ui.Input, { className: 'ad-iw', value: draft.note, onChange: function (e) { setDraft(Object.assign({}, draft, { note: e.target.value })) } })),
           h('div', { className: 'ad-form-actions' },
-            h('button', { className: 'ad-btn primary', onClick: function () { submitSave(0) } }, '添加'),
-            h('button', { className: 'ad-btn', onClick: cancelEdit }, '取消'))) : null,
+            h(ui.Button, { variant: 'primary', size: 'sm', onClick: function () { submitSave(0) } }, '添加'),
+            h(ui.Button, { variant: 'outline', size: 'sm', onClick: cancelEdit }, '取消'))) : null,
         items.length ? h('div', { style: { marginTop: '6px' } }, items.map(function (item) {
           if (editing === item.id) {
             return h('div', { key: 'it-' + item.id, style: { display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid ' + COLORS.line } },
@@ -4905,16 +4924,16 @@ window.__ModuleLoader__.load({
               h('select', { value: draft.kind, onChange: function (e) { setDraft(Object.assign({}, draft, { kind: e.target.value })) }, style: inputStyle },
                 KINDS.map(function (k) { return h('option', { key: 'e-' + k.code, value: k.code }, k.label) })),
               h('input', { value: draft.note, onChange: function (e) { setDraft(Object.assign({}, draft, { note: e.target.value })) }, placeholder: '备注', style: Object.assign({}, inputStyle, { flex: 1, minWidth: '120px' }) }),
-              h('button', { onClick: function () { submitSave(item.id) }, style: Object.assign({}, smallBtn, { border: 0, background: COLORS.accent, color: 'var(--dsw-alias-label-primary-foreground)' }) }, '保存'),
-              h('button', { onClick: cancelEdit, style: smallBtn }, '取消'))
+              h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { submitSave(item.id) }, style: Object.assign({}, smallBtn, { border: 0, background: COLORS.accent, color: 'var(--dsw-alias-label-primary-foreground)' }) }, '保存'),
+              h(ui.Button, { variant: 'outline', size: 'sm', onClick: cancelEdit, style: smallBtn }, '取消'))
           }
           return h('div', { key: 'it-' + item.id, className: 'ad-row' },
             h('div', { style: { minWidth: 0 } },
               h('div', { className: 'ad-row-title' }, item.needle + ' → ' + item.std),
               h('div', { className: 'ad-row-meta' }, kindLabel(item.kind) + (item.company ? ' · ' + item.company : ' · 通用') + (item.note ? ' · ' + item.note : ''))),
             canEdit ? h('div', { className: 'ad-actions' },
-              h('button', { className: 'ad-btn quiet', onClick: function () { startEdit(item) } }, '编辑'),
-              h('button', { className: 'ad-btn quiet', onClick: function () { toggle(item) } }, item.enabled ? '停用' : '启用')) : h('span', { className: 'ad-pill' }, item.enabled ? '启用' : '停用'))
+              h(ui.Button, { variant: 'ghost', size: 'sm', onClick: function () { startEdit(item) } }, '编辑'),
+              h(ui.Button, { variant: 'ghost', size: 'sm', onClick: function () { toggle(item) } }, item.enabled ? '停用' : '启用')) : h(AStatus, {}, item.enabled ? '启用' : '停用'))
         })) : h('div', { style: { padding: '14px', fontSize: '12px', color: COLORS.muted } }, loading ? '加载中…' : '该类型暂无规则'),
         h('div', { style: { marginTop: '10px', fontSize: '11px', color: COLORS.muted, lineHeight: 1.8 } },
           '说明：① 命中顺序：内置 chart 映射 → 客户专用前缀 → 通用名称关键词（长词优先）；② 改动保存到后端，全部客户端统一生效；③ 维护权限仅限管理员。'))
@@ -4965,7 +4984,7 @@ window.__ModuleLoader__.load({
     }
 
     function shellTab(code, label, tab, setTab) {
-      return h('button', { key: 'shell-' + code, className: 'ad-tab' + (tab === code ? ' on' : ''), onClick: function () { setTab(code) } }, label)
+      return h(ui.Button, { variant: 'outline', size: 'sm', key: 'shell-' + code, className: 'ad-tab' + (tab === code ? ' on' : ''), onClick: function () { setTab(code) } }, label)
     }
 
     function CommercePage(props) {
@@ -4976,8 +4995,18 @@ window.__ModuleLoader__.load({
             h('h1', { className: 'ad-title' }, '商务'),
             h('div', { className: 'ad-sub' }, '客户建档审批，再登记合同。没有合同不能立项。')),
           null),
-        h('div', { className: 'ad-tabs' },
-          shellTab('clients', '客户', tab, setTab), shellTab('contracts', '合同', tab, setTab), shellTab('invoices', '发票', tab, setTab)),
+        h(ui.SegmentedTabs, {
+          className: 'ad-tabs-fit',
+          items: [
+            { value: 'clients', label: '客户', id: 'tab-clients', panelId: 'panel-clients' },
+            { value: 'contracts', label: '合同', id: 'tab-contracts', panelId: 'panel-contracts' },
+            { value: 'invoices', label: '发票', id: 'tab-invoices', panelId: 'panel-invoices' }
+          ],
+          value: tab,
+          onChange: setTab,
+          label: '商务页签',
+          size: 'sm'
+        }),
         tab === 'invoices'
           ? h(InvoicesPage, { auth: props.auth, embedded: true })
           : h(ClientsContractsPage, { auth: props.auth, embedded: true, section: tab })))
@@ -5031,8 +5060,14 @@ window.__ModuleLoader__.load({
         h('div', { style: { padding: '22px 28px 0', flexShrink: 0 } },
           h('h1', { className: 'ad-title' }, '设置'),
           h('div', { className: 'ad-sub', style: { marginBottom: '12px' } }, role === 'auditor' ? '使用说明。后台页签按角色开放。' : '能看到的页签由当前角色决定。'),
-          h('div', { className: 'ad-tabs' },
-            tabs.map(function (item) { return shellTab(item.id, item.label, current, setTab) }))),
+          h(ui.SegmentedTabs, {
+            className: 'ad-tabs-fit',
+            items: tabs.map(function (item) { return { value: item.id, label: item.label, id: 'set-tab-' + item.id, panelId: 'set-panel' } }),
+            value: current,
+            onChange: setTab,
+            label: '设置页签',
+            size: 'sm'
+          })),
         h('div', { style: { flex: 1, minHeight: 0 } }, body))
     }
 
