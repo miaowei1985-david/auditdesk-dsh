@@ -6310,7 +6310,7 @@ window.__ModuleLoader__.load({
       }
       return h('div', { style: { padding: '18px', maxWidth: '960px', height: '100%', overflow: 'auto', boxSizing: 'border-box' } },
         h('div', { style: { fontSize: '15px', fontWeight: 600, marginBottom: '10px' } }, '使用指南'),
-        section('快速开始（5 步）', h('div', null,
+        section('快速开始（6 步）', h('div', null,
           line('1. 客户 → 点客户进详情 → 业务约定书登记合同（签署后）；再回 项目 → + 新建项目选该合同。没有合同不能立项。'),
           line('2. 风险评估：确认重要性（经理/合伙人），上传财务报表（xlsx），导入科目余额表、序时账（支持 xlsx/xls/csv、多工作表、模板下载）。'),
           line('3. 执行程序：试算平衡、抽样、函证/回函、账龄、截止测试、存货监盘；生成程序底稿（Word）。'),
@@ -6337,9 +6337,9 @@ window.__ModuleLoader__.load({
           line('底稿 15 类：货币资金、应收账款、存货、营业收入成本、试算平衡、期后事项、持续经营、关联方、或有事项、期初余额、会计政策与估计、风险评估、固定资产、应付职工薪酬、应交税费。'),
           line('底稿 ZIP：打包下载含 README/清单/校验值；「校验底稿包（ZIP）」可核对 SHA256，失败自动告警并生成复核审批。'),
           line('台账：可按状态筛选、按名称/索引/说明搜索，支持导出 CSV。'),
-          line('交付文档（客户验收清单、用户培训手册、发布说明）随客户端安装包内置，安装后位于 ~/.dsh/auditdesk-docs。'))),
+          line('交付文档（客户验收清单、用户培训手册、发布说明）随客户端安装包提供，具体位置见安装说明。'))),
         section('常见问题', h('div', null,
-          line('加载失败：检查网关服务（8030）与网络/Tailscale。'),
+          line('加载失败：请稍后重试；持续失败请联系管理员（对方会检查服务与网络状态）。'),
           line('登录 429：连续失败锁定 5 分钟，请联系管理员或稍后再试。'),
           line('导入失败：用「校验」查看缺失列；.xls 若为网页导出请另存为 .xlsx。'),
           line('报告 PDF 中文空白：服务器缺少 Arial Unicode 字体。'))))
