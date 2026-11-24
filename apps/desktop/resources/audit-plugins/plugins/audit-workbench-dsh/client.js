@@ -715,8 +715,11 @@ window.__ModuleLoader__.load({
           const seg = (t.buckets || []).filter(function (b) { return Number(b) > 0 }).length
           return '账龄段 ' + rows + ' 行已填（非零段 ' + seg + '）· 已提 ' + fmt(t.provision)
         }
-        if (t.filled !== undefined) {
-          return '函证 ' + (t.filled || 0) + '/' + (t.accounts || 0) + ' 家' + ((t.book_total || 0) ? ' · 账面 ' + fmt(t.book_total) : '')
+        if (t.book_total !== undefined) {
+          return '函证 ' + (t.filled || 0) + '/' + (t.accounts || 0) + ' 家 · 账面 ' + fmt(t.book_total)
+        }
+        if (t.accounts !== undefined) {
+          return '账户 ' + (t.filled || 0) + '/' + (t.accounts || 0) + ' 户'
         }
         if (t.cash_book !== undefined) return '现金盘点落位 · 账面 ' + fmt(t.cash_book)
         return '已落位'
@@ -754,7 +757,7 @@ window.__ModuleLoader__.load({
                 h('div', { className: 'ad-row' },
                   h('span', { style: { flex: 1, minWidth: 0 } }, t.sheet || t.name),
                   h('span', { className: 'ad-row-meta' }, t.idx || ''),
-                  h(AStatus, { tone: st === 'placed' ? 'ok' : st === 'overflow' ? 'warn' : '' }, st === 'placed' ? '已落位' : st === 'overflow' ? '溢出待补' : '未落位')),
+                  h(AStatus, { tone: st === 'placed' ? 'ok' : st === 'overflow' ? 'warn' : '' }, st === 'placed' ? '已落位' : st === 'overflow' ? '溢出待补' : '无数据')),
                 h('div', { className: 'ad-row-meta' }, supDesc(t)),
                 (t.warnings || []).length ? h('div', { className: 'ad-note', style: { margin: '4px 0 0', color: 'var(--dsw-alias-state-warn-primary)' } }, (t.warnings || []).join('；')) : null)
             }))
