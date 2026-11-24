@@ -314,6 +314,17 @@ window.__ModuleLoader__.load({
       if (style.textContent !== AUDIT_UI_CSS) style.textContent = AUDIT_UI_CSS
     }
 
+    // 角色分组：权限判断统一走这里，改规则只改一处
+    const ROLE_GROUPS = {
+      manage: ['manager', 'partner', 'kb-admin', 'admin'],   // 可审批、可确认重要性
+      partner: ['partner', 'kb-admin', 'admin'],              // 可定稿、可解除归档
+      admin: ['kb-admin', 'admin'],                           // 可管用户/系统/KB
+    }
+    function inRole(role, group) {
+      const list = ROLE_GROUPS[group] || []
+      return list.indexOf(String(role || '')) >= 0
+    }
+
     function api(path, params, options) {
       const url = new URL(BASE + path)
       Object.keys(params || {}).forEach(function (key) {
@@ -1139,7 +1150,7 @@ window.__ModuleLoader__.load({
         const materiality = analysis.materiality
         const balance = analysis.balance
         const completeness = analysis.completeness || {}
-        const canConfirmMateriality = ['manager', 'partner', 'kb-admin', 'admin'].indexOf(((props.auth && props.auth.user) || {}).role) >= 0
+        const canConfirmMateriality = inRole(((props.auth && props.auth.user) || {}).role, 'manage')
         const card = function (title, rows) {
           return h('div', { className: 'ad-tile' },
             h('div', { style: { fontSize: '13px', fontWeight: 600, marginBottom: '8px' } }, title),
@@ -1747,7 +1758,7 @@ window.__ModuleLoader__.load({
         const statusFilter = props.approvalFilter || 'all'
         const filteredItems = items === null ? null : (statusFilter === 'all' ? items : items.filter(function (item) { return item.status === statusFilter }))
         const user = (props.auth && props.auth.user) || { name: '未登录', role: 'auditor', username: '' }
-        const canApprove = ['manager', 'partner', 'kb-admin', 'admin'].indexOf(user.role) >= 0
+        const canApprove = inRole(user.role, 'manage')
         const approverMembers = (props.members || []).filter(function (m) { return ['manager', 'partner', 'kb-admin', 'admin'].indexOf(m.role) >= 0 })
         const toneOf = function (status) { return status === '已通过' ? 'ok' : status === '待审批' ? 'warn' : status === '已驳回' ? 'bad' : 'muted' }
         const rows = items === null
@@ -1935,7 +1946,7 @@ window.__ModuleLoader__.load({
                 h('option', { value: '已复核' }, '已复核'),
                 h('option', { value: '已定稿' }, '已定稿'))),
             (props.reportVersionFilter && props.reportVersionFilter !== 'all' ? report.versions.filter(function (v) { return (v.status || '草稿') === props.reportVersionFilter }) : report.versions).map(function (version) {
-              const canFinalize = ['partner', 'kb-admin', 'admin'].indexOf(((props.auth && props.auth.user) || {}).role) >= 0
+              const canFinalize = inRole(((props.auth && props.auth.user) || {}).role, 'partner')
               return h('div', { key: 'v-' + version.id, style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid ' + COLORS.line, fontSize: '12px' } },
                 h('div', { style: { display: 'flex', gap: '8px', alignItems: 'center', minWidth: 0 } },
                   h('span', { style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, version.filename + ' · ' + version.created_by + ' · ' + version.created_at + (version.status === '已复核' && version.reviewed_by ? (' · 复核：' + version.reviewed_by + (version.finalized_at ? '（' + version.finalized_at + '）' : '')) : '')),
@@ -3503,7 +3514,7 @@ window.__ModuleLoader__.load({
       const project = projects.filter(function (p) { return p.id === effectiveProjectId })[0]
       const readOnly = Boolean(project && project.status === '已归档')
       const role = ((props.auth && props.auth.user) || {}).role || 'auditor'
-      const isManager = ['partner', 'kb-admin', 'admin'].indexOf(role) >= 0
+      const isManager = inRole(role, 'partner')
       const inputStyle = { width: '100%', boxSizing: 'border-box', padding: '7px 9px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', marginBottom: '8px' }
 
       const previewModal = preview ? h('div', { onClick: function (event) { if (event.target === event.currentTarget) closeAttachmentPreview() },
@@ -3652,7 +3663,7 @@ window.__ModuleLoader__.load({
     // ---------- 知识库 ----------
     function KbPage(props) {
       const authUser = (props && props.auth && props.auth.user) || {}
-      const isKbAdmin = ['kb-admin', 'admin'].indexOf(authUser.role) >= 0
+      const isKbAdmin = inRole(authUser.role, 'admin')
       const kbStatusState = React.useState(null); const kbStatus = kbStatusState[0]; const setKbStatus = kbStatusState[1]
       const kbExpiringState = React.useState(null); const kbExpiring = kbExpiringState[0]; const setKbExpiring = kbExpiringState[1]
       const pendingState = React.useState([]); const pendingDocs = pendingState[0]; const setPendingDocs = pendingState[1]
@@ -4612,7 +4623,6 @@ window.__ModuleLoader__.load({
       else if (sortBy === 'name') rows.sort(function (a, b) { return String(a.name).localeCompare(String(b.name), 'zh') })
       else if (sortBy === 'pbc') rows.sort(function (a, b) { return (a.pbc_percent || 0) - (b.pbc_percent || 0) })
       else if (sortBy === 'pending') rows.sort(function (a, b) { return (b.approval_pending || 0) - (a.approval_pending || 0) })
-      const isManager = false
       return h('div', { className: 'ad-page' }, h('div', { className: 'ad-page-inner' },
         h('div', { className: 'ad-head' },
           h('div', null,
@@ -5238,7 +5248,7 @@ window.__ModuleLoader__.load({
       const [catalog, setCatalog] = React.useState([])
       const [selItems, setSelItems] = React.useState([])
       const role = (props.auth && props.auth.user && props.auth.user.role) || ''
-      const canApprove = ['manager', 'partner', 'kb-admin', 'admin'].indexOf(role) >= 0
+      const canApprove = inRole(role, 'manage')
       function loadClients() { api('/audit/clients').then(function (d) { setClients(d.items || []) }).catch(function () {}) }
       function loadContracts() { api('/audit/contracts').then(function (d) { setContracts(d.items || []) }).catch(function () {}) }
       React.useEffect(function () { loadClients(); loadContracts() }, [])
