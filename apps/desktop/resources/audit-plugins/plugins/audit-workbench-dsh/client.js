@@ -564,6 +564,16 @@ window.__ModuleLoader__.load({
             card('审计程序', programPercent + '%', '已完成 ' + programDone + ' / ' + programItems.length + ' 项'),
             card('项目成员', memberItems.length, memberItems.map(function (m) { return m.name }).join('、'))),
           h('div', { className: 'ad-card' },
+            h('div', { className: 'ad-row-title', style: { marginBottom: '8px' } }, '项目成员（' + memberItems.length + '）'),
+            memberItems.length ? memberItems.map(function (m) {
+              return h('div', { key: 'mem-' + m.id, className: 'ad-row' },
+                h('div', { className: 'ad-row-meta' }, m.name + '（' + m.role + '）'),
+                h('button', { className: 'ad-btn quiet', onClick: function () { if (props.onRemoveMember) props.onRemoveMember(m) } }, '移除'))
+            }) : h('div', { className: 'ad-row-meta' }, '暂无成员'),
+            h('div', { className: 'ad-form', style: { marginTop: '8px' } },
+              h('label', { className: 'ad-field' }, '添加成员', h('input', { className: 'ad-input', value: props.newMemberName || '', onChange: function (e) { if (props.onNewMemberNameChange) props.onNewMemberNameChange(e.target.value) }, placeholder: '用户名（如 partner）' })),
+              h('div', { className: 'ad-form-actions' }, h('button', { className: 'ad-btn', onClick: function () { if (props.onAddMember) props.onAddMember(props.newMemberName || '') } }, '添加')))),
+          h('div', { className: 'ad-card' },
             h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' } },
               h('div', { style: { fontSize: '13px', fontWeight: 650 } }, '我的待办' + (props.todoOverdueOnly ? '（仅超期）' : '')),
               h('button', { className: 'ad-btn quiet', onClick: function () { if (props.onSetTodoOverdueOnly) props.onSetTodoOverdueOnly(!props.todoOverdueOnly) } }, props.todoOverdueOnly ? '查看全部' : '只看超期')),
@@ -1245,7 +1255,6 @@ window.__ModuleLoader__.load({
             h('option', { value: '已通过' }, '已通过'),
             h('option', { value: '已驳回' }, '已驳回')),
           h('button', { className: 'ad-btn', onClick: function () { if (props.onExportApprovals) props.onExportApprovals() } }, '导出'))
-        const memberList = props.members || []
         if (readOnly) {
           return h('div', { style: { padding: '20px', maxWidth: '720px' } },
             h('div', { style: { fontSize: '14px', marginBottom: '6px' } }, '审批状态'),
@@ -1256,19 +1265,6 @@ window.__ModuleLoader__.load({
                 h(Badge, { tone: item.status === '已通过' ? 'ok' : item.status === '待审批' ? 'warn' : 'muted' }, item.status))
             }))
         }
-        const membersBlock = h('div', { style: { marginBottom: '14px', paddingBottom: '10px', borderBottom: '1px solid ' + COLORS.line } },
-          h('div', { style: { fontSize: '12px', fontWeight: 600, marginBottom: '6px' } }, '项目成员（' + memberList.length + '）'),
-          memberList.map(function (m) {
-            return h('div', { key: 'm-' + m.id, style: { display: 'flex', alignItems: 'center', gap: '10px', padding: '3px 0', fontSize: '12px' } },
-              h('span', null, m.name + '（' + m.role + '）'),
-              h('button', { onClick: function () { if (props.onRemoveMember) props.onRemoveMember(m) },
-                style: { border: 0, background: 'transparent', color: COLORS.muted, fontSize: '11px', cursor: 'pointer' } }, '移除'))
-          }),
-          h('div', { style: { display: 'flex', gap: '6px', marginTop: '6px' } },
-            h('input', { value: props.newMemberName || '', onChange: function (e) { if (props.onNewMemberNameChange) props.onNewMemberNameChange(e.target.value) }, placeholder: '用户名（如 partner）',
-              style: { width: '160px', padding: '6px 8px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }),
-            h('button', { onClick: function () { if (props.onAddMember) props.onAddMember(props.newMemberName || '') },
-              style: { padding: '6px 10px', borderRadius: '7px', border: 0, background: COLORS.accent, color: 'var(--dsw-alias-label-primary-foreground)', fontSize: '12px', cursor: 'pointer' } }, '+ 添加成员')))
         return h('div', { className: 'ad-zone-page' },
           h('div', { className: 'ad-head' },
             h('div', null,
@@ -1276,7 +1272,6 @@ window.__ModuleLoader__.load({
               h('div', { className: 'ad-sub' }, '提交后等指派人通过或驳回。超期提醒不代替审批。')),
             canApprove ? h('button', { className: 'ad-btn', onClick: function () { if (props.onEscalateApprovals) props.onEscalateApprovals() } }, '超期提醒') : null),
           props.escalateMessage ? h('div', { className: 'ad-note' }, props.escalateMessage) : null,
-          membersBlock,
           identityBar,
           h('div', null, rows), eventsBlock('approval'))
       }
@@ -1297,8 +1292,6 @@ window.__ModuleLoader__.load({
               h('div', { className: 'ad-sub' }, '初稿来自项目数据。出具前必须人工复核，系统不代下审计结论。')),
             h('button', { className: 'ad-btn primary', disabled: readOnly || props.reportLoading, onClick: function () { if (props.onGenerateDraft) props.onGenerateDraft() } }, props.reportLoading ? '生成中…' : '生成报告初稿')),
           h(ReportOverviewPanel, { projectId: props.project ? props.project.id : '' }),
-          h(KamPanel, { projectId: props.project ? props.project.id : '' }),
-          h(EvidencePanel, { projectId: props.project ? props.project.id : '' }),
           h('div', { className: 'ad-form' },
             h('div', { className: 'ad-row-title', style: { gridColumn: '1 / -1' } }, '报告要素'),
             h('label', { className: 'ad-field' }, '审计意见类型',
@@ -1357,6 +1350,8 @@ window.__ModuleLoader__.load({
                     item.status !== '已调整' ? h('button', { onClick: function () { if (props.onUpdateMisstatement) props.onUpdateMisstatement(item.id, '已调整') }, style: { padding: '1px 6px', borderRadius: '6px', border: '1px solid #16a34a', background: 'transparent', color: '#16a34a', fontSize: '10px', cursor: 'pointer' } }, '已调整') : null))
               }))
           })(),
+          h(KamPanel, { projectId: props.project ? props.project.id : '' }),
+          h(EvidencePanel, { projectId: props.project ? props.project.id : '' }),
           opinion ? h('div', { style: { marginBottom: '16px', padding: '12px', borderRadius: '10px', border: '1px solid ' + COLORS.line } },
             h('div', { style: { fontSize: '13px', fontWeight: 600, marginBottom: '4px' } }, '审计意见：' + (opinion.level || '')),
             h('div', { style: { fontSize: '12px', lineHeight: 1.7 } }, opinion.text || ''),
@@ -4641,7 +4636,7 @@ window.__ModuleLoader__.load({
         if (!picked) { setMsg('请先选择已审批客户'); return }
         if (picked.status !== '已审批') { setMsg('该客户尚未审批，不能登记合同'); return }
         api('/audit/contracts/create', null, { method: 'POST', body: { client_name: cClient, project_name: cProject, seal_type: cSeal } })
-          .then(function () { setMsg('合同已登记，待归档'); setCClient(''); setCProject(''); loadContracts() })
+          .then(function () { setMsg('合同已登记，待签'); setCClient(''); setCProject(''); loadContracts() })
           .catch(function (e) { setMsg('登记失败：' + e) })
       }
       function archiveContract(id) {
@@ -4692,8 +4687,8 @@ window.__ModuleLoader__.load({
                   h('div', { className: 'ad-row-title' }, c.client_name),
                   h('div', { className: 'ad-row-meta' }, [c.project_name, c.seal_type].filter(Boolean).join(' · '))),
                 h('div', { className: 'ad-actions' },
-                  h('span', { className: 'ad-pill ' + (c.status === '已归档' ? 'ok' : 'warn') }, c.status),
-                  c.status === '待归档' ? h('button', { className: 'ad-btn quiet', onClick: function () { archiveContract(c.id) } }, '归档') : null))
+                  h('span', { className: 'ad-pill ' + (c.status === '已归档' ? 'ok' : 'warn') }, c.status === '已归档' ? '已签' : c.status === '待归档' ? '待签' : c.status),
+                  c.status === '待归档' ? h('button', { className: 'ad-btn quiet', onClick: function () { archiveContract(c.id) } }, '标记已签') : null))
             }) : h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '暂无合同，先登记'))
         ))
     }
@@ -5007,8 +5002,8 @@ window.__ModuleLoader__.load({
         function AuditCompaniesPage(props) { return h(CompaniesPage, { onStartChat: onStartChat, ui: ctx, auth: props.auth }) }
         const sidebar = [
           { id: 'audit-dashboard', label: '今日', icon: DashboardIcon, page: withAuth(function (p) { return h(DashboardPage, Object.assign({}, p, { ui: ctx })) }), order: 29 },
+          { id: 'audit-commerce', label: '商务', icon: CommerceIcon, page: withAuth(CommercePage), order: 29.5 },
           { id: 'audit-companies', label: '项目', icon: CompaniesIcon, page: withAuth(AuditCompaniesPage), order: 30 },
-          { id: 'audit-commerce', label: '商务', icon: CommerceIcon, page: withAuth(CommercePage), order: 30.5 },
           { id: 'audit-kb', label: '知识库', icon: KbIcon, page: withAuth(KbPage), order: 31 },
           { id: 'audit-settings', label: '设置', icon: SystemIcon, page: withAuth(function (p) { return h(SettingsPage, Object.assign({}, p, { ui: ctx })) }), order: 40 },
         ]
