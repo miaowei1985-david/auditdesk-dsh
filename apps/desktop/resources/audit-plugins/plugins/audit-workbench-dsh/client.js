@@ -444,10 +444,6 @@ window.__ModuleLoader__.load({
       }))
     }
 
-    function Section(props) {
-      return h('div', { style: { borderBottom: '1px solid ' + COLORS.line, padding: '10px 14px' } }, props.children)
-    }
-
     function Empty(props) {
       return h('div', { style: { padding: '24px', color: COLORS.muted, fontSize: '13px' } }, props.children)
     }
@@ -4417,22 +4413,12 @@ window.__ModuleLoader__.load({
       return h('svg', { width: s, height: s, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.7, 'aria-hidden': true },
         h('path', { d: 'M4 21V5a1 1 0 0 1 1-1h7v17M12 21h8V9a1 1 0 0 1 1-1h-9M7 8h2M7 12h2M7 16h2M15 12h3M15 16h3' }))
     }
-    function EventsIcon(props) {
-      const s = props && props.size ? props.size : 18
-      return h('svg', { width: s, height: s, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.7, 'aria-hidden': true },
-        h('path', { d: 'M12 8v5l3 2M4 12a8 8 0 1 0 16 0a8 8 0 1 0 -16 0M12 3v2' }))
-    }
     function KbIcon(props) {
       const s = props && props.size ? props.size : 18
       return h('svg', { width: s, height: s, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.7, 'aria-hidden': true },
         h('path', { d: 'M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15.5A2.5 2.5 0 0 1 17.5 21H6.5A2.5 2.5 0 0 1 4 18.5zM8 7h8M8 11h8M8 15h5' }))
     }
 
-    function UsersIcon(props) {
-      const s = props && props.size ? props.size : 18
-      return h('svg', { width: s, height: s, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.7, 'aria-hidden': true },
-        h('path', { d: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8a4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75' }))
-    }
 
     function UsersPage(props) {
       const auth = props.auth || {}
@@ -5081,9 +5067,6 @@ window.__ModuleLoader__.load({
       const keywordState = React.useState(''); const keyword = keywordState[0]; const setKeyword = keywordState[1]
       const statusState = React.useState(''); const statusFilter = statusState[0]; const setStatusFilter = statusState[1]
       const sortState = React.useState('updated'); const sortBy = sortState[0]; const setSortBy = sortState[1]
-      const guideState = React.useState(function () { try { return localStorage.getItem('auditdesk.guide.dismissed') !== '1' } catch (e) { return true } })
-      const showGuide = guideState[0]; const setShowGuide = guideState[1]
-      function dismissGuide() { try { localStorage.setItem('auditdesk.guide.dismissed', '1') } catch (e) {}; setShowGuide(false) }
 
       function exportDashboard() {
         fetch(BASE + '/audit/dashboard/export', { headers: { 'X-KB-Token': currentToken() } })
@@ -5239,17 +5222,7 @@ window.__ModuleLoader__.load({
           error ? h('div', { style: { fontSize: '12px', color: '#b91c1c', marginTop: '8px' } }, '服务连接失败：' + error) : null))
     }
 
-    function AboutIcon(props) {
-      const s = props && props.size ? props.size : 18
-      return h('svg', { width: s, height: s, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.7, 'aria-hidden': true },
-        h('circle', { cx: 12, cy: 12, r: 9 }), h('path', { d: 'M12 10.5v6M12 7.2v.2' }))
-    }
 
-    function GuideIcon(props) {
-      const s = props && props.size ? props.size : 18
-      return h('svg', { width: s, height: s, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.7, 'aria-hidden': true },
-        h('path', { d: 'M12 6.5A3.5 3.5 0 0 0 8.5 3H3v15h6a3 3 0 0 1 3 3V6.5zM12 6.5A3.5 3.5 0 0 1 15.5 3H21v15h-6a3 3 0 0 0-3 3V6.5z' }))
-    }
 
     // ---------- 审计程序库（底库模板管理） ----------
     function ProgramCatalogPage(props) {
