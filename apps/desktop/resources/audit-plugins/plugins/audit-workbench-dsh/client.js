@@ -5145,7 +5145,7 @@ window.__ModuleLoader__.load({
             return h('div', { key: item.id, className: 'ad-row', style: { cursor: 'pointer' }, onClick: function () { openProject(item) } },
               h('div', { style: { minWidth: 0 } },
                 h('div', { className: 'ad-row-title' }, item.name, (item.data_source === 'test') ? h(AStatus, { tone: 'warn', className: 'ad-ml6' }, '测试') : null),
-                h('div', { className: 'ad-row-meta' }, item.client + ' · ' + (item.period || '-') + ' · 资料 ' + item.pbc_percent + '% · 底稿 ' + item.wp_percent + '% · 程序 ' + (item.program_percent || 0) + '%' + (item.approval_pending ? ' · 待审批 ' + item.approval_pending : ''))),
+                h('div', { className: 'ad-row-meta' }, item.client + ' · ' + (item.period || '-') + ' · 资料 ' + (item.pbc_percent || 0) + '% · 底稿 ' + (item.wp_percent || 0) + '% · 程序 ' + (item.program_percent || 0) + '%' + (item.approval_pending ? ' · 待审批 ' + item.approval_pending : ''))),
               h(Badge, { tone: item.status === '已归档' ? 'muted' : 'ok' }, item.status))
           }))))
     }
