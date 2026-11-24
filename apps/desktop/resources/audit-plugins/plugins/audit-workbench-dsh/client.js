@@ -3,8 +3,52 @@ window.__ModuleLoader__.load({
   factory(require) {
     const React = require('react')
     const h = React.createElement
-    // DSH 原生 UI 原子组件（Button/Input/Switch/Pill/Tag/StateDot 等）
-    const ui = require('@deepseek-ai/dsh-client-ui-primitives')
+    // DSH 原生 UI 原子组件；取不到时降级为等价原生元素，避免整个插件加载失败
+    let primitiveModule = null
+    try {
+      primitiveModule = require('@deepseek-ai/dsh-client-ui-primitives')
+    } catch (err) {
+      try { console.error('[auditdesk] ui primitives unavailable, falling back:', err) } catch (e2) {}
+    }
+    const ui = primitiveModule || (function () {
+      const Btn = function (p) {
+        const base = { border: '1px solid var(--dsw-alias-border-l2)', background: 'transparent', color: 'inherit', fontSize: '12px', padding: '6px 10px', borderRadius: '7px', cursor: 'pointer' }
+        if (p.variant === 'primary') { base.border = '0'; base.background = 'var(--dsw-alias-brand-primary)'; base.color = 'var(--dsw-alias-label-primary-foreground)' }
+        if (p.variant === 'ghost') { base.border = '0'; base.color = 'var(--dsw-alias-brand-primary)' }
+        return h('button', { type: 'button', onClick: p.onClick, disabled: p.disabled, title: p.title, style: Object.assign(base, p.style || {}) }, p.children)
+      }
+      const Inp = function (p) {
+        const rest = Object.assign({}, p)
+        delete rest.children
+        return h('input', Object.assign({ style: { width: '100%', boxSizing: 'border-box', padding: '6px 8px', borderRadius: '7px', border: '1px solid var(--dsw-alias-border-l2)', background: 'transparent', color: 'inherit', fontSize: '13px' } }, rest))
+      }
+      const TagF = function (p) {
+        return h('span', { title: p.title, style: { fontSize: '11px', padding: '1px 7px', borderRadius: '999px', background: 'var(--dsw-alias-bg-layer-2)', color: 'var(--dsw-alias-label-secondary)', whiteSpace: 'nowrap' } }, p.children)
+      }
+      const Dot = function (p) {
+        const color = p.state === 'done' ? 'var(--dsw-alias-state-success-primary)'
+          : p.state === 'warning' ? 'var(--dsw-alias-state-warn-primary)'
+          : p.state === 'error' ? 'var(--dsw-alias-state-error-primary)'
+          : 'var(--dsw-alias-label-secondary)'
+        return h('span', { style: { display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: color } })
+      }
+      const TabsF = function (p) {
+        return h('div', { style: { display: 'flex', gap: '4px', flexWrap: 'wrap' } }, (p.items || []).map(function (it) {
+          return h('button', { key: it.value, type: 'button', onClick: function () { if (p.onChange) p.onChange(it.value) },
+            style: { border: '0', cursor: 'pointer', fontSize: '12px', padding: '6px 10px', borderRadius: '7px', color: 'inherit', background: p.value === it.value ? 'var(--dsw-alias-bg-layer-2)' : 'transparent' } }, it.label)
+        }))
+      }
+      const ModalF = function (p) {
+        if (!p.open) return null
+        return h('div', { style: { position: 'fixed', inset: 0, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,.5)' } },
+          h('div', { style: { background: 'var(--dsw-alias-bg-layer-1)', borderRadius: '14px', padding: '18px', width: 'min(920px,94vw)', maxHeight: '86vh', overflow: 'auto' } },
+            p.title ? h('div', { style: { fontWeight: 600, fontSize: '18px', marginBottom: '10px' } }, p.title) : null,
+            p.description ? h('div', { className: 'ad-sub', style: { marginBottom: '12px' } }, p.description) : null,
+            p.children,
+            p.footer ? h('div', { style: { marginTop: '14px' } }, p.footer) : null))
+      }
+      return { Button: Btn, Input: Inp, Tag: TagF, StateDot: Dot, SegmentedTabs: TabsF, Modal: ModalF }
+    })()
 
     // 网关地址：直链优先，自动回退（链路本地 → 直链静态IP → Bonjour → Tailscale）
     const GATEWAY_KEY = 'auditdesk.gateway'
