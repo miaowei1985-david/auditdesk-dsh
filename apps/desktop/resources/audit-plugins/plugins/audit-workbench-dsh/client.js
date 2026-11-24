@@ -1851,6 +1851,13 @@ window.__ModuleLoader__.load({
       const savedContext = (function () { try { return JSON.parse(localStorage.getItem('auditdesk.lastContext') || '{}') || {} } catch (e) { return {} } })()
       const companyState = React.useState(savedContext.company || null); const activeCompany = companyState[0]; const setActiveCompany = companyState[1]
       const projectState = React.useState(savedContext.project || null); const activeProject = projectState[0]; const setActiveProject = projectState[1]
+      // 客户只有一个年度项目时自动选中，省掉再点一次（也保证依赖 activeProject 的接口能取到值）
+      React.useEffect(function () {
+        if (activeProject) return
+        const cur = (companies || []).filter(function (c) { return c.name === activeCompany })[0]
+        const list = (cur && cur.projects) || []
+        if (list.length === 1) setActiveProject(list[0].id)
+      }, [activeCompany, activeProject, companies])
       const roleCode = ((props.auth && props.auth.user && props.auth.user.role) || 'auditor')
       const roleLanding = { auditor: '资料清单', manager: '审批状态', partner: '报告', 'kb-admin': '概览', admin: '概览' }[roleCode] || '概览'
       const zoneState = React.useState(savedContext.zone || roleLanding); const zone = zoneState[0]; const setZone = zoneState[1]
@@ -3330,8 +3337,6 @@ window.__ModuleLoader__.load({
 
       const current = companies.filter(function (c) { return c.name === activeCompany })[0]
       const projects = current ? current.projects : []
-      const project = projects.filter(function (p) { return p.id === activeProject })[0]
-      const readOnly = Boolean(project && project.status === '已归档')
       const keyword = search.trim().toLowerCase()
       const matchProject = function (p) {
         if (statusFilter && p.status !== statusFilter) return false
@@ -3348,6 +3353,11 @@ window.__ModuleLoader__.load({
         return projectMatch
       })
       const visibleProjects = projects.filter(matchProject)
+      // 只有一个年度项目时直接进入，不显示中间的年度选择列
+      const singleProject = visibleProjects.length === 1 ? visibleProjects[0] : null
+      const effectiveProjectId = activeProject || (singleProject ? singleProject.id : null)
+      const project = projects.filter(function (p) { return p.id === effectiveProjectId })[0]
+      const readOnly = Boolean(project && project.status === '已归档')
       const role = ((props.auth && props.auth.user) || {}).role || 'auditor'
       const isManager = ['partner', 'kb-admin', 'admin'].indexOf(role) >= 0
       const inputStyle = { width: '100%', boxSizing: 'border-box', padding: '7px 9px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', marginBottom: '8px' }
@@ -3467,13 +3477,13 @@ window.__ModuleLoader__.load({
             return h('div', { key: c.name, className: 'ad-nav' + (active ? ' on' : ''), onClick: function () { setActiveCompany(c.name); setActiveProject(null) } },
               h('div', null, c.name), h('div', { className: 'ad-row-meta' }, c.projects.length + ' 个项目'))
           }) : h('div', { style: { padding: '10px', fontSize: '12px', color: COLORS.muted } }, '没有匹配的客户'))),
-        h('div', { className: 'ad-rail', style: { width: '260px' } },
-          h('div', { className: 'ad-rail-h' }, activeCompany ? '年度项目' : '选择客户'),
-          h('div', { style: { padding: '0 8px 12px' } }, visibleProjects.length ? visibleProjects.map(function (p) {
-            const active = p.id === activeProject
+        visibleProjects.length > 1 ? h('div', { className: 'ad-rail', style: { width: '260px' } },
+          h('div', { className: 'ad-rail-h' }, '年度项目'),
+          h('div', { style: { padding: '0 8px 12px' } }, visibleProjects.map(function (p) {
+            const active = p.id === effectiveProjectId
             return h('div', { key: p.id, className: 'ad-nav' + (active ? ' on' : ''), onClick: function () { setActiveProject(p.id) } },
               h('div', null, p.name), h('div', { className: 'ad-row-meta' }, p.period + ' · ' + p.status + (p.business_type ? ' · ' + p.business_type : '')))
-          }) : h('div', { style: { padding: '10px', fontSize: '12px', color: COLORS.muted } }, '没有匹配的项目'))),
+          }))) : null,
         h('div', { style: { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' } },
           h('div', { className: 'ad-zones' },
             activeProject ? h(ui.Button, { variant: 'ghost', size: 'sm', style: { alignSelf: 'flex-end', flexShrink: 0, marginRight: '10px', marginBottom: '4px', minHeight: '30px' }, onClick: function () { setActiveProject(null) } }, '← 项目列表') : null,
