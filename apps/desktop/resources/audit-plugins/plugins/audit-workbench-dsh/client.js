@@ -829,7 +829,19 @@ window.__ModuleLoader__.load({
               h('span', { className: 'ad-row-meta', style: { minWidth: '112px', textAlign: 'right' } }, fmt(l.calc)),
               h('span', { className: 'ad-row-meta', style: { minWidth: '112px', textAlign: 'right' } }, fmt(l.fs)),
               h('span', { style: { minWidth: '88px', display: 'flex', justifyContent: 'center' } }, h(AStatus, { tone: tone }, label)),
-              l.hint ? h('span', { className: 'ad-row-meta', style: { minWidth: '72px' } }, l.hint) : null)
+              l.hint
+                ? h('span', { className: 'ad-row-meta', style: { minWidth: '72px' } }, l.hint)
+                : (!noRow && diff !== 0 && !hasHint
+                    ? h(ui.Button, { variant: 'ghost', size: 'sm', title: '记入未更正错报汇总，在报告页处置',
+                        style: { fontSize: '10px', padding: '1px 6px', minHeight: '20px' },
+                        onClick: function () {
+                          if (props.onAddMisstatement) props.onAddMisstatement({
+                            sheet: '勾稽', cell: l.line,
+                            message: '勾稽差异：' + l.line + ' 计算 ' + fmt(l.calc) + ' vs 报表 ' + fmt(l.fs),
+                            diff: Math.abs(diff)
+                          })
+                        } }, '记为错报')
+                    : null))
           })),
         h('details', { className: 'ad-more ad-card' },
           h('summary', null, '填表明细 · ' + workbooks.length + ' 本 · 共 ' + wbCells + ' 格'),
@@ -1601,7 +1613,7 @@ window.__ModuleLoader__.load({
               h('h1', { className: 'ad-title' }, '底稿'),
               h('div', { className: 'ad-sub' }, '按模板生成底稿。点状态只改执行进度，复核状态单独记录。')),
             h(ui.Button, { variant: 'primary', size: 'sm', disabled: props.generating || readOnly, onClick: function () { if (props.onGenerateAll) props.onGenerateAll() } }, props.generating ? '生成中…' : '生成常用底稿')),
-          h(WorkpaperGatePanel, { client: (props.project && props.project.client) || '' }),
+          h(WorkpaperGatePanel, { client: (props.project && props.project.client) || '', onAddMisstatement: props.onAddMisstatement }),
           h(EngineFillsPanel, { projectId: props.project ? props.project.id : '' }),
           h('div', { style: { padding: '8px 14px 0', display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center', fontSize: '11px' } },
             h('span', { style: { color: COLORS.muted } }, '底稿统计：共 ' + generated.length + ' 份 · 台账 ' + (items ? items.length : 0) + ' 项'),
