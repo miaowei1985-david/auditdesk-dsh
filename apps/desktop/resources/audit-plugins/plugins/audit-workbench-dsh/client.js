@@ -3893,7 +3893,7 @@ window.__ModuleLoader__.load({
               h('input', { type: 'file', accept: '.xlsx,.xls,.csv', style: { display: 'none' }, onChange: function (e) { setNewJournalFile(e.target.files && e.target.files[0] || null); e.target.value = '' } })),
             createError ? h('div', { style: { fontSize: '11px', color: '#b91c1c' } }, createError) : null,
             h('div', { className: 'ad-form-actions' },
-              h(ui.Button, { variant: 'primary', size: 'sm', onClick: createProject, disabled: creating }, creating ? '创建中…' : '创建'),
+              h(ui.Button, { variant: 'primary', size: 'sm', onClick: createProject, disabled: creating }, creating ? '新建中…' : '新建'),
               h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { setShowCreate(false); setCreateError('') } }, '取消'))) : null,
           (pinnedProjects || []).length ? h('div', { style: { padding: '0 10px 8px' } },
             h('div', { style: { fontSize: '11px', color: COLORS.muted, marginBottom: '4px' } }, '已固定'),
@@ -4480,7 +4480,7 @@ window.__ModuleLoader__.load({
           h('label', { className: 'ad-field' }, '姓名', h(ui.Input, { className: 'ad-iw', value: newUser.name, onChange: function (e) { setNewUser(Object.assign({}, newUser, { name: e.target.value })) } })),
           h('label', { className: 'ad-field' }, '初始密码', h(ui.Input, { className: 'ad-iw', value: newUser.password, onChange: function (e) { setNewUser(Object.assign({}, newUser, { password: e.target.value })) }, placeholder: '至少 6 位' })),
           h('label', { className: 'ad-field' }, '角色', h('select', { className: 'ad-input', value: newUser.role, onChange: function (e) { setNewUser(Object.assign({}, newUser, { role: e.target.value })) } }, roleOptions.map(function (item) { return h('option', { key: item[0], value: item[0] }, item[1]) }))),
-          h('div', { className: 'ad-form-actions' }, h(ui.Button, { variant: 'primary', size: 'sm', onClick: createUser }, '创建'))),
+          h('div', { className: 'ad-form-actions' }, h(ui.Button, { variant: 'primary', size: 'sm', onClick: createUser }, '新建'))),
         loading ? h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '加载中…') : null,
         users.map(function (user) {
           const active = user.active === 1 || user.active === true
