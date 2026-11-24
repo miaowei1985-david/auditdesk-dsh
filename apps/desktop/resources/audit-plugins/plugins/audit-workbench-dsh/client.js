@@ -684,6 +684,81 @@ window.__ModuleLoader__.load({
       const gate = data.gate || {}
       const lines = data.lines || []
       const workbooks = data.workbooks || []
+      // 附表落位：程序表命中的实质性程序 → 附表自动填好（只处理带 supplements 的 plans）
+      const SUP_SUBJECTS = ['货币资金', '应收账款', '其他应收款', '预付款项', '应付账款', '预收款项', '其他应付款']
+      const supMap = {}
+      ;(data.workbooks || []).forEach(function (w) {
+        ;(w.plans || []).forEach(function (plan) {
+          if (!plan.supplements) return
+          const key = plan.subject || ''
+          if (!key) return
+          if (!supMap[key]) supMap[key] = { subject: key, program_idx: plan.program_idx || '', procs: plan.procs_executed || 0, tables: [] }
+          Object.keys(plan.supplements).forEach(function (name) {
+            supMap[key].tables.push(Object.assign({ name: name }, plan.supplements[name]))
+          })
+        })
+      })
+      const supTableState = function (t) {
+        if ((t.warnings || []).length) return 'overflow'
+        if ((t.filled || 0) > 0 || (t.filled_rows || 0) > 0 || (t.cells || 0) > 0) return 'placed'
+        return 'empty'
+      }
+      const supSubjectState = function (tables) {
+        if (!tables.length) return 'empty'
+        if (tables.some(function (t) { return supTableState(t) === 'overflow' })) return 'overflow'
+        if (tables.some(function (t) { return supTableState(t) === 'placed' })) return 'placed'
+        return 'empty'
+      }
+      const supDesc = function (t) {
+        if (t.buckets) {
+          const rows = t.filled_rows || 0
+          const seg = (t.buckets || []).filter(function (b) { return Number(b) > 0 }).length
+          return '账龄段 ' + rows + ' 行已填（非零段 ' + seg + '）· 已提 ' + fmt(t.provision)
+        }
+        if (t.filled !== undefined) {
+          return '函证 ' + (t.filled || 0) + '/' + (t.accounts || 0) + ' 家' + ((t.book_total || 0) ? ' · 账面 ' + fmt(t.book_total) : '')
+        }
+        if (t.cash_book !== undefined) return '现金盘点落位 · 账面 ' + fmt(t.cash_book)
+        return '已落位'
+      }
+      const supColor = function (st) { return st === 'placed' ? '#22C55E' : st === 'overflow' ? '#F59E0B' : 'var(--dsw-alias-border-l2)' }
+      const supPlaced = SUP_SUBJECTS.filter(function (x) { return supSubjectState((supMap[x] || {}).tables || []) === 'placed' }).length
+      const supOverflow = SUP_SUBJECTS.filter(function (x) { return supSubjectState((supMap[x] || {}).tables || []) === 'overflow' }).length
+      const supplementPanel = h('div', { className: 'ad-card' },
+        h('div', { className: 'ad-row-title', style: { marginBottom: '8px' } }, '附表落位（程序表驱动）'),
+        h('div', { style: { display: 'flex', gap: '18px', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap' } },
+          h(Ring, { value: SUP_SUBJECTS.length ? (supPlaced / SUP_SUBJECTS.length * 100) : 0 }),
+          h('div', { className: 'ad-row-meta', style: { minWidth: '120px' } },
+            '已落位 ' + supPlaced + ' / ' + SUP_SUBJECTS.length + ' 个科目' + (supOverflow ? ' · 溢出 ' + supOverflow : '')),
+          h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '6px 14px', flex: 1, minWidth: '220px' } },
+            SUP_SUBJECTS.map(function (x) {
+              const st = supSubjectState((supMap[x] || {}).tables || [])
+              return h('span', { key: 'lg-' + x, style: { display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: 'var(--dsw-alias-label-secondary)' } },
+                h('span', { style: { width: '8px', height: '8px', borderRadius: '2px', background: supColor(st) } }),
+                x)
+            }))),
+        SUP_SUBJECTS.map(function (x) {
+          const item = supMap[x]
+          if (!item || !item.tables.length) {
+            return h('div', { key: 'sg-' + x, className: 'ad-row' },
+              h('span', { style: { flex: 1, minWidth: 0 } }, x),
+              h('span', { className: 'ad-row-meta' }, '未落位'))
+          }
+          return h('div', { key: 'sg-' + x, style: { marginBottom: '12px' } },
+            h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', marginBottom: '4px' } },
+              h('span', { className: 'ad-row-title', style: { fontSize: '12.5px' } }, x + ' · ' + item.program_idx),
+              h('span', { className: 'ad-row-meta' }, '执行 ' + item.procs + ' 条程序 · 命中 ' + item.tables.length + ' 张附表')),
+            item.tables.map(function (t) {
+              const st = supTableState(t)
+              return h('div', { key: 'st-' + x + '-' + t.name, style: { paddingLeft: '10px', marginBottom: '4px' } },
+                h('div', { className: 'ad-row' },
+                  h('span', { style: { flex: 1, minWidth: 0 } }, t.sheet || t.name),
+                  h('span', { className: 'ad-row-meta' }, t.idx || ''),
+                  h(AStatus, { tone: st === 'placed' ? 'ok' : st === 'overflow' ? 'warn' : '' }, st === 'placed' ? '已落位' : st === 'overflow' ? '溢出待补' : '未落位')),
+                h('div', { className: 'ad-row-meta' }, supDesc(t)),
+                (t.warnings || []).length ? h('div', { className: 'ad-note', style: { margin: '4px 0 0', color: 'var(--dsw-alias-state-warn-primary)' } }, (t.warnings || []).join('；')) : null)
+            }))
+        }))
       return h('div', null,
         h('div', { className: 'ad-card' },
           h('div', { className: 'ad-head', style: { marginBottom: '8px' } },
@@ -726,7 +801,8 @@ window.__ModuleLoader__.load({
                     (s.section || '') + '（' + (s.code || '') + '）· ' + (s.rows || 0) + ' 行 / 已填 ' + (s.filled || 0) + ' 行')
                 })
               }))
-          }))
+          })),
+        supplementPanel
       )
     }
 
