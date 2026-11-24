@@ -944,6 +944,39 @@ window.__ModuleLoader__.load({
           })) : null)
     }
 
+    // 资料清单：引擎侧资料齐套检查（缺序时账 = 截止测试/凭证抽查/账龄/抽样都做不了）
+    function EngineMaterialCheck(props) {
+      const [row, setRow] = React.useState(null)
+      React.useEffect(function () {
+        let cancelled = false
+        fetch('/api/audit-fill/companies')
+          .then(function (r) { return r.json() })
+          .then(function (d) {
+            if (cancelled) return
+            const list = d.companies || []
+            const hit = list.filter(function (c) { return c.name === props.client || c.client === props.client })[0]
+            setRow(hit || null)
+          })
+          .catch(function () { if (!cancelled) setRow(null) })
+        return function () { cancelled = true }
+      }, [props.client])
+      if (!row) return null
+      const items = [
+        { label: '科目余额表', ok: Boolean(row.tb), impact: '没有余额表就无法验数、无法生成底稿' },
+        { label: '财务报表', ok: Boolean(row.fs), impact: '没有报表，勾稽没有比对对象' },
+        { label: '序时账 / 凭证', ok: Boolean(row.voucher), impact: '没有凭证，截止测试、凭证抽查、账龄、抽样、凭证异常扫描全部做不了' }
+      ]
+      const missing = items.filter(function (i) { return !i.ok })
+      if (!missing.length) return null
+      return h('div', { className: 'ad-note', style: { borderColor: '#b45309', color: '#b45309', marginTop: '12px' } },
+        h('div', { style: { fontWeight: 600, marginBottom: '4px' } }, '本机引擎资料不齐（' + missing.length + ' 项）：'),
+        missing.map(function (i) {
+          return h('div', { key: 'mc-' + i.label, style: { fontSize: '12px', lineHeight: 1.7 } }, '· 缺' + i.label + '——' + i.impact)
+        }),
+        h('div', { style: { fontSize: '11px', marginTop: '4px', color: 'var(--dsw-alias-label-secondary)' } },
+          '资料补齐后重新放到客户资料目录即可，无需重装。'))
+    }
+
     function Zone(props) {
       const readOnly = Boolean(props.readOnly)
       const tmpElementsState = React.useState({}); const tmpElements = tmpElementsState[0]; const setTmpElements = tmpElementsState[1]
@@ -1506,6 +1539,7 @@ window.__ModuleLoader__.load({
             h('div', null,
               h('h1', { className: 'ad-title' }, '资料清单'),
               h('div', { className: 'ad-sub' }, '点状态可切换未交 / 待补 / 已交；每行右侧上传或删除。'))),
+          h(EngineMaterialCheck, { client: (props.project && props.project.client) || '' }),
           h('details', { className: 'ad-more ad-card', style: { marginTop: '12px' } },
             h('summary', null, '项目数据导入 · 科目余额表 / 序时账 / 财务报表'),
             h('div', { style: { fontSize: '11px', color: COLORS.muted, marginBottom: '8px' } }, '导入科目余额表与序时账后，可执行试算平衡、勾稽与抽样程序（支持 .xlsx / .xls / .csv）。'),
