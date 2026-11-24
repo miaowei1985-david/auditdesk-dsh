@@ -2410,6 +2410,12 @@ window.__ModuleLoader__.load({
 
       function cyclePbc(item) {
         const next = item.status === '未交' ? '待补' : item.status === '待补' ? '已交' : '未交'
+        // 「已交」是唯一计入完成率的状态（第 84 轮口径），退回「未交」前确认，避免误点把完成率打下去
+        if (item.status === '已交' && next === '未交') {
+          try {
+            if (!window.confirm('「' + (item.name || '') + '」当前是「已交」，改为「未交」会从完成退回、完成率会下降。\n\n确定吗？')) return
+          } catch (e) { return }
+        }
         setPbc(function (prev) { return (prev || []).map(function (row) { return row.id === item.id ? Object.assign({}, row, { status: next }) : row }) })
         api('/audit/pbc/status', null, { method: 'POST', body: { id: item.id, status: next } })
           .then(function (d) {
