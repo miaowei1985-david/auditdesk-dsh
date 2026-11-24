@@ -1676,7 +1676,8 @@ window.__ModuleLoader__.load({
           if (wpFilter !== 'all' && item.status !== wpFilter) return false
           const query = String(props.wpSearch || '').trim().toLowerCase()
           if (!query) return true
-          return (String(item.code || '') + ' ' + String(item.name || '') + ' ' + String(item.note || '')).toLowerCase().indexOf(query) >= 0
+          // wp_items 的字段是 index_no（没有 code）——写错会让"按索引号搜索"静默失效
+          return (String(item.index_no || '') + ' ' + String(item.name || '') + ' ' + String(item.note || '')).toLowerCase().indexOf(query) >= 0
         })
         const rows = visibleItems === null
           ? [h('div', { key: 'loading', style: { padding: '14px', fontSize: '12px', color: COLORS.muted } }, '正在加载审计底稿…')]
