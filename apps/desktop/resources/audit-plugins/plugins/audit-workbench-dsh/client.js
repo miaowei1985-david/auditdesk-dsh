@@ -536,7 +536,7 @@ window.__ModuleLoader__.load({
     function ProgramTablesZone(props) {
       const [list, setList] = React.useState(null)
       const [q, setQ] = React.useState('')
-      const [subject, setSubject] = React.useState('')
+      const [subject, setSubject] = React.useState('货币资金')
       const [detail, setDetail] = React.useState(null)
       const [dict, setDict] = React.useState(null)
       const [err, setErr] = React.useState('')
@@ -1443,7 +1443,7 @@ window.__ModuleLoader__.load({
           h('div', { className: 'ad-head' },
             h('div', null,
               h('h1', { className: 'ad-title' }, '资料清单'),
-              h('div', { className: 'ad-sub' }, '点状态切换未交、待补、已交。上传和删除写在行上，不另开一排按钮。'))),
+              h('div', { className: 'ad-sub' }, '点状态可切换未交 / 待补 / 已交；每行右侧上传或删除。'))),
           h('details', { className: 'ad-more ad-card', style: { marginTop: '12px' } },
             h('summary', null, '项目数据导入 · 科目余额表 / 序时账 / 财务报表'),
             h('div', { style: { fontSize: '11px', color: COLORS.muted, marginBottom: '8px' } }, '导入科目余额表与序时账后，可执行试算平衡、勾稽与抽样程序（支持 .xlsx / .xls / .csv）。'),
@@ -1525,7 +1525,7 @@ window.__ModuleLoader__.load({
           h('div', { className: 'ad-head' },
             h('div', null,
               h('h1', { className: 'ad-title' }, '底稿'),
-              h('div', { className: 'ad-sub' }, '按模板生成。点击状态只改执行进度，不代表已复核。')),
+              h('div', { className: 'ad-sub' }, '按模板生成底稿。点状态只改执行进度，复核状态单独记录。')),
             h(ui.Button, { variant: 'primary', size: 'sm', disabled: props.generating || readOnly, onClick: function () { if (props.onGenerateAll) props.onGenerateAll() } }, props.generating ? '生成中…' : '生成常用底稿')),
           h(WorkpaperGatePanel, { client: (props.project && props.project.client) || '' }),
           h(EngineFillsPanel, { projectId: props.project ? props.project.id : '' }),
