@@ -1017,6 +1017,8 @@ window.__ModuleLoader__.load({
 
     function Zone(props) {
       const readOnly = Boolean(props.readOnly)
+      // 程序执行：65 项一次铺开太长，给一个状态筛选
+      const progFilterState = React.useState('all'); const progFilter = progFilterState[0]; const setProgFilter = progFilterState[1]
       const tmpElementsState = React.useState({}); const tmpElements = tmpElementsState[0]; const setTmpElements = tmpElementsState[1]
       const matEditState = React.useState(false); const matEditing = matEditState[0]; const setMatEditing = matEditState[1]
       const matOverallState = React.useState(''); const matOverall = matOverallState[0]; const setMatOverall = matOverallState[1]
@@ -1738,7 +1740,9 @@ window.__ModuleLoader__.load({
         return h(ProgramTablesZone, { project: props.project, onJumpZone: props.onJumpZone })
       }
       if (props.zone === '程序执行') {
-        const rows = props.programs || []
+        const allRows = props.programs || []
+        const rows = progFilter === 'all' ? allRows
+          : allRows.filter(function (r) { return (r.status || '待执行') === progFilter })
         const cycle = ['待执行', '进行中', '已完成', '不适用']
         const sourceStyle = {
           账载: { label: '账载', color: '#2f7cf6', hint: '导科目余额表/序时账' },
@@ -1782,6 +1786,12 @@ window.__ModuleLoader__.load({
               h('h1', { className: 'ad-title' }, '程序执行'),
               h('div', { className: 'ad-sub' }, (((props.project || {}).business_type) || '年报审计') + ' · ' + rows.length + ' 项。改完点保存。')),
             h('div', { className: 'ad-actions' },
+              h('select', { className: 'ad-input', style: { width: 'auto', fontSize: '11px' }, value: progFilter, onChange: function (e) { setProgFilter(e.target.value) } },
+                h('option', { value: 'all' }, '全部 ' + allRows.length),
+                ['待执行', '进行中', '已完成', '不适用'].map(function (st) {
+                  const n = allRows.filter(function (r) { return (r.status || '待执行') === st }).length
+                  return h('option', { key: st, value: st }, st + ' ' + n)
+                })),
               h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onJumpZone) props.onJumpZone('审计程序') } }, '看程序表模板'),
               readOnly ? null : h(ui.Button, { variant: 'primary', size: 'sm', onClick: function () { if (props.onSavePrograms) props.onSavePrograms() } }, '保存'))),
           h('details', { className: 'ad-more' },
