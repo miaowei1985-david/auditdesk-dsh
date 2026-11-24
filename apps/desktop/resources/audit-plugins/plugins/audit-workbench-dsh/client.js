@@ -1558,7 +1558,9 @@ window.__ModuleLoader__.load({
                       'data-pbc-id': String(item.id),
                       style: { cursor: 'pointer' },
                     }, h(Badge, { tone: toneOf(item.status) }, item.status))))
-            }) : [h('div', { key: 'empty', className: 'ad-row-meta' }, '暂无资料清单，先新增应收资料')])
+            }) : [h('div', { key: 'empty', className: 'ad-row-meta', style: { display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' } },
+              h('span', null, '暂无资料清单。可从业务类型模板生成标准清单，再逐项上传。'),
+              readOnly ? null : h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onInitPbc) props.onInitPbc() } }, '按模板生成清单'))])
         const checkPanel = props.clientCheckMsg ? h('div', { style: { marginTop: '10px', padding: '10px', borderRadius: '8px', border: '1px solid ' + COLORS.line, fontSize: '12px' } },
           h('div', { style: { fontWeight: 600, marginBottom: '4px' } }, props.clientCheckMsg),
           props.clientCheck ? h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onExportClientCheck) props.onExportClientCheck() },
@@ -3670,6 +3672,12 @@ window.__ModuleLoader__.load({
         // 留痕页若已在打开状态，不会重新挂载，用事件让它重读筛选条件
         try { setTimeout(function () { window.dispatchEvent(new CustomEvent('auditdesk:events-refresh')) }, 50) } catch (e) {}
       }
+      function initPbcTemplate() {
+        if (!activeProject) return
+        api('/audit/pbc/init', null, { method: 'POST', body: { project: activeProject } })
+          .then(function () { api('/audit/pbc', { project: activeProject }).then(function (r) { setPbc(r.items || []) }).catch(function () {}) })
+          .catch(function () {})
+      }
       function openWorkpaperHistory(item) { openObjectHistory(item, 'workpaper') }
       function openPbcHistory(item) { openObjectHistory(item, '') }
       const zoneProps = {
@@ -3688,7 +3696,7 @@ window.__ModuleLoader__.load({
         generated: generated, generating: generating, generateMessage: generateMessage,
         reviewerName: reviewerName, onReviewerNameChange: setReviewerName,
         members: members, newMemberName: newMemberName, onNewMemberNameChange: setNewMemberName,
-        onAddMember: addProjectMember, onRemoveMember: removeProjectMember, onOpenWorkpaperHistory: openWorkpaperHistory, onOpenPbcHistory: openPbcHistory,
+        onAddMember: addProjectMember, onRemoveMember: removeProjectMember, onOpenWorkpaperHistory: openWorkpaperHistory, onOpenPbcHistory: openPbcHistory, onInitPbc: initPbcTemplate,
         generatedDate: generatedDate, onGeneratedDateChange: setGeneratedDate,
         onOpenWorkpaperIndex: openWorkpaperByIndex, onGenerateWorkpaper: generateWorkpaper,
         onGenerateAll: generateAllWorkpapers, onGenerateLocal: generateLocalWorkpapers, localAtt: localAtt, onLocalAttChange: setLocalAtt, localAtts: localAttachments(), onExportWorkpapers: exportWorkpapersZip, reportVersionFilter: reportVersionFilter, onSetReportVersionFilter: setReportVersionFilter, approvalFilter: approvalFilter, onSetApprovalFilter: setApprovalFilter, onExportApprovals: exportApprovals, todoOverdueOnly: todoOverdueOnly, onSetTodoOverdueOnly: setTodoOverdueOnly, wpStatusFilter: wpStatusFilter, onSetWpStatusFilter: setWpStatusFilter, wpSearch: wpSearch, onSetWpSearch: setWpSearch, onExportWorkpaperList: exportWorkpaperListCsv, onJumpTodoZone: jumpTodoZone, onJumpZone: function (name) { setZone(name) }, onVerifyWorkpapersZip: verifyWorkpapersZip, wpsVerifyMessage: wpsVerifyMessage,
