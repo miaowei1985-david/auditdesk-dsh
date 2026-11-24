@@ -4598,9 +4598,27 @@ window.__ModuleLoader__.load({
 
     function RoleHomeCards(props) {
       const [home, setHome] = React.useState(null)
+      // 各客户引擎资料齐套情况（本机接口）：缺哪份资料决定了“补资料”这张卡到底该催什么
+      const [materials, setMaterials] = React.useState({})
       React.useEffect(function () {
         let cancelled = false
         api('/audit/home').then(function (d) { if (!cancelled) setHome(d) }).catch(function () {})
+        fetch('/api/audit-fill/companies')
+          .then(function (r) { return r.json() })
+          .then(function (d) {
+            if (cancelled) return
+            const map = {}
+            ;(d.companies || []).forEach(function (c) {
+              const miss = []
+              if (!c.tb) miss.push('余额表')
+              if (!c.fs) miss.push('报表')
+              if (!c.voucher) miss.push('序时账')
+              if (miss.length) map[c.name] = miss
+              if (c.client) map[c.client] = miss
+            })
+            setMaterials(map)
+          })
+          .catch(function () { if (!cancelled) setMaterials({}) })
         return function () { cancelled = true }
       }, [])
       if (!home || !home.cards || !home.cards.length) return null
@@ -4634,7 +4652,11 @@ window.__ModuleLoader__.load({
                 h(AStatus, { tone: c.priority === 'high' ? 'warn' : '' }, c.kind),
                 h('span', { className: 'ad-row-meta' }, c.metric)),
               h('div', { className: 'ad-row-title' }, c.project),
-              h('div', { className: 'ad-row-meta' }, c.action))
+              h('div', { className: 'ad-row-meta' }, c.action),
+              (c.kind === '补资料' && (materials[c.client] || []).length)
+                ? h('div', { style: { fontSize: '10.5px', color: '#b45309', fontWeight: 600, marginTop: '2px' } },
+                    '缺：' + materials[c.client].join(' / '))
+                : null)
           })))
     }
 
