@@ -4605,8 +4605,17 @@ window.__ModuleLoader__.load({
       }, [])
       if (!home || !home.cards || !home.cards.length) return null
       const tone = { high: { color: '#b91c1c', bg: 'rgba(185,28,28,0.07)', border: '#b91c1c' }, medium: { color: '#b45309', bg: 'rgba(180,83,9,0.07)', border: '#b45309' }, low: { color: '#6b7280', bg: 'transparent', border: COLORS.line } }
+      // 卡片说“补资料”就落到资料清单，说“待我复核”就落到审批状态——不要统一跳概览再让用户找
+      const ZONE_BY_KIND = {
+        '补资料': '资料清单', '生成底稿': '审计底稿', '处理差异': '审计底稿',
+        '关注错报': '审计底稿', '风险处理': '审计底稿', '推进流程': '审计底稿',
+        '待我复核': '审批状态', '待审批': '审批状态',
+        '报告复核': '报告', '待复核报告': '报告', '待签发': '报告',
+        '跟进项目': '概览', '项目总览': '概览', '系统': '概览'
+      }
       const openProject = function (c) {
-        try { localStorage.setItem('auditdesk.lastContext', JSON.stringify({ company: c.client, project: c.project_id, zone: '概览' })) } catch (e) {}
+        const zone = ZONE_BY_KIND[c.kind] || '概览'
+        try { localStorage.setItem('auditdesk.lastContext', JSON.stringify({ company: c.client, project: c.project_id, zone: zone })) } catch (e) {}
         try { if (props.ui && props.ui.layout) props.ui.layout.selectPanel('audit-companies') } catch (e) {}
       }
       return h('div', { style: { marginBottom: '12px' } },
