@@ -751,7 +751,7 @@ window.__ModuleLoader__.load({
       const supplementPanel = h('details', { className: 'ad-more ad-card' },
         h('summary', null, '附表落位 · ' + SUP_SUBJECTS.length + ' 科目 · 已落位 ' + supPlaced
           + (supOverflow ? ' · 溢出待补 ' + supOverflow : '')
-          + (supEmptyCount ? ' · 无数据 ' + supEmptyCount : '')),
+          + (supEmptyCount ? ' · 未涉及 ' + supEmptyCount : '')),
         h('div', { className: 'ad-row-title', style: { marginTop: '6px', marginBottom: '8px' } }, '附表落位（程序表驱动）'),
         h('div', { style: { display: 'flex', gap: '18px', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap' } },
           h(Ring, { value: SUP_SUBJECTS.length ? (supPlaced / SUP_SUBJECTS.length * 100) : 0 }),
@@ -785,7 +785,7 @@ window.__ModuleLoader__.load({
                 h('div', { className: 'ad-row' },
                   h('span', { style: { flex: 1, minWidth: 0 } }, t.sheet || t.name),
                   h('span', { className: 'ad-row-meta', style: { minWidth: '52px' } }, t.idx || ''),
-                  h('span', { style: { minWidth: '88px', display: 'flex', justifyContent: 'center' } }, h(AStatus, { tone: st === 'placed' || st === 'sampled' ? 'ok' : st === 'overflow' ? 'warn' : '' }, st === 'placed' ? '已落位' : st === 'sampled' ? '已抽样' : st === 'overflow' ? '溢出待补' : '无数据'))),
+                  h('span', { style: { minWidth: '88px', display: 'flex', justifyContent: 'center' } }, h(AStatus, { tone: st === 'placed' || st === 'sampled' ? 'ok' : st === 'overflow' ? 'warn' : '' }, st === 'placed' ? '已落位' : st === 'sampled' ? '已抽样' : st === 'overflow' ? '溢出待补' : '未涉及'))),
                 h('div', { className: 'ad-row-meta' }, supDesc(t)),
                 (t.warnings || []).length ? h('div', { className: 'ad-note', style: { margin: '4px 0 0', color: 'var(--dsw-alias-state-warn-primary)' } }, (t.warnings || []).join('；')) : null)
             }))
