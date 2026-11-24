@@ -1172,6 +1172,8 @@ window.__ModuleLoader__.load({
           h('details', { className: 'ad-more' },
             h('summary', null, '项目操作'),
             h('div', { className: 'ad-actions' },
+              readOnly ? null : h(ui.Button, { variant: 'outline', size: 'sm', title: '补齐资料清单/底稿台账/审批记录/项目成员（幂等，不覆盖已有状态）',
+                onClick: function () { if (props.onInitStdProject) props.onInitStdProject() } }, '补全标准数据'),
               (['partner', 'kb-admin', 'admin'].indexOf(((props.auth && props.auth.user) || {}).role) >= 0 && !readOnly)
                 ? h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onOpenRename) props.onOpenRename() } }, '重命名') : null,
               (['partner', 'kb-admin', 'admin'].indexOf(((props.auth && props.auth.user) || {}).role) >= 0)
@@ -3672,6 +3674,21 @@ window.__ModuleLoader__.load({
         // 留痕页若已在打开状态，不会重新挂载，用事件让它重读筛选条件
         try { setTimeout(function () { window.dispatchEvent(new CustomEvent('auditdesk:events-refresh')) }, 50) } catch (e) {}
       }
+      function initStdProject() {
+        if (!activeProject) return
+        api('/audit/project/init-std', null, { method: 'POST', body: { project: activeProject } })
+          .then(function (d) {
+            const parts = []
+            if (d.pbc_added) parts.push('资料清单 +' + d.pbc_added)
+            if (d.wp_added) parts.push('底稿台账 +' + d.wp_added)
+            if (d.approvals_added) parts.push('审批 +' + d.approvals_added)
+            if (d.member_added) parts.push('已加入项目组')
+            try { window.alert(parts.length ? ('已补全：' + parts.join('，')) : '标准数据已齐，无需补全') } catch (e) {}
+            try { if (typeof refreshPbc === 'function') refreshPbc() } catch (e) {}
+            try { if (typeof refreshApprovals === 'function') refreshApprovals() } catch (e) {}
+          })
+          .catch(function (e) { try { window.alert('补全失败：' + String(e)) } catch (e2) {} })
+      }
       function initPbcTemplate() {
         if (!activeProject) return
         api('/audit/pbc/init', null, { method: 'POST', body: { project: activeProject } })
@@ -3696,7 +3713,7 @@ window.__ModuleLoader__.load({
         generated: generated, generating: generating, generateMessage: generateMessage,
         reviewerName: reviewerName, onReviewerNameChange: setReviewerName,
         members: members, newMemberName: newMemberName, onNewMemberNameChange: setNewMemberName,
-        onAddMember: addProjectMember, onRemoveMember: removeProjectMember, onOpenWorkpaperHistory: openWorkpaperHistory, onOpenPbcHistory: openPbcHistory, onInitPbc: initPbcTemplate,
+        onAddMember: addProjectMember, onRemoveMember: removeProjectMember, onOpenWorkpaperHistory: openWorkpaperHistory, onOpenPbcHistory: openPbcHistory, onInitPbc: initPbcTemplate, onInitStdProject: initStdProject,
         generatedDate: generatedDate, onGeneratedDateChange: setGeneratedDate,
         onOpenWorkpaperIndex: openWorkpaperByIndex, onGenerateWorkpaper: generateWorkpaper,
         onGenerateAll: generateAllWorkpapers, onGenerateLocal: generateLocalWorkpapers, localAtt: localAtt, onLocalAttChange: setLocalAtt, localAtts: localAttachments(), onExportWorkpapers: exportWorkpapersZip, reportVersionFilter: reportVersionFilter, onSetReportVersionFilter: setReportVersionFilter, approvalFilter: approvalFilter, onSetApprovalFilter: setApprovalFilter, onExportApprovals: exportApprovals, todoOverdueOnly: todoOverdueOnly, onSetTodoOverdueOnly: setTodoOverdueOnly, wpStatusFilter: wpStatusFilter, onSetWpStatusFilter: setWpStatusFilter, wpSearch: wpSearch, onSetWpSearch: setWpSearch, onExportWorkpaperList: exportWorkpaperListCsv, onJumpTodoZone: jumpTodoZone, onJumpZone: function (name) { setZone(name) }, onVerifyWorkpapersZip: verifyWorkpapersZip, wpsVerifyMessage: wpsVerifyMessage,
