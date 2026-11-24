@@ -636,6 +636,100 @@ window.__ModuleLoader__.load({
                     })) : null))))
     }
 
+    // 「审计底稿」顶部：本机引擎验数门禁 + 勾稽明细 + 填表明细（数据来自 /api/audit-fill/company）
+    function WorkpaperGatePanel(props) {
+      const [code, setCode] = React.useState(props.client || '')
+      const [companies, setCompanies] = React.useState(null)
+      const [data, setData] = React.useState(null)
+      const [err, setErr] = React.useState('')
+
+      React.useEffect(function () {
+        if (props.client) { setCode(props.client); return }
+        fetch('/api/audit-fill/companies')
+          .then(function (r) { return r.json() })
+          .then(function (d) { setCompanies(d.companies || []) })
+          .catch(function () { setCompanies([]) })
+      }, [props.client])
+
+      React.useEffect(function () {
+        if (!code) { setData(null); return }
+        setErr('')
+        fetch('/api/audit-fill/company?name=' + encodeURIComponent(code))
+          .then(function (r) { return r.json() })
+          .then(function (d) {
+            if (d && d.ok && d.gate) { setData(d) }
+            else { setData(null) }
+          })
+          .catch(function (e) { setData(null); setErr(String(e)) })
+      }, [code])
+
+      const fmt = function (n) { return (n === null || n === undefined) ? '—' : Number(n).toLocaleString() }
+
+      if (!code) {
+        return h('div', { className: 'ad-card' },
+          h('div', { className: 'ad-row-title', style: { marginBottom: '4px' } }, '验数门禁'),
+          h('div', { className: 'ad-row-meta', style: { marginBottom: '8px' } }, '选择本机引擎里已有的公司，查看验数与勾稽结果'),
+          h('div', { className: 'ad-toolbar' },
+            h('select', { className: 'ad-input', style: { width: 'auto' }, value: code, onChange: function (e) { setCode(e.target.value) } },
+              h('option', { value: '' }, '选择公司'),
+              (companies || []).map(function (c) { return h('option', { key: c.name, value: c.name }, c.name + (c.client ? '（' + c.client + '）' : '')) }))))
+      }
+
+      if (data === null) {
+        return h('div', { className: 'ad-card' },
+          h('div', { className: 'ad-row-title', style: { marginBottom: '4px' } }, '验数门禁'),
+          h('div', { className: 'ad-row-meta' }, err ? ('读取失败：' + err) : ('本机引擎还没有「' + code + '」的底稿数据。先生成底稿（/api/audit-fill/run），再回来看验数与勾稽。')))
+      }
+
+      const gate = data.gate || {}
+      const lines = data.lines || []
+      const workbooks = data.workbooks || []
+      return h('div', null,
+        h('div', { className: 'ad-card' },
+          h('div', { className: 'ad-head', style: { marginBottom: '8px' } },
+            h('div', null,
+              h('div', { className: 'ad-row-title' }, '验数门禁'),
+              h('div', { className: 'ad-row-meta' }, code + ' · 共 ' + (gate.accounts || 0) + ' 个科目')),
+            h(AStatus, { tone: gate.ok ? 'ok' : 'bad' }, gate.ok ? '通过' : '不通过')),
+          (gate.checks || []).map(function (c, i) {
+            return h('div', { key: 'gc-' + i, className: 'ad-row', style: { alignItems: 'flex-start' } },
+              h(ui.StateDot, { state: c.ok ? 'done' : 'error' }),
+              h('div', { style: { flex: 1, minWidth: 0 } },
+                h('div', { className: 'ad-row-title', style: { fontSize: '12.5px' } }, c.name),
+                h('div', { className: 'ad-row-meta' }, c.detail || '')))
+          }),
+          (gate.blocked_by || []).length ? h('div', { className: 'ad-note', style: { marginTop: '8px' } }, '阻塞项：' + (gate.blocked_by || []).join('；')) : null),
+        h('div', { className: 'ad-card' },
+          h('div', { className: 'ad-row-title', style: { marginBottom: '8px' } }, '勾稽明细（' + lines.length + '）'),
+          lines.map(function (l, i) {
+            const diff = l.diff
+            const noRow = diff === null || diff === undefined
+            const tone = noRow ? '' : (diff === 0 ? 'ok' : 'bad')
+            const label = noRow ? '报表无此行' : (diff === 0 ? '一致' : '差 ' + fmt(diff))
+            return h('div', { key: 'ln-' + i, className: 'ad-row' },
+              h('span', { style: { flex: 1, minWidth: 0 } }, l.line),
+              h('span', { className: 'ad-row-meta', style: { minWidth: '112px', textAlign: 'right' } }, fmt(l.calc)),
+              h('span', { className: 'ad-row-meta', style: { minWidth: '112px', textAlign: 'right' } }, fmt(l.fs)),
+              h(AStatus, { tone: tone }, label),
+              l.hint ? h('span', { className: 'ad-row-meta', style: { minWidth: '72px' } }, l.hint) : null)
+          })),
+        h('div', { className: 'ad-card' },
+          h('div', { className: 'ad-row-title', style: { marginBottom: '8px' } }, '填表明细（' + workbooks.length + ' 本）'),
+          workbooks.map(function (w) {
+            return h('div', { key: w.file, style: { marginBottom: '10px' } },
+              h('div', { className: 'ad-row' },
+                h('span', { style: { flex: 1, minWidth: 0 } }, w.file),
+                h('span', { className: 'ad-row-meta' }, (w.writes || 0) + ' 格')),
+              (w.plans || []).map(function (p, pi) {
+                return (p.sections || []).map(function (s, si) {
+                  return h('div', { key: 'ws-' + pi + '-' + si, className: 'ad-row-meta', style: { paddingLeft: '14px', lineHeight: 1.7 } },
+                    (s.section || '') + '（' + (s.code || '') + '）· ' + (s.rows || 0) + ' 行 / 已填 ' + (s.filled || 0) + ' 行')
+                })
+              }))
+          }))
+      )
+    }
+
     function Zone(props) {
       const readOnly = Boolean(props.readOnly)
       const tmpElementsState = React.useState({}); const tmpElements = tmpElementsState[0]; const setTmpElements = tmpElementsState[1]
@@ -1260,6 +1354,7 @@ window.__ModuleLoader__.load({
               h('h1', { className: 'ad-title' }, '底稿'),
               h('div', { className: 'ad-sub' }, '按模板生成。点击状态只改执行进度，不代表已复核。')),
             h(ui.Button, { variant: 'primary', size: 'sm', disabled: props.generating || readOnly, onClick: function () { if (props.onGenerateAll) props.onGenerateAll() } }, props.generating ? '生成中…' : '生成常用底稿')),
+          h(WorkpaperGatePanel, { client: (props.project && props.project.client) || '' }),
           h(EngineFillsPanel, { projectId: props.project ? props.project.id : '' }),
           h('div', { style: { padding: '8px 14px 0', display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center', fontSize: '11px' } },
             h('span', { style: { color: COLORS.muted } }, '底稿统计：共 ' + generated.length + ' 份 · 台账 ' + (items ? items.length : 0) + ' 项'),
