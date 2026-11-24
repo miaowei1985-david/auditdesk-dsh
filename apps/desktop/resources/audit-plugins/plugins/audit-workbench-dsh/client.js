@@ -5467,6 +5467,21 @@ window.__ModuleLoader__.load({
       }, [props.projectId])
       function confirmStage() {
         if (!flow || !flow.can_confirm) return
+        // 门禁只查角色和顺序，不查数据；若当前节点还有未齐/未做/不平的指标，先让人确认一次
+        const cur = (flow.stages || []).filter(function (s) { return s.key === flow.current })[0]
+        const warns = ((cur && cur.metrics) || []).filter(function (m) {
+          const val = String(m.value || '').trim()
+          // 值为 0 的一律不算问题（"待补 0" 是好状态，不是待办）
+          if (val === '0' || val === '0 项' || val === '0 张') return false
+          // 关键词可能在 label（"资料未齐"）也可能在 value（"不平 3"），两边都测；
+          // 「0/32」这种进度为零的也要提示（一项没做就点确认，几乎肯定是误操作）
+          const text = String(m.label || '') + val
+          return /未齐|待补|未交|不平|未生成|待处理|未归档/.test(text) || /^0\//.test(val)
+        })
+        if (warns.length) {
+          const msg = warns.map(function (m) { return m.label + ' ' + m.value }).join('，')
+          try { if (!window.confirm('「' + (cur.label || flow.current) + '」仍有：' + msg + '。\n\n仍要确认完成并进入下一节点吗？')) return } catch (e) { return }
+        }
         setConfirming(true); setErr('')
         api('/audit/flow/confirm', null, { method: 'POST', body: { project: props.projectId, stage: flow.current } })
           .then(function () { setConfirming(false); load() })
