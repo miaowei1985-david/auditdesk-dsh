@@ -1981,7 +1981,9 @@ window.__ModuleLoader__.load({
                     style: { marginTop: '8px', marginRight: '6px', padding: '6px 8px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } },
                     approverMembers.map(function (m) { return h('option', { key: m.id, value: m.username }, '审批人：' + m.name) })))
                 }
-                actions.push(h(ui.Button, { variant: 'outline', size: 'sm', key: 'submit', onClick: function () { if (props.onSubmitApproval) props.onSubmitApproval(item, approvers[item.id] || (approverMembers[0] && approverMembers[0].username)) },
+                actions.push(h(ui.Button, { variant: 'outline', size: 'sm', key: 'submit', title: approverMembers.length ? '' : '没有可用审批人：请先在项目里加入项目经理或合伙人',
+                  disabled: !approverMembers.length,
+                  onClick: function () { if (props.onSubmitApproval) props.onSubmitApproval(item, approvers[item.id] || (approverMembers[0] && approverMembers[0].username)) },
                   style: { marginTop: '8px', padding: '6px 12px', borderRadius: '7px', border: 0, background: COLORS.accent, color: 'var(--dsw-alias-label-primary-foreground)', fontSize: '12px', cursor: 'pointer' } }, '提交审批'))
               }
               const isAssigned = !item.assigned_username || item.assigned_username === user.username || user.role === 'kb-admin' || user.role === 'admin'
@@ -3688,7 +3690,16 @@ window.__ModuleLoader__.load({
         })
       }
       function submitApproval(item, approverUsername) {
-        api('/audit/approvals/submit', null, { method: 'POST', body: { id: item.id, approver: approverUsername } }).then(refreshApprovals).catch(function () {})
+        // 原先是空 catch：提交失败（如没指定审批人）用户完全看不到
+        if (!approverUsername) {
+          try { window.alert('提交失败：没有可选的审批人。请先在项目成员里加入项目经理或合伙人。') } catch (e) {}
+          return
+        }
+        api('/audit/approvals/submit', null, { method: 'POST', body: { id: item.id, approver: approverUsername } })
+          .then(refreshApprovals)
+          .catch(function (e) {
+            try { window.alert('提交审批失败：' + String((e && e.message) || e)) } catch (x) {}
+          })
       }
       function decideApproval(item, decision, opinion) {
         // 审批决定是终态：后端只允许从「待审批」决策，没有撤回接口。
