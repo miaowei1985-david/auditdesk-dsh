@@ -6,6 +6,7 @@ from auditfill.store import (connect, upsert_company, save_accounts, save_fs,
 from auditfill.tb import parse_tb
 from auditfill.fs import load_book
 from auditfill.vouchers import parse_vouchers
+from auditfill.mapping_rules import apply_mapping_rules
 
 B="/Users/macbook/Documents/审计底稿"
 CASES={
@@ -83,6 +84,8 @@ def main():
                 except Exception as e:
                     print(f"{name}: 凭证失败 {e}", flush=True)
         print(json.dumps({"company":name,"accounts":na,"fs":nf,"vouchers":nv},ensure_ascii=False), flush=True)
+    n_rules = apply_mapping_rules(con)
+    print(f"mapping_rules 叠加层补齐 std：{n_rules} 个", flush=True)
     print("\n库内概况：")
     for r in summary(con):
         print(r)

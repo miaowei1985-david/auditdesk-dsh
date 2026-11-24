@@ -43,7 +43,8 @@ SUBJECTS = [
     Subject("其他应付款", "2241", "其他应付款明细表", "其他应付款审定表", "其他应付款", -1),
 ]
 
-ASSUME_NOTE = "账龄未取得，暂全额列示1年以内（待客户提供账龄表）"
+ASSUME_NOTE = "账龄未取得（客户未提供序时账/账龄表），暂全额列示1年以内"
+ASSUME_NOTE_NO_DETAIL = "序时账无该科目逐户明细，无法账龄，暂全额列示1年以内（待客户提供往来明细）"
 BUCKET_LABELS = ("1年以内", "1—2年", "2—3年", "3年以上")
 
 # 往来重分类配对：正方向余额留本科目，反方向余额重分类到对面科目
@@ -256,8 +257,8 @@ def fill_counterparty(tpl: Template, tb: TB, subj: Subject, *,
                     summary["cells"] += 1
             summary["aged"] = True
         elif assume_aging and "aging1" in cols:
-            tpl.put(subj.detail_sheet, f"{L(cols['aging1'])}{row}", round(end, 2),
-                    ASSUME_NOTE)
+            note = ASSUME_NOTE if aging is None else ASSUME_NOTE_NO_DETAIL
+            tpl.put(subj.detail_sheet, f"{L(cols['aging1'])}{row}", round(end, 2), note)
             summary["cells"] += 1
         total_begin += begin
         total_end += end
@@ -298,7 +299,8 @@ def fill_counterparty(tpl: Template, tb: TB, subj: Subject, *,
         summary["cells"] += 1
     note_col = scols.get("note")
     if note_col and assume_aging:
-        tpl.put(subj.summary_sheet, f"{L(note_col)}{r0}", ASSUME_NOTE, ASSUME_NOTE)
+        note = ASSUME_NOTE if aging is None else ASSUME_NOTE_NO_DETAIL
+        tpl.put(subj.summary_sheet, f"{L(note_col)}{r0}", note, note)
         summary["cells"] += 1
 
     reclass_in = round(sum(amt for a, amt in parts if a.std != subj.std), 2)
