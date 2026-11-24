@@ -229,6 +229,9 @@ window.__ModuleLoader__.load({
       '.ad-metric-head{display:flex;justify-content:space-between;font-size:10px;color:var(--dsw-alias-label-secondary)}',
       '.ad-metric-val{font-variant-numeric:tabular-nums}',
       '.ad-metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:10px}',
+      '.ad-prog-grid{display:flex;align-items:flex-end;gap:3px;height:30px;margin-top:6px}',
+      '.ad-prog-cell{flex:1;height:100%;display:flex;align-items:flex-end;background:var(--dsw-alias-bg-layer-2);border-radius:2px;overflow:hidden}',
+      '.ad-prog-fill{width:100%;background:var(--dsw-alias-state-business-primary);border-radius:2px}',
       '.ad-tile.wide{flex:2 1 420px;min-width:420px}',
       'body:not([data-ds-dark-theme]) .ad-tile{box-shadow:var(--dsw-shadow-lv1),var(--dsw-shadow-lv1-blur)}',
       '.ad-card summary{list-style:none;cursor:pointer}',
@@ -4689,6 +4692,7 @@ window.__ModuleLoader__.load({
       const [showCreateClient, setShowCreateClient] = React.useState(false)
       const [showCreateContract, setShowCreateContract] = React.useState(false)
       const [dashRows, setDashRows] = React.useState([])
+      const [progSummary, setProgSummary] = React.useState({})
       const role = (props.auth && props.auth.user && props.auth.user.role) || ''
       const canApprove = ['manager', 'partner', 'kb-admin', 'admin'].indexOf(role) >= 0
       function loadClients() { api('/audit/clients').then(function (d) { setClients(d.items || []) }).catch(function () {}) }
@@ -4696,6 +4700,7 @@ window.__ModuleLoader__.load({
       React.useEffect(function () { loadClients(); loadContracts() }, [])
       React.useEffect(function () { api('/audit/approvers').then(function (d) { setApprovers(d.items || []) }).catch(function () {}) }, [])
       React.useEffect(function () { api('/audit/dashboard').then(function (d) { setDashRows((d && d.items) || []) }).catch(function () {}) }, [])
+      React.useEffect(function () { api('/audit/programs/summary').then(function (d) { setProgSummary((d && d.items) || {}) }).catch(function () {}) }, [])
       // 客户审计全流程状态：准入/合同/立项/执行/归档
       function flowOf(cl) {
         const cs = (contracts || []).filter(function (x) { return x.client_name === cl.name })
@@ -4716,11 +4721,15 @@ window.__ModuleLoader__.load({
         const pbc = avg('pbc_percent')
         const wp = avg('wp_percent')
         const program = avg('program_percent')
+        const cats = (progSummary || {})[cl.name] || []
+        const progTotal = cats.reduce(function (s, x) { return s + (x.total || 0) }, 0)
+        const progDone = cats.reduce(function (s, x) { return s + (x.done || 0) }, 0)
         return {
           projects: ps.length,
           pbc: pbc, wp: wp, program: program,
           overall: Math.round((pbc + wp + program) / 3),
-          archived: ps.filter(function (p) { return p.status === '已归档' }).length
+          archived: ps.filter(function (p) { return p.status === '已归档' }).length,
+          cats: cats, progTotal: progTotal, progDone: progDone
         }
       }
       function createClient() {
@@ -4802,6 +4811,16 @@ window.__ModuleLoader__.load({
                       h(MetricBar, { label: '资料', value: st.pbc, color: 'var(--dsw-alias-chart-messages)' }),
                       h(MetricBar, { label: '底稿', value: st.wp, color: 'var(--dsw-alias-state-success-primary)' }),
                       h(MetricBar, { label: '程序', value: st.program, color: 'var(--dsw-alias-state-done-primary)' })),
+                    st.cats.length ? h('div', { style: { marginTop: '10px' } },
+                      h('div', { className: 'ad-metric-head' },
+                        h('span', null, '审计程序 ' + st.progDone + '/' + st.progTotal + ' 项 · ' + st.cats.length + ' 类'),
+                        h('span', { className: 'ad-metric-val' }, (st.progTotal ? Math.round(st.progDone / st.progTotal * 100) : 0) + '%')),
+                      h('div', { className: 'ad-prog-grid' },
+                        st.cats.map(function (cat) {
+                          const pct = cat.total ? Math.round(cat.done / cat.total * 100) : 0
+                          return h('div', { key: cat.category, className: 'ad-prog-cell', title: cat.category + '：' + cat.done + '/' + cat.total },
+                            h('div', { className: 'ad-prog-fill', style: { height: Math.max(3, pct) + '%' } }))
+                        }))) : null,
                     (c.approver_name && c.status !== '待提交') ? h('div', { className: 'ad-row-meta', style: { marginTop: '6px' } }, '审批人：' + c.approver_name + (c.submitted_at ? ' · 提交 ' + c.submitted_at : '') + (c.approve_opinion ? ' · 意见：' + c.approve_opinion : '')) : null,
                     submitFor === c.id ? h('div', { className: 'ad-actions', style: { marginTop: '6px' } },
                       h('select', { className: 'ad-input', style: { width: 'auto' }, value: approverPick, onChange: function (e) { setApproverPick(e.target.value) } },
