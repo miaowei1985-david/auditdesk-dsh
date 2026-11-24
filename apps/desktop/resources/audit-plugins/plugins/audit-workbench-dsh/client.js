@@ -220,6 +220,7 @@ window.__ModuleLoader__.load({
       '.ad-tabs-fit{width:fit-content}',
       '.ad-flow{display:inline-flex;align-items:center;gap:12px;margin-top:6px;font-size:11px;color:var(--dsw-alias-label-secondary)}',
       '.ad-flow-step{display:inline-flex;align-items:center;gap:4px}',
+      '.ad-flow-step+.ad-flow-step::before{content:\'\';width:14px;height:1px;background:var(--dsw-alias-border-l3);margin-right:4px}',
       '.ad-tile.wide{flex:2 1 420px;min-width:420px}',
       'body:not([data-ds-dark-theme]) .ad-tile{box-shadow:var(--dsw-shadow-lv1),var(--dsw-shadow-lv1-blur)}',
       '.ad-card summary{list-style:none;cursor:pointer}',
@@ -293,14 +294,15 @@ window.__ModuleLoader__.load({
       return h(ui.Tag, { tone: tone, className: props.className }, props.children)
     }
 
-    // 客户准入流程：建档 → 提交 → 审批，用原生 StateDot 画状态点
+    // 客户审计全流程：准入 → 合同 → 立项 → 执行 → 归档（图标化步骤条）
     function ClientFlow(props) {
-      const s = props.status
-      const submitted = s === '待审批' || s === '已审批' || s === '已驳回'
+      const f = props.flow || {}
       const steps = [
-        { label: '建档', state: 'done' },
-        { label: '提交', state: submitted ? 'done' : 'idle' },
-        { label: '审批', state: s === '已审批' ? 'done' : s === '已驳回' ? 'error' : s === '待审批' ? 'warning' : 'idle' }
+        { label: '准入', state: f.admission || 'idle' },
+        { label: '合同', state: f.contract || 'idle' },
+        { label: '立项', state: f.engagement || 'idle' },
+        { label: '执行', state: f.execution || 'idle' },
+        { label: '归档', state: f.archive || 'idle' }
       ]
       return h('div', { className: 'ad-flow' }, steps.map(function (st) {
         return h('span', { key: st.label, className: 'ad-flow-step' },
@@ -4657,12 +4659,25 @@ window.__ModuleLoader__.load({
       const [opinion, setOpinion] = React.useState('')
       const [showCreateClient, setShowCreateClient] = React.useState(false)
       const [showCreateContract, setShowCreateContract] = React.useState(false)
+      const [dashRows, setDashRows] = React.useState([])
       const role = (props.auth && props.auth.user && props.auth.user.role) || ''
       const canApprove = ['manager', 'partner', 'kb-admin', 'admin'].indexOf(role) >= 0
       function loadClients() { api('/audit/clients').then(function (d) { setClients(d.items || []) }).catch(function () {}) }
       function loadContracts() { api('/audit/contracts').then(function (d) { setContracts(d.items || []) }).catch(function () {}) }
       React.useEffect(function () { loadClients(); loadContracts() }, [])
       React.useEffect(function () { api('/audit/approvers').then(function (d) { setApprovers(d.items || []) }).catch(function () {}) }, [])
+      React.useEffect(function () { api('/audit/dashboard').then(function (d) { setDashRows((d && d.items) || []) }).catch(function () {}) }, [])
+      // 客户审计全流程状态：准入/合同/立项/执行/归档
+      function flowOf(cl) {
+        const cs = (contracts || []).filter(function (x) { return x.client_name === cl.name })
+        const ps = (dashRows || []).filter(function (x) { return x.client === cl.name })
+        const admission = cl.status === '已审批' ? 'done' : cl.status === '待审批' ? 'warning' : cl.status === '已驳回' ? 'error' : 'idle'
+        const contract = cs.some(function (x) { return x.status === '已签' || x.status === '已归档' }) ? 'done' : cs.length ? 'warning' : 'idle'
+        const engagement = ps.length ? 'done' : 'idle'
+        const execution = ps.length ? (ps.every(function (p) { return (p.wp_percent || 0) >= 100 }) ? 'done' : 'warning') : 'idle'
+        const archive = (ps.length && ps.every(function (p) { return p.status === '已归档' })) ? 'done' : 'idle'
+        return { admission: admission, contract: contract, engagement: engagement, execution: execution, archive: archive }
+      }
       function createClient() {
         if (!name.trim()) { setMsg('客户名称必填'); return }
         api('/audit/clients/create', null, { method: 'POST', body: { name: name, credit_code: creditCode, client_type: clientType, contact: contact, owner_name: ownerName, risk_level: riskLevel } })
@@ -4730,7 +4745,7 @@ window.__ModuleLoader__.load({
                 h('div', { style: { minWidth: 0, flex: 1 } },
                   h('div', { className: 'ad-row-title' }, c.name),
                   h('div', { className: 'ad-row-meta' }, [c.client_type, c.credit_code, c.contact, c.risk_level ? '风险 ' + c.risk_level : '', c.owner_name ? '责任人 ' + c.owner_name : ''].filter(Boolean).join(' · ')),
-                  h(ClientFlow, { status: c.status }),
+                  h(ClientFlow, { flow: flowOf(c) }),
                   (c.approver_name && c.status !== '待提交') ? h('div', { className: 'ad-row-meta' }, '审批人：' + c.approver_name + (c.submitted_at ? ' · 提交 ' + c.submitted_at : '') + (c.approve_opinion ? ' · 意见：' + c.approve_opinion : '')) : null,
                   submitFor === c.id ? h('div', { className: 'ad-actions', style: { marginTop: '6px' } },
                     h('select', { className: 'ad-input', style: { width: 'auto' }, value: approverPick, onChange: function (e) { setApproverPick(e.target.value) } },
