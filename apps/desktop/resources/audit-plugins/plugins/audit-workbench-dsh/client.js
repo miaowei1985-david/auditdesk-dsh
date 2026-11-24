@@ -308,13 +308,6 @@ window.__ModuleLoader__.load({
       return h(ui.Tag, { tone: tone, className: props.className }, props.children)
     }
 
-    // 审计程序 4 大类归并（13 个科目循环分类 → 4 个阶段）
-    const PROGRAM_GROUPS = [
-      { key: 'plan', label: '一、计划与风险评估', cats: ['计划与风险评估'] },
-      { key: 'major', label: '二、主要科目程序', cats: ['货币资金', '应收账款', '存货', '固定资产与无形资产', '收入与成本'] },
-      { key: 'liab', label: '三、负债与权益程序', cats: ['借款与利息', '应付及其他应付款', '应付职工薪酬', '应交税费', '所有者权益'] },
-      { key: 'finish', label: '四、完成与特殊事项', cats: ['完成阶段', '特殊项目'] }
-    ]
     const PROG_STATE = function (status) {
       return status === '已完成' ? 'done' : status === '进行中' ? 'warning' : status === '不适用' ? 'idle' : 'idle'
     }
@@ -4760,8 +4753,6 @@ window.__ModuleLoader__.load({
         const st = statsOf(c)
         const flow = flowOf(c)
         const prog = selPrograms || { project: null, groups: [] }
-        const byCat = {}
-        ;(prog.groups || []).forEach(function (g) { byCat[g.category] = g })
         return h('div', null,
           h('div', { className: 'ad-head', style: { marginBottom: '14px' } },
             h('div', null,
@@ -4780,30 +4771,21 @@ window.__ModuleLoader__.load({
                   h(MetricBar, { label: '底稿', value: st.wp, color: 'var(--dsw-alias-state-success-primary)' }),
                   h(MetricBar, { label: '程序', value: st.program, color: 'var(--dsw-alias-state-done-primary)' }))))),
           selPrograms === null ? h('div', { className: 'ad-row-meta' }, '加载审计程序…') : null,
-          PROGRAM_GROUPS.map(function (g) {
-            const cats = g.cats.map(function (n) { return byCat[n] }).filter(Boolean)
-            if (!cats.length) return null
-            const total = cats.reduce(function (s, x) { return s + x.items.length }, 0)
-            const done = cats.reduce(function (s, x) { return s + x.items.filter(function (i) { return i.status === '已完成' }).length }, 0)
+          (prog.groups || []).map(function (cat) {
+            const total = cat.items.length
+            const done = cat.items.filter(function (i) { return i.status === '已完成' }).length
             const pct = total ? Math.round(done / total * 100) : 0
-            return h('div', { key: g.key, className: 'ad-card' },
+            return h('div', { key: cat.category, className: 'ad-card' },
               h('div', { className: 'ad-metric-head', style: { marginBottom: '4px' } },
-                h('span', { className: 'ad-row-title', style: { fontSize: '13px' } }, g.label),
+                h('span', { className: 'ad-row-title', style: { fontSize: '13px' } }, cat.category),
                 h('span', { className: 'ad-metric-val' }, done + '/' + total + ' 项 · ' + pct + '%')),
               h('div', { className: 'ad-bar-track', style: { marginBottom: '10px' } },
                 h('div', { className: 'ad-bar-fill', style: { width: pct + '%', background: 'var(--dsw-alias-state-business-primary)' } })),
-              cats.map(function (cat) {
-                const cd = cat.items.filter(function (i) { return i.status === '已完成' }).length
-                return h('div', { key: cat.category, style: { marginBottom: '10px' } },
-                  h('div', { className: 'ad-metric-head', style: { marginBottom: '2px' } },
-                    h('span', { style: { fontSize: '12px', fontWeight: 600 } }, cat.category),
-                    h('span', { className: 'ad-metric-val' }, cd + '/' + cat.items.length)),
-                  cat.items.map(function (it) {
-                    return h('div', { key: it.seq, className: 'ad-prog-item' },
-                      h(ui.StateDot, { state: PROG_STATE(it.status) }),
-                      h('span', { className: 'ad-prog-item-name' }, it.name),
-                      h('span', { className: 'ad-prog-item-status' }, it.status))
-                  }))
+              cat.items.map(function (it) {
+                return h('div', { key: it.seq, className: 'ad-prog-item' },
+                  h(ui.StateDot, { state: PROG_STATE(it.status) }),
+                  h('span', { className: 'ad-prog-item-name' }, it.name),
+                  h('span', { className: 'ad-prog-item-status' }, it.status))
               }))
           }))
       }
