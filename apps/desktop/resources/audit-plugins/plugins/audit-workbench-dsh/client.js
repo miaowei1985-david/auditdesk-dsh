@@ -815,7 +815,14 @@ window.__ModuleLoader__.load({
                 h('div', { className: 'ad-row-meta' }, c.detail || '')))
           }),
           (gate.blocked_by || []).length ? h('div', { className: 'ad-note', style: { marginTop: '8px' } }, '阻塞项：' + (gate.blocked_by || []).join('；')) : null),
-        h('details', { className: 'ad-more ad-card' },
+        (lineMagnitude || []).length >= 3 ? h('div', { className: 'ad-note', style: { borderColor: '#b91c1c', color: '#b91c1c' } },
+          h('div', { style: { marginBottom: '6px' } },
+            '本项目有 ' + lineMagnitude.length + ' 项量级异常：差异超过较大一方的 50%，多为科目范围或报表口径不一致，不是分录错误。建议先核对科目映射，再看明细。'),
+          h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () {
+            const el = document.getElementById('tieout-detail')
+            if (el) { el.open = true; try { el.scrollIntoView({ behavior: 'smooth', block: 'center' }) } catch (e) {} }
+          } }, '展开勾稽明细')) : null,
+        h('details', { id: 'tieout-detail', className: 'ad-more ad-card' },
           h('summary', { style: lineBad.length ? { color: '#b91c1c', fontWeight: 600 } : (lineReport.length ? { color: '#b45309' } : undefined) },
             '勾稽明细 · ' + lines.length + ' 行'
             + (lineOk ? ' · 一致 ' + lineOk : '')
