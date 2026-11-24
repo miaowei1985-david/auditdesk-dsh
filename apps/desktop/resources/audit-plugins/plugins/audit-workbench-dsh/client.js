@@ -5736,7 +5736,7 @@ window.__ModuleLoader__.load({
       return h('div', { style: { padding: '18px', maxWidth: '960px', height: '100%', overflow: 'auto', boxSizing: 'border-box' } },
         h('div', { style: { fontSize: '15px', fontWeight: 600, marginBottom: '10px' } }, '使用指南'),
         section('快速开始（5 步）', h('div', null,
-          line('1. 项目 → + 新建项目：先选已登记合同，再填项目名称、期间和业务类型（年报/专项/内控）。没有合同不能立项。'),
+          line('1. 客户 → 点客户进详情 → 业务约定书登记合同（签署后）；再回 项目 → + 新建项目选该合同。没有合同不能立项。'),
           line('2. 风险评估：确认重要性（经理/合伙人），上传财务报表（xlsx），导入科目余额表、序时账（支持 xlsx/xls/csv、多工作表、模板下载）。'),
           line('3. 执行程序：试算平衡、抽样、函证/回函、账龄、截止测试、存货监盘；生成程序底稿（Word）。'),
           line('4. 审计程序：86 张程序表，选中科目看 5 项认定与实质性程序；点进底下看关联底稿表。'),
