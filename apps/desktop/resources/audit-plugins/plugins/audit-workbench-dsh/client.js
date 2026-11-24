@@ -5553,7 +5553,15 @@ window.__ModuleLoader__.load({
       const last = flow.stages.length - 1
       return h('div', { style: { marginBottom: '14px', padding: '14px 16px', borderRadius: '12px', border: '1px solid ' + COLORS.line, background: COLORS.bg } },
         h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', gap: '10px', flexWrap: 'wrap' } },
-          h('div', { style: { fontSize: '13px', fontWeight: 600 } }, '审计全流程'),
+          h('div', { style: { fontSize: '13px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px' } },
+            '审计全流程',
+            h('span', { title: '7 个节点各管什么（悬停或点击查看）',
+              onClick: function () {
+                try {
+                  window.alert('审计流程 7 个节点：\n\n1. 资料接收 —— 收齐客户 PBC 资料（余额表 / 报表 / 凭证）\n2. 底稿填制 —— 按模板填制审计底稿\n3. 勾稽核对 —— 账表勾稽、底稿与报表核对\n4. 差异处理 —— 处理勾稽差异与待取证事项\n5. 出具备忘录 —— 生成审计备忘录 / 报告初稿\n6. 复核 —— 项目经理复核底稿与报告\n7. 归档 —— 合伙人签发后归档\n\n每个节点需对应角色点「确认完成」才进入下一节点。\n确认代表审计判断，不因数据未齐而强制拦截（会提示但不阻止）。')
+                } catch (e) {}
+              },
+              style: { fontSize: '10px', width: '14px', height: '14px', lineHeight: '14px', textAlign: 'center', borderRadius: '50%', border: '1px solid ' + COLORS.line, color: COLORS.muted, cursor: 'help', flexShrink: 0 } }, '?')),
           h('div', { style: { display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' } },
             h('span', { style: { fontSize: '12px', color: COLORS.muted } }, '进度 ' + flow.progress + '% · 下一步：' + flow.next_action),
             (function () {
