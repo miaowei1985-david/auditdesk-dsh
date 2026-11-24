@@ -3729,6 +3729,14 @@ window.__ModuleLoader__.load({
         // 旧顺序把「已生成」放在「已完成」之后，从「已生成」点击会直接跳到「不适用」，等于跳过复核
         const order = ['待执行', '进行中', '已生成', '已完成', '不适用']
         const next = order[(order.indexOf(item.status) + 1) % order.length]
+        // 完成口径是「已完成 / 不适用」两个都算；从这两个退回未完成（待执行/进行中/已生成）前要确认，
+        // 否则一次误点就把「已完成」改成「待执行」，完成率跟着掉。
+        const doneSet = ['已完成', '不适用']
+        if (doneSet.indexOf(item.status) >= 0 && doneSet.indexOf(next) < 0) {
+          try {
+            if (!window.confirm('「' + (item.index_no || '') + ' ' + (item.name || '') + '」当前「' + item.status + '」，改为「' + next + '」会从完成状态退回。\n\n确定吗？')) return
+          } catch (e) { return }
+        }
         setWp(function (prev) { return (prev || []).map(function (row) { return row.id === item.id ? Object.assign({}, row, { status: next }) : row }) })
         api('/audit/workpapers/status', null, { method: 'POST', body: { id: item.id, status: next } })
           .then(function (d) {
