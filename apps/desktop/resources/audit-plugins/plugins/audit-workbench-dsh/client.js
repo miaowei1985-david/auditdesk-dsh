@@ -4191,13 +4191,30 @@ window.__ModuleLoader__.load({
         h('label', { className: 'ad-field' }, '结束', h(ui.Input, { className: 'ad-iw', value: endDate, onChange: function (e) { setEndDate(e.target.value) }, type: 'date' })),
         h('div', { className: 'ad-form-actions' }, h(ui.Button, { variant: 'primary', size: 'sm', onClick: function () { load(1) } }, loading ? '查询中…' : '查询')))
 
+      // 留痕里最该被看见的是「倒退」：已交→未交、已完成→待执行、已调整→未处理
+      const TRANSITION_TONE = (function () {
+        const down = { '待执行': 0, '未交': 0, '未处理': 0, '已驳回': 0, '进行中': 1, '待补': 1, '待审批': 1, '已询问': 1 }
+        const terminal = { '已完成': 3, '已交': 2, '已调整': 3, '已通过': 3, '已定稿': 4, '已生成': 2 }
+        return function (oldS, newS) {
+          const o = oldS || ''
+          const n = newS || ''
+          if (!o) return '#6b7280'                      // 新增
+          // 从终态退回（已完成→待执行、已交→未交）：最该被看见的异常
+          if (terminal[o] !== undefined && terminal[n] === undefined) return '#b91c1c'
+          const oi = down[o]
+          const ni = down[n]
+          if (oi !== undefined && ni !== undefined) return ni < oi ? '#b91c1c' : (ni > oi ? '#16a34a' : '#6b7280')
+          if (terminal[n] !== undefined) return '#16a34a'   // 走向终态
+          return '#b45309'                                   // 其它（多为新增/流程推进）
+        }
+      })()
       const rows = events.map(function (item) {
         return h('div', { key: item.id, style: { display: 'grid', gridTemplateColumns: '140px 70px 66px minmax(0,1fr) 150px 110px', gap: '10px', padding: '7px 16px', borderBottom: '1px solid ' + COLORS.line, fontSize: '12px', alignItems: 'center' } },
           h('span', { style: { color: COLORS.muted } }, item.created_at),
           h('span', null, item.actor || '-'),
           h('span', { style: { color: COLORS.muted, fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, TYPE_NAMES[item.item_type] || item.item_type),
           h('span', { title: item.item_name || '', style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, item.item_name || '—'),
-          h('span', { style: { color: COLORS.muted, fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }, title: (item.old_status || '') + ' → ' + (item.new_status || '') },
+          h('span', { style: { color: TRANSITION_TONE(item.old_status, item.new_status), fontSize: '11px', fontWeight: item.old_status && item.new_status && TRANSITION_TONE(item.old_status, item.new_status) === '#b91c1c' ? 700 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }, title: (item.old_status || '—') + ' → ' + (item.new_status || '—') },
             (item.old_status || '—') + ' → ' + (item.new_status || '—')),
           h('span', { style: { color: COLORS.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, item.project_id))
       })
