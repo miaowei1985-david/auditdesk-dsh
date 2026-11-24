@@ -4433,7 +4433,7 @@ window.__ModuleLoader__.load({
       }
       function restoreBackup(name) {
         api('/audit/system/restore', null, { method: 'POST', body: { name: name, confirm: true } })
-          .then(function (result) { setMessage('已从 ' + result.restored + ' 恢复（安全备份：' + result.safety_backup + '）'); setRestoreName(''); load() })
+          .then(function (result) { setMessage('已从 ' + result.restored + ' 恢复（安全备份：' + result.safety_backup + '）。请刷新页面或重新登录，其他页面才会读到新数据。'); setRestoreName(''); load() })
           .catch(function (e) { setError(String(e)) })
       }
       function cancelJob(job) {
@@ -4645,6 +4645,9 @@ window.__ModuleLoader__.load({
               h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { setDeleteBackupName('') }, style: { padding: '5px 10px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '取消'))) : null,
           restoreName ? h('div', { style: { marginTop: '8px', padding: '8px', borderRadius: '8px', background: 'rgba(180,83,9,0.10)', fontSize: '12px', color: '#b45309' } },
             '确认用 ' + restoreName + ' 覆盖当前数据库？系统会先自动创建安全备份。',
+            (health && (health.projects || health.active_users)) ? h('div', { style: { marginTop: '4px', fontSize: '11px', fontWeight: 600 } },
+              '当前库：' + (health.projects || 0) + ' 个项目 / ' + (health.active_users || 0) + ' 个启用用户'
+              + (restoreSummary && restoreSummary.projects !== undefined ? '　→　恢复后：' + restoreSummary.projects + ' 个项目' : '')) : null,
             restoreSummary ? h('div', { style: { marginTop: '6px', fontSize: '11px', lineHeight: 1.7 } }, '完整性：' + (restoreSummary.ok ? '通过' : '未通过（' + (restoreSummary.integrity || '') + '）') + ' · 表 ' + restoreSummary.tables + ' 张 · 项目 ' + restoreSummary.projects + ' 个 · ' + formatBytes(restoreSummary.size || 0)) : h('div', { style: { marginTop: '6px', fontSize: '11px', color: COLORS.muted } }, '正在校验备份完整性…'),
             h('div', { style: { display: 'flex', gap: '8px', marginTop: '6px' } },
               h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { restoreBackup(restoreName) }, disabled: !restoreSummary || !restoreSummary.ok,
