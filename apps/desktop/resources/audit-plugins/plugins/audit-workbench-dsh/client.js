@@ -853,39 +853,7 @@ window.__ModuleLoader__.load({
               return h('div', { key: 'mh-' + history.id, style: { display: 'flex', justifyContent: 'space-between', gap: '10px', padding: '4px 0', borderBottom: '1px solid ' + COLORS.line, fontSize: '12px' } },
                 h('span', null, history.actor + '：整体 ' + Number(history.overall).toLocaleString() + ' / 执行 ' + Number(history.performance).toLocaleString() + ' / 微小 ' + Number(history.trivial).toLocaleString() + (history.note ? ' · ' + history.note : '')),
                 h('span', { style: { color: COLORS.muted } }, history.created_at))
-            })) : null,
-          h('div', { style: { marginTop: '12px', padding: '14px', borderRadius: '12px', border: '1px solid ' + COLORS.line } },
-            h('div', { style: { fontSize: '13px', fontWeight: 600, marginBottom: '6px' } }, '项目数据导入'),
-            h('div', { style: { fontSize: '11px', color: COLORS.muted, marginBottom: '8px' } }, '导入科目余额表与序时账后，可执行试算平衡、勾稽与抽样程序（支持 .xlsx / .xls / .csv）。'),
-            readOnly ? h('div', { className: 'ad-row-meta' }, '项目已归档，不可导入') : h('div', { className: 'ad-form' },
-              h('label', { className: 'ad-field' }, '科目余额表', h('input', { className: 'ad-input', type: 'file', accept: '.xlsx,.xls,.csv', onChange: function (e) { const f = e.target.files && e.target.files[0]; if (f && props.onImportData) props.onImportData('tb', f); e.target.value = '' } })),
-              h('label', { className: 'ad-field' }, '序时账', h('input', { className: 'ad-input', type: 'file', accept: '.xlsx,.xls,.csv', onChange: function (e) { const f = e.target.files && e.target.files[0]; if (f && props.onImportData) props.onImportData('journal', f); e.target.value = '' } })),
-              h('label', { className: 'ad-field' }, '财务报表', h('input', { className: 'ad-input', type: 'file', accept: '.xlsx', onChange: function (e) { const f = e.target.files && e.target.files[0]; if (f && props.onImportFinancialStatements) props.onImportFinancialStatements(f); e.target.value = '' } }))),
-            h('div', { style: { display: 'flex', gap: '10px', marginTop: '6px', fontSize: '11px' } },
-              h('span', { style: { color: COLORS.muted } }, '标准模板：'),
-              h('button', { onClick: function () { if (props.onDownloadImportTemplate) props.onDownloadImportTemplate('tb') }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '11px', cursor: 'pointer' } }, '下载科目余额表模板'),
-              h('button', { onClick: function () { if (props.onDownloadImportTemplate) props.onDownloadImportTemplate('journal') }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '11px', cursor: 'pointer' } }, '下载序时账模板'),
-              h('button', { onClick: function () { if (props.onDownloadFinancialTemplate) props.onDownloadFinancialTemplate() }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '11px', cursor: 'pointer' } }, '下载财务报表模板')),
-            readOnly ? null : h('div', { style: { marginTop: '8px', paddingTop: '8px', borderTop: '1px dashed ' + COLORS.line, display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center', fontSize: '11px' } },
-              h('label', { style: { padding: '5px 10px', borderRadius: '7px', border: '1px solid ' + COLORS.line, color: COLORS.muted, cursor: 'pointer' } },
-                props.multiLoading ? '读取中…' : '多工作表文件', h('input', { type: 'file', accept: '.xlsx,.xls', style: { display: 'none' }, onChange: function (e) { const f = e.target.files && e.target.files[0]; if (f && props.onChooseMultiSheetFile) props.onChooseMultiSheetFile(f); e.target.value = '' } })),
-              (props.multiSheets || []).length ? h('select', { value: props.multiKind, onChange: function (e) { if (props.onSetMultiKind) props.onSetMultiKind(e.target.value) }, style: { padding: '4px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px' } },
-                h('option', { value: 'tb' }, '科目余额表'), h('option', { value: 'journal' }, '序时账')) : null,
-              (props.multiSheets || []).length ? h('select', { value: props.multiSheetIndex, onChange: function (e) { if (props.onSetMultiSheetIndex) props.onSetMultiSheetIndex(e.target.value) }, style: { padding: '4px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px' } },
-                props.multiSheets.map(function (name, index) { return h('option', { key: name + index, value: String(index) }, name) })) : null,
-              (props.multiSheets || []).length ? h('button', { onClick: function () { if (props.onSubmitMultiSheet) props.onSubmitMultiSheet('validate') }, style: { padding: '5px 10px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px', cursor: 'pointer' } }, '校验所选') : null,
-              (props.multiSheets || []).length ? h('button', { onClick: function () { if (props.onSubmitMultiSheet) props.onSubmitMultiSheet('import') }, style: { padding: '5px 10px', borderRadius: '7px', border: 0, background: COLORS.accent, color: 'var(--dsw-alias-label-primary-foreground)', fontSize: '11px', cursor: 'pointer' } }, '导入所选') : null),
-            props.importMessage ? h('div', { style: { display: 'flex', gap: '8px', alignItems: 'center', marginTop: '8px', flexWrap: 'wrap' } },
-              h('div', { style: { fontSize: '12px', color: props.importMessage.indexOf('失败') >= 0 ? '#b91c1c' : '#16a34a' } }, props.importMessage),
-              (props.importMessage.indexOf('勾稽提示') >= 0 && !readOnly) ? h('button', { onClick: function () { if (props.onGenerateTrialBalance) props.onGenerateTrialBalance() },
-                style: { padding: '4px 10px', borderRadius: '6px', border: '1px solid ' + COLORS.accent, background: 'transparent', color: COLORS.accent, fontSize: '11px', cursor: 'pointer' } }, '生成试算平衡底稿') : null) : null,
-            (props.dataEvents || []).length ? h('div', { style: { marginTop: '8px', fontSize: '11px', color: COLORS.muted } },
-              h('div', { style: { marginBottom: '3px' } }, '最近导入：'),
-              (props.dataEvents || []).slice(0, 5).map(function (event, index) {
-                return h('div', { key: 'de-' + index, style: { display: 'flex', justifyContent: 'space-between', padding: '2px 0' } },
-                  h('span', null, (event.item_name || '') + ' · ' + (event.actor || '') + (event.new_status ? ' · ' + event.new_status : '')),
-                  h('span', null, event.created_at))
-              })) : null))
+            })) : null)
       }
       if (props.zone === '资料清单') {
         const items = props.pbc === null ? null : props.pbc
@@ -950,6 +918,38 @@ window.__ModuleLoader__.load({
             h('div', null,
               h('h1', { className: 'ad-title' }, '资料清单'),
               h('div', { className: 'ad-sub' }, '点状态切换未交、待补、已交。上传和删除写在行上，不另开一排按钮。'))),
+          h('div', { style: { marginTop: '12px', padding: '14px', borderRadius: '12px', border: '1px solid ' + COLORS.line } },
+            h('div', { style: { fontSize: '13px', fontWeight: 600, marginBottom: '6px' } }, '项目数据导入'),
+            h('div', { style: { fontSize: '11px', color: COLORS.muted, marginBottom: '8px' } }, '导入科目余额表与序时账后，可执行试算平衡、勾稽与抽样程序（支持 .xlsx / .xls / .csv）。'),
+            readOnly ? h('div', { className: 'ad-row-meta' }, '项目已归档，不可导入') : h('div', { className: 'ad-form' },
+              h('label', { className: 'ad-field' }, '科目余额表', h('input', { className: 'ad-input', type: 'file', accept: '.xlsx,.xls,.csv', onChange: function (e) { const f = e.target.files && e.target.files[0]; if (f && props.onImportData) props.onImportData('tb', f); e.target.value = '' } })),
+              h('label', { className: 'ad-field' }, '序时账', h('input', { className: 'ad-input', type: 'file', accept: '.xlsx,.xls,.csv', onChange: function (e) { const f = e.target.files && e.target.files[0]; if (f && props.onImportData) props.onImportData('journal', f); e.target.value = '' } })),
+              h('label', { className: 'ad-field' }, '财务报表', h('input', { className: 'ad-input', type: 'file', accept: '.xlsx', onChange: function (e) { const f = e.target.files && e.target.files[0]; if (f && props.onImportFinancialStatements) props.onImportFinancialStatements(f); e.target.value = '' } }))),
+            h('div', { style: { display: 'flex', gap: '10px', marginTop: '6px', fontSize: '11px' } },
+              h('span', { style: { color: COLORS.muted } }, '标准模板：'),
+              h('button', { onClick: function () { if (props.onDownloadImportTemplate) props.onDownloadImportTemplate('tb') }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '11px', cursor: 'pointer' } }, '下载科目余额表模板'),
+              h('button', { onClick: function () { if (props.onDownloadImportTemplate) props.onDownloadImportTemplate('journal') }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '11px', cursor: 'pointer' } }, '下载序时账模板'),
+              h('button', { onClick: function () { if (props.onDownloadFinancialTemplate) props.onDownloadFinancialTemplate() }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '11px', cursor: 'pointer' } }, '下载财务报表模板')),
+            readOnly ? null : h('div', { style: { marginTop: '8px', paddingTop: '8px', borderTop: '1px dashed ' + COLORS.line, display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center', fontSize: '11px' } },
+              h('label', { style: { padding: '5px 10px', borderRadius: '7px', border: '1px solid ' + COLORS.line, color: COLORS.muted, cursor: 'pointer' } },
+                props.multiLoading ? '读取中…' : '多工作表文件', h('input', { type: 'file', accept: '.xlsx,.xls', style: { display: 'none' }, onChange: function (e) { const f = e.target.files && e.target.files[0]; if (f && props.onChooseMultiSheetFile) props.onChooseMultiSheetFile(f); e.target.value = '' } })),
+              (props.multiSheets || []).length ? h('select', { value: props.multiKind, onChange: function (e) { if (props.onSetMultiKind) props.onSetMultiKind(e.target.value) }, style: { padding: '4px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px' } },
+                h('option', { value: 'tb' }, '科目余额表'), h('option', { value: 'journal' }, '序时账')) : null,
+              (props.multiSheets || []).length ? h('select', { value: props.multiSheetIndex, onChange: function (e) { if (props.onSetMultiSheetIndex) props.onSetMultiSheetIndex(e.target.value) }, style: { padding: '4px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px' } },
+                props.multiSheets.map(function (name, index) { return h('option', { key: name + index, value: String(index) }, name) })) : null,
+              (props.multiSheets || []).length ? h('button', { onClick: function () { if (props.onSubmitMultiSheet) props.onSubmitMultiSheet('validate') }, style: { padding: '5px 10px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px', cursor: 'pointer' } }, '校验所选') : null,
+              (props.multiSheets || []).length ? h('button', { onClick: function () { if (props.onSubmitMultiSheet) props.onSubmitMultiSheet('import') }, style: { padding: '5px 10px', borderRadius: '7px', border: 0, background: COLORS.accent, color: 'var(--dsw-alias-label-primary-foreground)', fontSize: '11px', cursor: 'pointer' } }, '导入所选') : null),
+            props.importMessage ? h('div', { style: { display: 'flex', gap: '8px', alignItems: 'center', marginTop: '8px', flexWrap: 'wrap' } },
+              h('div', { style: { fontSize: '12px', color: props.importMessage.indexOf('失败') >= 0 ? '#b91c1c' : '#16a34a' } }, props.importMessage),
+              (props.importMessage.indexOf('勾稽提示') >= 0 && !readOnly) ? h('button', { onClick: function () { if (props.onGenerateTrialBalance) props.onGenerateTrialBalance() },
+                style: { padding: '4px 10px', borderRadius: '6px', border: '1px solid ' + COLORS.accent, background: 'transparent', color: COLORS.accent, fontSize: '11px', cursor: 'pointer' } }, '生成试算平衡底稿') : null) : null,
+            (props.dataEvents || []).length ? h('div', { style: { marginTop: '8px', fontSize: '11px', color: COLORS.muted } },
+              h('div', { style: { marginBottom: '3px' } }, '最近导入：'),
+              (props.dataEvents || []).slice(0, 5).map(function (event, index) {
+                return h('div', { key: 'de-' + index, style: { display: 'flex', justifyContent: 'space-between', padding: '2px 0' } },
+                  h('span', null, (event.item_name || '') + ' · ' + (event.actor || '') + (event.new_status ? ' · ' + event.new_status : '')),
+                  h('span', null, event.created_at))
+              })) : null),
           rows, checkPanel, addForm, eventsBlock('pbc'))
       }
       if (props.zone === '审计底稿') {
@@ -1297,7 +1297,6 @@ window.__ModuleLoader__.load({
               h('div', { className: 'ad-sub' }, '初稿来自项目数据。出具前必须人工复核，系统不代下审计结论。')),
             h('button', { className: 'ad-btn primary', disabled: readOnly || props.reportLoading, onClick: function () { if (props.onGenerateDraft) props.onGenerateDraft() } }, props.reportLoading ? '生成中…' : '生成报告初稿')),
           h(ReportOverviewPanel, { projectId: props.project ? props.project.id : '' }),
-          h(ReportSealPanel, { projectId: props.project ? props.project.id : '' }),
           h(KamPanel, { projectId: props.project ? props.project.id : '' }),
           h(EvidencePanel, { projectId: props.project ? props.project.id : '' }),
           h('div', { className: 'ad-form' },
@@ -1387,7 +1386,21 @@ window.__ModuleLoader__.load({
                   h('button', { onClick: function () { if (props.onDownloadVersion) props.onDownloadVersion(version.id) }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '下载 MD'),
                   h('button', { onClick: function () { if (props.onExportDocx) props.onExportDocx(version.id) }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '导出 Word'),
                   h('button', { onClick: function () { if (props.onExportPdf) props.onExportPdf(version.id) }, style: { border: 0, background: 'transparent', color: '#b91c1c', fontSize: '12px', cursor: 'pointer' } }, '导出 PDF')))
-            })) : null)
+            })) : null,
+          h(ReportSealPanel, { projectId: props.project ? props.project.id : '' }))
+      }
+      if (props.zone === '归档') {
+        return h('div', { className: 'ad-zone-page' },
+          h('div', { className: 'ad-head' },
+            h('div', null,
+              h('h1', { className: 'ad-title' }, '归档'),
+              h('div', { className: 'ad-sub' }, readOnly ? '项目已归档，只读。' : '归档后项目锁定，只能查看和下载。归档包可单独导出。')),
+            h('div', { className: 'ad-actions' },
+              h('button', { className: 'ad-btn', onClick: function () { if (props.onExportArchive) props.onExportArchive() }, disabled: props.exporting }, props.exporting ? '打包中…' : '导出归档包'),
+              readOnly ? null : h('button', { className: 'ad-btn primary', onClick: function () { if (props.onArchiveProject) props.onArchiveProject() } }, '归档项目'))),
+          h(ArchivePackagePanel, { projectId: props.project ? props.project.id : '' }),
+          h(ProjectFieldsPanel, { projectId: props.project ? props.project.id : '' }),
+          readOnly ? h('div', { className: 'ad-note' }, '项目已归档：所有写操作已锁定，仅可查看/下载。') : null)
       }
       return h('div', null)
     }
@@ -3024,7 +3037,7 @@ window.__ModuleLoader__.load({
         h('div', { style: { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' } },
           h('div', { className: 'ad-zones' },
             activeProject ? h('button', { className: 'ad-btn quiet', style: { alignSelf: 'flex-end', flexShrink: 0, marginRight: '10px', marginBottom: '4px', minHeight: '30px' }, onClick: function () { setActiveProject(null) } }, '← 项目列表') : null,
-            [{ label: '执行', items: ['概览', '风险评估', '资料清单', '审计底稿', '审计程序'] }, { label: '交付', items: ['审批状态', '报告', '项目对话'] }].map(function (group) {
+            [{ label: '执行', items: ['概览', '风险评估', '审计程序', '资料清单', '审计底稿', '项目对话'] }, { label: '交付', items: ['报告', '审批状态', '归档'] }].map(function (group) {
               return h('div', { key: group.label, className: 'ad-zone-group' },
                 h('span', { className: 'ad-zone-label' }, group.label),
                 group.items.map(function (name) {
@@ -3933,6 +3946,10 @@ window.__ModuleLoader__.load({
         if (panelId === 'audit-events') { goSettingsTab('events'); return }
         try { if (props.ui && props.ui.layout) props.ui.layout.selectPanel(panelId) } catch (e) {}
       }
+      function openProject(item) {
+        try { localStorage.setItem('auditdesk.lastContext', JSON.stringify({ company: item.client, project: item.id, zone: '概览' })) } catch (e) {}
+        goPanel('audit-companies')
+      }
       const pendingState = React.useState(0); const pendingTotal = pendingState[0]; const setPendingTotal = pendingState[1]
       React.useEffect(function () {
         api('/audit/approvals/pending-counts').then(function (d) { setPendingTotal((d && d.total) || 0) }).catch(function () {})
@@ -4056,7 +4073,7 @@ window.__ModuleLoader__.load({
           h('span', { className: 'ad-row-meta' }, rows.length + ' 个项目')),
         h('div', { className: 'ad-card' },
           rows.map(function (item) {
-            return h('div', { key: item.id, className: 'ad-row' },
+            return h('div', { key: item.id, className: 'ad-row', style: { cursor: 'pointer' }, onClick: function () { openProject(item) } },
               h('div', { style: { minWidth: 0 } },
                 h('div', { className: 'ad-row-title' }, item.name, (item.data_source === 'test') ? h('span', { className: 'ad-pill warn', style: { marginLeft: '6px' } }, '测试') : null),
                 h('div', { className: 'ad-row-meta' }, item.client + ' · ' + (item.period || '-') + ' · 资料 ' + item.pbc_percent + '% · 底稿 ' + item.wp_percent + '% · 程序 ' + (item.program_percent || 0) + '%' + (item.approval_pending ? ' · 待审批 ' + item.approval_pending : ''))),
@@ -4616,11 +4633,13 @@ window.__ModuleLoader__.load({
       }
       function approveClient(id) {
         api('/audit/clients/approve', null, { method: 'POST', body: { id: id } })
-          .then(function () { setMsg('客户已审批'); loadClients() })
+          .then(function () { setMsg('客户已审批。下一步：切到「合同」页签登记业务约定书'); loadClients() })
           .catch(function (e) { setMsg('审批失败：' + e) })
       }
       function createContract() {
-        if (!cClient.trim()) { setMsg('客户名称必填'); return }
+        const picked = (clients || []).filter(function (c) { return c.name === cClient })[0]
+        if (!picked) { setMsg('请先选择已审批客户'); return }
+        if (picked.status !== '已审批') { setMsg('该客户尚未审批，不能登记合同'); return }
         api('/audit/contracts/create', null, { method: 'POST', body: { client_name: cClient, project_name: cProject, seal_type: cSeal } })
           .then(function () { setMsg('合同已登记，待归档'); setCClient(''); setCProject(''); loadContracts() })
           .catch(function (e) { setMsg('登记失败：' + e) })
@@ -4660,7 +4679,9 @@ window.__ModuleLoader__.load({
             }) : h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '暂无客户，先建档'))
         ) : h('div', null,
           h('div', { className: 'ad-form' },
-            h('label', { className: 'ad-field' }, '客户名称', h('input', { className: 'ad-input', value: cClient, placeholder: '必填', onChange: function (e) { setCClient(e.target.value) } })),
+            h('label', { className: 'ad-field' }, '客户（仅已审批）', h('select', { className: 'ad-input', value: cClient, onChange: function (e) { setCClient(e.target.value) } },
+              h('option', { value: '' }, '选择已审批客户'),
+              (clients || []).filter(function (c) { return c.status === '已审批' }).map(function (c) { return h('option', { key: 'cc-' + c.id, value: c.name }, c.name) }))),
             h('label', { className: 'ad-field' }, '项目名称', h('input', { className: 'ad-input', value: cProject, onChange: function (e) { setCProject(e.target.value) } })),
             h('label', { className: 'ad-field' }, '盖章类型', h('select', { className: 'ad-input', value: cSeal, onChange: function (e) { setCSeal(e.target.value) } }, ['双章', '单章(客户章)'].map(function (t) { return h('option', { key: 'cs-' + t, value: t }, t) }))),
             h('div', { className: 'ad-form-actions' }, h('button', { className: 'ad-btn primary', onClick: createContract }, '登记'))),
