@@ -3372,6 +3372,22 @@ window.__ModuleLoader__.load({
           setGenerated((results[1] && results[1].items) || [])
         }).catch(function () {})
       }
+      // 后台任务的 message 可能重复同一错误 4 次、且带技术词（如“缺少 audit.db”）。
+      // 这里去重并转成审计员能看懂的话。
+      function friendlyJobMessage(raw) {
+        if (!raw) return ''
+        const parts = String(raw).split(/[;；]/).map(function (x) { return x.trim() }).filter(Boolean)
+        const seen = {}
+        const uniq = []
+        parts.forEach(function (part) {
+          // key 去掉编号和空格再比较，否则「400: x」和「400:x」会被当成两条
+          const key = part.replace(/\d+:/g, '').replace(/\s+/g, '').trim()
+          if (!seen[key]) { seen[key] = 1; uniq.push(part) }
+        })
+        return uniq.join('；')
+          .replace(/缺少 audit\.db/g, '请先在「风险评估」导入财务报表')
+          .replace(/该项目没有财务报表数据/g, '缺少财务报表数据')
+      }
       function generateAllWorkpapers() {
         if (!activeProject || generating) return
         setGenerating(true)
@@ -3382,7 +3398,7 @@ window.__ModuleLoader__.load({
             const poll = function () {
               api('/audit/jobs/' + jobId).then(function (result) {
                 const item = (result && result.item) || {}
-                setGenerateMessage('后台任务：' + (item.status || '') + '（' + (item.progress || 0) + '/' + (item.total || 4) + '）' + (item.message ? ' · ' + item.message : ''))
+                setGenerateMessage('后台任务：' + (item.status || '') + '（' + (item.progress || 0) + '/' + (item.total || 4) + '）' + (item.message ? ' · ' + friendlyJobMessage(item.message) : ''))
                 if (item.status === '已完成' || item.status === '部分失败') {
                   setGenerating(false)
                   refreshWorkpapers()
