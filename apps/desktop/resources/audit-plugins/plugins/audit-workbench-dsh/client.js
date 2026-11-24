@@ -195,6 +195,8 @@ window.__ModuleLoader__.load({
       '.ad-actions,.ad-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}',
       '.ad-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:10px;margin:0 0 16px}',
       '.ad-kpi{padding:14px 16px;border-radius:12px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1)}',
+      '.ad-kpi-link{transition:border-color .15s ease,background .15s ease}',
+      '.ad-kpi-link:hover{border-color:var(--dsw-alias-brand-primary);background:var(--dsw-alias-interactive-bg-hover)}',
       'body:not([data-ds-dark-theme]) .ad-kpi{box-shadow:var(--dsw-shadow-lv1),var(--dsw-shadow-lv1-blur)}',
       '.ad-kpi-label{font-size:12px;color:var(--dsw-alias-label-secondary);margin-bottom:6px}',
       '.ad-kpi-value{font-size:22px;font-weight:650;letter-spacing:-0.03em;font-variant-numeric:tabular-nums}',
@@ -1036,8 +1038,12 @@ window.__ModuleLoader__.load({
           if (overdueDiff !== 0) return overdueDiff
           return String(a.submitted_at || '').localeCompare(String(b.submitted_at || ''))
         })
-        const card = function (title, value, detail) {
-          return h('div', { className: 'ad-kpi' },
+        const jump = function (zoneName) {
+          return function () { if (props.onJumpZone) props.onJumpZone(zoneName) }
+        }
+        const card = function (title, value, detail, onClick) {
+          return h('div', { className: 'ad-kpi' + (onClick ? ' ad-kpi-link' : ''), title: onClick ? '点击进入' : undefined,
+            style: onClick ? { cursor: 'pointer' } : undefined, onClick: onClick },
             h('div', { className: 'ad-kpi-label' }, title),
             h('div', { className: 'ad-kpi-value' }, String(value)),
             h('div', { className: 'ad-kpi-hint' }, detail))
@@ -1070,15 +1076,15 @@ window.__ModuleLoader__.load({
           h(ProjectFieldsPanel, { projectId: props.project ? props.project.id : '' }),
           h(ArchivePackagePanel, { projectId: props.project ? props.project.id : '' }),
           h('div', { className: 'ad-kpis' },
-            h('div', { className: 'ad-kpi' },
+            h('div', { className: 'ad-kpi ad-kpi-link', title: '点击进入', style: { cursor: 'pointer' }, onClick: jump('资料清单') },
               h('div', { className: 'ad-kpi-label' }, '资料清单完成率'),
               h('div', { className: 'ad-kpi-value' }, pbcPercent + '%'),
               h('div', { className: 'ad-kpi-hint' }, '已交 ' + finishedPbc + ' / 共 ' + pbcItems.length + ' 项'),
               progress(pbcPercent)),
-            card('审计底稿', wpItems.length, '已生成 ' + (wpCounts['已生成'] || 0) + ' · 进行中 ' + (wpCounts['进行中'] || 0) + ' · 待执行 ' + (wpCounts['待执行'] || 0)),
-            card('已生成文件', generatedItems.length, '可预览/下载，按索引号回写台账'),
-            card('审批状态', approvalItems.length, '已通过 ' + (approvalCounts['已通过'] || 0) + ' · 待审批 ' + (approvalCounts['待审批'] || 0) + ' · 待提交 ' + (approvalCounts['待提交'] || 0)),
-            card('审计程序', programPercent + '%', '已完成 ' + programDone + ' / ' + programItems.length + ' 项')),
+            card('审计底稿', wpItems.length, '已生成 ' + (wpCounts['已生成'] || 0) + ' · 进行中 ' + (wpCounts['进行中'] || 0) + ' · 待执行 ' + (wpCounts['待执行'] || 0), jump('审计底稿')),
+            card('已生成文件', generatedItems.length, '可预览/下载，按索引号回写台账', jump('审计底稿')),
+            card('审批状态', approvalItems.length, '已通过 ' + (approvalCounts['已通过'] || 0) + ' · 待审批 ' + (approvalCounts['待审批'] || 0) + ' · 待提交 ' + (approvalCounts['待提交'] || 0), jump('审批状态')),
+            card('审计程序', programPercent + '%', '已完成 ' + programDone + ' / ' + programItems.length + ' 项', jump('程序执行'))),
           h('div', { className: 'ad-card' },
             h('div', { className: 'ad-row-title', style: { marginBottom: '8px' } }, '项目成员（' + memberItems.length + '）'),
             memberItems.length ? memberItems.map(function (m) {
@@ -5015,7 +5021,11 @@ window.__ModuleLoader__.load({
                 h('div', { style: { flex: 1, height: '2px', background: i === last ? 'transparent' : (done ? '#16a34a' : 'rgba(127,127,127,0.2)') } })),
               h('div', { style: { fontSize: '11px', fontWeight: st.status === 'current' ? 700 : 600, color: st.status === 'pending' ? COLORS.muted : 'inherit' } }, st.label),
               h('div', { style: { fontSize: '9px', color: meta.color, marginTop: '2px' } }, meta.txt),
-              st.metrics.map(function (m) { return h('div', { key: 'm-' + st.key + '-' + m.label, style: { fontSize: '9.5px', color: COLORS.muted, marginTop: '1px', maxWidth: '90px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, m.label + ' ' + m.value) }))
+              st.metrics.map(function (m) {
+                const text = m.label + ' ' + m.value
+                const blocking = /待补|待处理|待审|不平|未生成|未归档|未定|缺|失败/.test(text)
+                return h('div', { key: 'm-' + st.key + '-' + m.label, title: text, style: { fontSize: '9.5px', color: blocking ? '#b45309' : COLORS.muted, fontWeight: blocking ? 600 : 400, marginTop: '1px', maxWidth: '90px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, text)
+              }))
           })))
     }
 
