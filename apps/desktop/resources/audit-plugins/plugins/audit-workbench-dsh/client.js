@@ -1618,7 +1618,15 @@ window.__ModuleLoader__.load({
           h('div', { className: 'ad-head' },
             h('div', null,
               h('h1', { className: 'ad-title' }, '资料清单'),
-              h('div', { className: 'ad-sub' }, '点状态可切换未交 / 待补 / 已交；每行右侧上传或删除。'))),
+              h('div', { className: 'ad-sub', style: { display: 'inline-flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' } },
+                '点状态可切换未交 / 待补 / 已交；每行右侧上传或删除。',
+                h('span', { title: '三种状态的含义（悬停或点击查看）',
+                  onClick: function () {
+                    try {
+                      window.alert('资料清单三种状态：\n\n· 未交 —— 客户还没提供这份资料\n· 待补 —— 客户给了，但内容不完整或不符合要求，需要补充\n· 已交 —— 已收到且符合要求\n\n点击状态徽标在三者间切换；归档项目只读。\n\n只有「已交」计入完成率。')
+                    } catch (e) {}
+                  },
+                  style: { fontSize: '10px', width: '14px', height: '14px', lineHeight: '14px', textAlign: 'center', borderRadius: '50%', border: '1px solid ' + COLORS.line, color: COLORS.muted, cursor: 'help', flexShrink: 0 } }, '?')))),
           h(EngineMaterialCheck, { client: (props.project && props.project.client) || '' }),
           h('details', { className: 'ad-more ad-card', style: { marginTop: '12px' } },
             h('summary', null, '项目数据导入 · 科目余额表 / 序时账 / 财务报表'),
