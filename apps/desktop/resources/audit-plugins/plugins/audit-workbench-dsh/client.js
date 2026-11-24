@@ -1909,7 +1909,18 @@ window.__ModuleLoader__.load({
                   h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onExportDocx) props.onExportDocx(version.id) }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '导出 Word'),
                   h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onExportPdf) props.onExportPdf(version.id) }, style: { border: 0, background: 'transparent', color: '#b91c1c', fontSize: '12px', cursor: 'pointer' } }, '导出 PDF')))
             })) : null,
-          h(ReportSealPanel, { projectId: props.project ? props.project.id : '' }))
+          h(ReportSealPanel, { projectId: props.project ? props.project.id : '' }),
+          (function () {
+            const versions = report.versions || []
+            const finalized = versions.filter(function (v) { return v.status === '已定稿' })
+            return h('div', { className: 'ad-card', style: { marginTop: '12px' } },
+              h('div', { className: 'ad-row-title', style: { marginBottom: '4px' } }, '下一步'),
+              h('div', { className: 'ad-row-meta' }, finalized.length
+                ? ('报告已定稿 ' + finalized.length + ' 版。下一步提交审批，审批通过后归档。')
+                : '报告尚未定稿。定稿后才能提交审批；审批通过后归档。'),
+              finalized.length ? h('div', { className: 'ad-actions', style: { marginTop: '8px' } },
+                h(ui.Button, { variant: 'primary', size: 'sm', onClick: function () { if (props.onJumpZone) props.onJumpZone('审批状态') } }, '去提交审批')) : null)
+          })())
       }
       if (props.zone === '归档') {
         return h('div', { className: 'ad-zone-page' },
@@ -1920,6 +1931,16 @@ window.__ModuleLoader__.load({
             h('div', { className: 'ad-actions' },
               h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onExportArchive) props.onExportArchive() }, disabled: props.exporting }, props.exporting ? '打包中…' : '导出归档包'),
               readOnly ? null : h(ui.Button, { variant: 'primary', size: 'sm', onClick: function () { if (props.onArchiveProject) props.onArchiveProject() } }, '归档项目'))),
+          (function () {
+            const list = props.approvals || []
+            const pending = list.filter(function (a) { return a.status === '待审批' }).length
+            const rejected = list.filter(function (a) { return a.status === '已驳回' }).length
+            if (!pending && !rejected) return null
+            return h('div', { className: 'ad-note', style: { borderColor: rejected ? '#b91c1c' : '#b45309', color: rejected ? '#b91c1c' : '#b45309' } },
+              rejected
+                ? ('有 ' + rejected + ' 项审批被驳回，归档前应先处理（见「审批状态」）。')
+                : ('还有 ' + pending + ' 项审批进行中，建议完成后再归档（见「审批状态」）。'))
+          })(),
           h(ArchivePackagePanel, { projectId: props.project ? props.project.id : '' }),
           h(ProjectFieldsPanel, { projectId: props.project ? props.project.id : '' }),
           readOnly ? h('div', { className: 'ad-note' }, '项目已归档：所有写操作已锁定，仅可查看/下载。') : null)
