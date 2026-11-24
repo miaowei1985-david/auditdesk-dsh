@@ -3055,6 +3055,9 @@ window.__ModuleLoader__.load({
       }
       function archiveProject() {
         if (!activeProject) return
+        try {
+          if (!window.confirm('确认归档项目「' + activeProject + '」？\n归档后项目变为只读：资料、底稿、程序、报告全部锁定，只能查看和下载。\n（如需继续编辑需先解除归档。）')) return
+        } catch (e) {}
         api('/audit/projects/archive', null, { method: 'POST', body: { project: activeProject } })
           .then(function () { return api('/audit/projects') })
           .then(function (d) { setData({ loading: false, companies: d.companies || [], error: '' }) })
