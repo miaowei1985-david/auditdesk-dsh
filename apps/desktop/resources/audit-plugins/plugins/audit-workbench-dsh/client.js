@@ -4637,6 +4637,8 @@ window.__ModuleLoader__.load({
       const [approverPick, setApproverPick] = React.useState('')
       const [decisionFor, setDecisionFor] = React.useState(null)
       const [opinion, setOpinion] = React.useState('')
+      const [showCreateClient, setShowCreateClient] = React.useState(false)
+      const [showCreateContract, setShowCreateContract] = React.useState(false)
       const role = (props.auth && props.auth.user && props.auth.user.role) || ''
       const canApprove = ['manager', 'partner', 'kb-admin', 'admin'].indexOf(role) >= 0
       function loadClients() { api('/audit/clients').then(function (d) { setClients(d.items || []) }).catch(function () {}) }
@@ -4646,7 +4648,7 @@ window.__ModuleLoader__.load({
       function createClient() {
         if (!name.trim()) { setMsg('客户名称必填'); return }
         api('/audit/clients/create', null, { method: 'POST', body: { name: name, credit_code: creditCode, client_type: clientType, contact: contact, owner_name: ownerName, risk_level: riskLevel } })
-          .then(function () { setMsg('客户已建档（待提交）。下一步：指定审批人提交准入'); setName(''); setCreditCode(''); setContact(''); setOwnerName(''); loadClients() })
+          .then(function () { setMsg('客户已建档（待提交）。下一步：指定审批人提交准入'); setName(''); setCreditCode(''); setContact(''); setOwnerName(''); setShowCreateClient(false); loadClients() })
           .catch(function (e) { setMsg('建档失败：' + e) })
       }
       function submitClient(id) {
@@ -4668,7 +4670,7 @@ window.__ModuleLoader__.load({
         if (!picked) { setMsg('请先选择已审批客户'); return }
         if (picked.status !== '已审批') { setMsg('该客户尚未审批，不能登记合同'); return }
         api('/audit/contracts/create', null, { method: 'POST', body: { client_name: cClient, project_name: cProject, seal_type: cSeal } })
-          .then(function () { setMsg('合同已登记，待签'); setCClient(''); setCProject(''); loadContracts() })
+          .then(function () { setMsg('合同已登记，待签'); setCClient(''); setCProject(''); setShowCreateContract(false); loadContracts() })
           .catch(function (e) { setMsg('登记失败：' + e) })
       }
       function signContract(id) {
@@ -4693,14 +4695,17 @@ window.__ModuleLoader__.load({
         embedded ? null : h('div', { style: { display: 'flex', gap: '8px', marginBottom: '12px' } }, tabBtn('clients', '客户管理'), tabBtn('contracts', '合同管理')),
         msg ? h('div', { style: { fontSize: '11px', color: '#16a34a', marginBottom: '8px' } }, msg) : null,
         section === 'clients' ? h('div', null,
-          h('div', { className: 'ad-form' },
+          h('div', { className: 'ad-toolbar', style: { marginBottom: '12px' } },
+            h('span', { className: 'ad-row-meta' }, clients === null ? '加载中…' : (clients.length + ' 家客户')),
+            h(ui.Button, { variant: 'primary', size: 'sm', onClick: function () { setShowCreateClient(!showCreateClient) } }, showCreateClient ? '取消' : '新建客户')),
+          (showCreateClient || (clients && clients.length === 0)) ? h('div', { className: 'ad-form' },
             h('label', { className: 'ad-field' }, '客户名称', h(ui.Input, { className: 'ad-iw', value: name, placeholder: '必填', onChange: function (e) { setName(e.target.value) } })),
             h('label', { className: 'ad-field' }, '统一社会信用代码', h(ui.Input, { className: 'ad-iw', value: creditCode, onChange: function (e) { setCreditCode(e.target.value) } })),
             h('label', { className: 'ad-field' }, '客户类型', h('select', { className: 'ad-input', value: clientType, onChange: function (e) { setClientType(e.target.value) } }, ['其他', '企业', '事业单位', '政府', '个人'].map(function (t) { return h('option', { key: 'ct-' + t, value: t }, t) }))),
             h('label', { className: 'ad-field' }, '联系信息', h(ui.Input, { className: 'ad-iw', value: contact, onChange: function (e) { setContact(e.target.value) } })),
             h('label', { className: 'ad-field' }, '业务责任人', h(ui.Input, { className: 'ad-iw', value: ownerName, placeholder: '姓名', onChange: function (e) { setOwnerName(e.target.value) } })),
             h('label', { className: 'ad-field' }, '风险等级', h('select', { className: 'ad-input', value: riskLevel, onChange: function (e) { setRiskLevel(e.target.value) } }, ['低', '中', '高'].map(function (x) { return h('option', { key: 'rl-' + x, value: x }, x) }))),
-            h('div', { className: 'ad-form-actions' }, h(ui.Button, { variant: 'primary', size: 'sm', onClick: createClient }, '建档'))),
+            h('div', { className: 'ad-form-actions' }, h(ui.Button, { variant: 'primary', size: 'sm', onClick: createClient }, '建档'))) : null,
           clients === null ? h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '加载客户…') :
             (clients.length ? clients.map(function (c) {
               return h('div', { key: 'cl-' + c.id, className: 'ad-row', style: { alignItems: 'flex-start' } },
@@ -4726,13 +4731,16 @@ window.__ModuleLoader__.load({
                   (c.status === '待审批' && canApprove) ? h(ui.Button, { variant: 'ghost', size: 'sm', onClick: function () { setDecisionFor(c.id); setOpinion('') } }, '审批') : null))
             }) : h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '暂无客户，先建档'))
         ) : h('div', null,
-          h('div', { className: 'ad-form' },
+          h('div', { className: 'ad-toolbar', style: { marginBottom: '12px' } },
+            h('span', { className: 'ad-row-meta' }, contracts === null ? '加载中…' : (contracts.length + ' 份合同')),
+            h(ui.Button, { variant: 'primary', size: 'sm', onClick: function () { setShowCreateContract(!showCreateContract) } }, showCreateContract ? '取消' : '新建合同')),
+          (showCreateContract || (contracts && contracts.length === 0)) ? h('div', { className: 'ad-form' },
             h('label', { className: 'ad-field' }, '客户（仅已审批）', h('select', { className: 'ad-input', value: cClient, onChange: function (e) { setCClient(e.target.value) } },
               h('option', { value: '' }, '选择已审批客户'),
               (clients || []).filter(function (c) { return c.status === '已审批' }).map(function (c) { return h('option', { key: 'cc-' + c.id, value: c.name }, c.name) }))),
             h('label', { className: 'ad-field' }, '项目名称', h(ui.Input, { className: 'ad-iw', value: cProject, onChange: function (e) { setCProject(e.target.value) } })),
             h('label', { className: 'ad-field' }, '盖章类型', h('select', { className: 'ad-input', value: cSeal, onChange: function (e) { setCSeal(e.target.value) } }, ['双章', '单章(客户章)'].map(function (t) { return h('option', { key: 'cs-' + t, value: t }, t) }))),
-            h('div', { className: 'ad-form-actions' }, h(ui.Button, { variant: 'primary', size: 'sm', onClick: createContract }, '登记'))),
+            h('div', { className: 'ad-form-actions' }, h(ui.Button, { variant: 'primary', size: 'sm', onClick: createContract }, '登记'))) : null,
           contracts === null ? h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '加载合同…') :
             (contracts.length ? contracts.map(function (c) {
               return h('div', { key: 'co-' + c.id, className: 'ad-row' },
