@@ -235,7 +235,7 @@ window.__ModuleLoader__.load({
       '.ad-prog-item{display:flex;align-items:center;gap:6px;padding:3px 0;font-size:12px;border-bottom:0.5px solid var(--dsw-alias-border-l3)}',
       '.ad-prog-item-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
       '.ad-prog-item-status{font-size:11px;color:var(--dsw-alias-label-secondary);white-space:nowrap}',
-      '.ad-modal-wide{width:min(720px,92vw) !important}',
+      '.ad-modal-wide{width:min(920px,94vw) !important}',
       '.ad-modal-wide .ad-form{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 16px}',
       '.ad-cats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px 12px;margin-top:2px}',
       '.ad-modal-scroll{max-height:56vh;overflow:auto}',
