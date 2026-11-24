@@ -1133,7 +1133,7 @@ window.__ModuleLoader__.load({
                 : (['partner', 'kb-admin', 'admin'].indexOf(((props.auth && props.auth.user) || {}).role) >= 0
                     ? h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onArchiveProject) props.onArchiveProject() } }, '归档项目') : null))),
           props.archiveVerifyMessage ? h('div', { className: 'ad-note' }, props.archiveVerifyMessage) : null,
-          h(FlowPanel, { projectId: props.project ? props.project.id : '', onJumpZone: props.onJumpZone }),
+          h(FlowPanel, { projectId: props.project ? props.project.id : '', client: (props.project && props.project.client) || '', onJumpZone: props.onJumpZone }),
           h(ProjectFieldsPanel, { projectId: props.project ? props.project.id : '' }),
           h(ArchivePackagePanel, { projectId: props.project ? props.project.id : '' }),
           h('div', { className: 'ad-kpis' },
@@ -5054,6 +5054,24 @@ window.__ModuleLoader__.load({
       const [flow, setFlow] = React.useState(null)
       const [err, setErr] = React.useState('')
       const [confirming, setConfirming] = React.useState(false)
+      // 引擎勾稽差异数：流程后端只看「未更正错报」（人工记入），看不到引擎发现项，
+      // 这里补一个数据源，避免「流程说差异处理完成、引擎却有 20 项差异」的矛盾
+      const [engineDiff, setEngineDiff] = React.useState(0)
+      React.useEffect(function () {
+        if (!props.client) return
+        let cancelled = false
+        fetch('/api/audit-fill/company?name=' + encodeURIComponent(props.client))
+          .then(function (r) { return r.json() })
+          .then(function (d) {
+            if (cancelled || !d || !d.ok) return
+            const bad = (d.lines || []).filter(function (l) {
+              return l.diff !== 0 && l.diff !== null && l.diff !== undefined && !l.hint
+            })
+            setEngineDiff(bad.length)
+          })
+          .catch(function () {})
+        return function () { cancelled = true }
+      }, [props.client])
       function load() {
         api('/audit/project-flow', { project: props.projectId })
           .then(function (d) { setFlow(d) })
@@ -5101,7 +5119,8 @@ window.__ModuleLoader__.load({
                 const text = m.label + ' ' + m.value
                 const blocking = /待补|待处理|待审|不平|未生成|未归档|未定|缺|失败/.test(text)
                 return h('div', { key: 'm-' + st.key + '-' + m.label, title: text, style: { fontSize: '9.5px', color: blocking ? '#b45309' : COLORS.muted, fontWeight: blocking ? 600 : 400, marginTop: '1px', maxWidth: '90px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, text)
-              }))
+              }),
+              (st.key === 'diff' && engineDiff) ? h('div', { title: '引擎勾稽发现的待确认差异（未计入未更正错报）', style: { fontSize: '9.5px', color: '#b45309', fontWeight: 600, marginTop: '1px' } }, '引擎差异 ' + engineDiff) : null)
           })))
     }
 
