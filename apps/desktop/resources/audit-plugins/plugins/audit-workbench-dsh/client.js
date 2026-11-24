@@ -700,6 +700,7 @@ window.__ModuleLoader__.load({
         })
       })
       const supTableState = function (t) {
+        if (t.sampled) return 'sampled'
         if ((t.warnings || []).length) return 'overflow'
         if ((t.filled || 0) > 0 || (t.filled_rows || 0) > 0 || (t.cells || 0) > 0) return 'placed'
         return 'empty'
@@ -707,6 +708,7 @@ window.__ModuleLoader__.load({
       const supSubjectState = function (tables) {
         if (!tables.length) return 'empty'
         if (tables.some(function (t) { return supTableState(t) === 'overflow' })) return 'overflow'
+        if (tables.some(function (t) { return supTableState(t) === 'sampled' })) return 'sampled'
         if (tables.some(function (t) { return supTableState(t) === 'placed' })) return 'placed'
         return 'empty'
       }
@@ -717,6 +719,7 @@ window.__ModuleLoader__.load({
           return '账龄段 ' + rows + ' 行已填（非零段 ' + seg + '）· 已提 ' + fmt(t.provision)
         }
         if (t.book_total !== undefined) {
+          if (t.sampled) return '函证抽样 ' + (t.filled || 0) + '/' + (t.accounts || 0) + ' 家 · 列示 ' + fmt(t.listed_total) + ' / 全额 ' + fmt(t.book_total)
           return '函证 ' + (t.filled || 0) + '/' + (t.accounts || 0) + ' 家 · 账面 ' + fmt(t.book_total)
         }
         if (t.accounts !== undefined) {
@@ -725,8 +728,8 @@ window.__ModuleLoader__.load({
         if (t.cash_book !== undefined) return '现金盘点落位 · 账面 ' + fmt(t.cash_book)
         return '已落位'
       }
-      const supColor = function (st) { return st === 'placed' ? '#22C55E' : st === 'overflow' ? '#F59E0B' : 'var(--dsw-alias-border-l2)' }
-      const supPlaced = SUP_SUBJECTS.filter(function (x) { return supSubjectState((supMap[x] || {}).tables || []) === 'placed' }).length
+      const supColor = function (st) { return st === 'placed' || st === 'sampled' ? '#22C55E' : st === 'overflow' ? '#F59E0B' : 'var(--dsw-alias-border-l2)' }
+      const supPlaced = SUP_SUBJECTS.filter(function (x) { var st = supSubjectState((supMap[x] || {}).tables || []); return st === 'placed' || st === 'sampled' }).length
       const supOverflow = SUP_SUBJECTS.filter(function (x) { return supSubjectState((supMap[x] || {}).tables || []) === 'overflow' }).length
       const supplementPanel = h('div', { className: 'ad-card' },
         h('div', { className: 'ad-row-title', style: { marginBottom: '8px' } }, '附表落位（程序表驱动）'),
@@ -762,7 +765,7 @@ window.__ModuleLoader__.load({
                 h('div', { className: 'ad-row' },
                   h('span', { style: { flex: 1, minWidth: 0 } }, t.sheet || t.name),
                   h('span', { className: 'ad-row-meta', style: { minWidth: '52px' } }, t.idx || ''),
-                  h('span', { style: { minWidth: '88px', display: 'flex', justifyContent: 'center' } }, h(AStatus, { tone: st === 'placed' ? 'ok' : st === 'overflow' ? 'warn' : '' }, st === 'placed' ? '已落位' : st === 'overflow' ? '溢出待补' : '无数据'))),
+                  h('span', { style: { minWidth: '88px', display: 'flex', justifyContent: 'center' } }, h(AStatus, { tone: st === 'placed' || st === 'sampled' ? 'ok' : st === 'overflow' ? 'warn' : '' }, st === 'placed' ? '已落位' : st === 'sampled' ? '已抽样' : st === 'overflow' ? '溢出待补' : '无数据'))),
                 h('div', { className: 'ad-row-meta' }, supDesc(t)),
                 (t.warnings || []).length ? h('div', { className: 'ad-note', style: { margin: '4px 0 0', color: 'var(--dsw-alias-state-warn-primary)' } }, (t.warnings || []).join('；')) : null)
             }))
