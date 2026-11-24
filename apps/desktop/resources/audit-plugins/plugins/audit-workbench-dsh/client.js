@@ -358,7 +358,11 @@ window.__ModuleLoader__.load({
       }).then(function (resp) {
         if (!resp.ok) {
           return resp.text().then(function (text) {
-            let message = 'HTTP ' + resp.status
+            // 后端一般会给中文 detail；没有时不要直接把状态码甩给用户
+            let message = resp.status >= 500 ? '服务暂时不可用，请稍后重试'
+              : resp.status === 403 ? '没有权限执行该操作'
+              : resp.status === 404 ? '数据不存在或已被删除'
+              : '请求未成功（' + resp.status + '）'
             try {
               const data = JSON.parse(text)
               const detail = data && data.detail
@@ -934,7 +938,7 @@ window.__ModuleLoader__.load({
           .catch(function (e) {
             setData(null)
             setErr(String((e && e.message) || e) === 'NEED_RELOAD'
-              ? '接口尚未加载：重启 DSH 后本面板即可扫描凭证'
+              ? '凭证扫描暂不可用，请联系管理员开启后重试'
               : ('扫描失败：' + String((e && e.message) || e)))
           })
       }, [code])
@@ -3683,7 +3687,7 @@ window.__ModuleLoader__.load({
       }, [preview])
 
       if (loading) return h(Empty, null, '正在加载项目…')
-      if (error) return h(Empty, null, '加载失败：' + error + '（检查 mini4pro:8030 与 token）')
+      if (error) return h(Empty, null, '数据加载失败，请稍后重试；持续失败请联系管理员')
 
       const current = companies.filter(function (c) { return c.name === activeCompany })[0]
       const projects = current ? current.projects : []
@@ -4534,8 +4538,8 @@ window.__ModuleLoader__.load({
         api('/audit/system/report/push', null, { method: 'POST', body: {} })
           .then(function (d) {
             if (d.sent) setMessage('运维报告已推送（Webhook）')
-            else if (d.attempts) setMessage('推送失败（已重试 ' + d.attempts + ' 次）：' + (d.error || '请检查 Webhook 配置'))
-            else setMessage('未配置 Webhook，报告未推送（可在服务器 ~/kb-shared/notify-webhook 配置）')
+            else if (d.attempts) setMessage('报告推送失败（已重试 ' + d.attempts + ' 次），请检查推送服务设置')
+            else setMessage('报告推送服务尚未配置，本次报告未推送（请联系管理员）')
           })
           .catch(function (e) { setError(String(e)) })
       }
