@@ -4064,6 +4064,11 @@ window.__ModuleLoader__.load({
             h(ui.Button, { variant: 'ghost', size: 'sm', onClick: exportPageCsv }, '导出当前页'))),
         filterBar,
         error ? h('div', { style: { padding: '10px 16px', color: '#b91c1c', fontSize: '12px' } }, error) : null,
+        rows.length ? h('div', { style: { display: 'grid', gridTemplateColumns: '150px 90px 1fr 90px', gap: '10px', padding: '4px 16px', fontSize: '11px', color: COLORS.muted, borderBottom: '1px solid ' + COLORS.line, background: 'rgba(127,127,127,0.05)' } },
+          h('span', null, '时间'),
+          h('span', null, '操作人'),
+          h('span', null, '变更内容'),
+          h('span', null, '项目')) : null,
         h('div', { style: { flex: 1, overflow: 'auto' } },
           rows.length ? rows : h('div', { style: { padding: '20px', fontSize: '12px', color: COLORS.muted } }, '没有符合条件的操作记录')))
     }
