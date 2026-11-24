@@ -795,6 +795,10 @@ window.__ModuleLoader__.load({
       const lineBadAll = lines.filter(function (l) { return l.diff !== 0 && l.diff !== null && l.diff !== undefined })
       const lineReport = lineBadAll.filter(function (l) { return Boolean(l.hint) })
       const lineBad = lineBadAll.filter(function (l) { return !l.hint })
+      const lineMagnitude = lineBad.filter(function (l) {
+        const base = Math.max(Math.abs(l.calc || 0), Math.abs(l.fs || 0), 1)
+        return Math.abs(l.diff) / base > 0.5 && Math.abs(l.diff) >= 10000
+      })
       const wbCells = workbooks.reduce(function (a, w) { return a + (w.writes || 0) }, 0)
       return h('div', null,
         h('div', { className: 'ad-card' },
@@ -815,7 +819,7 @@ window.__ModuleLoader__.load({
           h('summary', { style: lineBad.length ? { color: '#b91c1c', fontWeight: 600 } : (lineReport.length ? { color: '#b45309' } : undefined) },
             '勾稽明细 · ' + lines.length + ' 行'
             + (lineOk ? ' · 一致 ' + lineOk : '')
-            + (lineBad.length ? ' · 待确认差异 ' + lineBad.length : '')
+            + (lineBad.length ? ' · 待确认差异 ' + lineBad.length + (lineMagnitude.length ? '（量级异常 ' + lineMagnitude.length + '）' : '') : '')
             + (lineReport.length ? ' · 已解释 ' + lineReport.length : '')
             + (lineNo ? ' · 报表无此行 ' + lineNo : '')),
           h('div', { className: 'ad-row ad-th', style: { marginTop: '6px' } },
@@ -827,8 +831,14 @@ window.__ModuleLoader__.load({
             const diff = l.diff
             const noRow = diff === null || diff === undefined
             const hasHint = Boolean(l.hint)
+            // 量级异常：差异超过较大者的 50% 且金额显著，多半是科目范围/口径不一致，不是小差错
+            const base = Math.max(Math.abs(l.calc || 0), Math.abs(l.fs || 0), 1)
+            const magnitude = !noRow && diff !== 0 && !hasHint && Math.abs(diff) / base > 0.5 && Math.abs(diff) >= 10000
             const tone = noRow ? '' : (diff === 0 ? 'ok' : (hasHint ? 'warn' : 'bad'))
-            const label = noRow ? '报表无此行' : (diff === 0 ? '一致' : (hasHint ? '已解释 ' + fmt(diff) : '差 ' + fmt(diff)))
+            const label = noRow ? '报表无此行'
+              : (diff === 0 ? '一致'
+                : (hasHint ? '已解释 ' + fmt(diff)
+                  : (magnitude ? '量级异常 ' + fmt(diff) : '差 ' + fmt(diff))))
             return h('div', { key: 'ln-' + i, className: 'ad-row' },
               h('span', { style: { flex: 1, minWidth: 0 } }, l.line),
               h('span', { className: 'ad-row-meta', style: { minWidth: '112px', textAlign: 'right' } }, fmt(l.calc)),
