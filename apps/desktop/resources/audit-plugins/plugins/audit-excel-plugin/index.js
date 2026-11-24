@@ -6,8 +6,16 @@ import os from 'node:os'
 
 // 插件目录（安装到 ~/.dsh/plugins/auditdesk/audit-excel-plugin 时引擎随之复制到 engine/audit-fill）
 const PLUGIN_DIR = path.dirname(fileURLToPath(import.meta.url))
-const PROJECT = process.env.DSH_AUDIT_PROJECT
-  || path.join(PLUGIN_DIR, 'engine', 'audit-fill')
+function resolveProject() {
+  if (process.env.DSH_AUDIT_PROJECT) return process.env.DSH_AUDIT_PROJECT
+  const candidates = [
+    path.join(PLUGIN_DIR, 'engine', 'audit-fill'),   // 安装包内布局
+    path.join(PLUGIN_DIR, '..', 'audit-fill'),        // 开发态 link 布局
+  ]
+  for (const candidate of candidates) if (existsSync(candidate)) return candidate
+  return candidates[0]
+}
+const PROJECT = resolveProject()
 const BASE_DIR = process.env.DSH_AUDIT_BASE
   || path.join(os.homedir(), 'Documents', '审计底稿')
 
@@ -55,7 +63,7 @@ const TIMEOUT_MS = Number(process.env.DSH_AUDIT_TIMEOUT_MS || 15 * 60 * 1000)
 
 function runPython(args, signal) {
   return new Promise((resolve, reject) => {
-    const child = spawn(PYTHON, args, { cwd: PROJECT, env: process.env })
+    const child = spawn(PYTHON, args, { cwd: existsSync(PROJECT) ? PROJECT : os.tmpdir(), env: process.env })
     let out = ''
     let err = ''
     const timer = setTimeout(() => child.kill('SIGKILL'), TIMEOUT_MS)
@@ -353,6 +361,29 @@ const WORKFLOW_GUIDE = [
   '任何数字都要能追溯到科目/报表行/假设；缺资料就说缺，不要编。',
 ].join('\n')
 
+// 前端数据接口契约：改前端时优先读接口，不把数据写死在 client.js
+const API_GUIDE = [
+  '前端工作台的数据全部来自本机接口（base：/api/audit-fill/），改前端时读接口，不硬编码数据：',
+  '  GET  /api/audit-fill/program-tables           86 张程序表列表；?subject=货币资金 → 单张详情（审计目标5认定+实质性程序）',
+  '  GET  /api/audit-fill/dict                     底稿表格字典（表名→索引号/表类/簿）；?prefix=ZA 按索引号前缀过滤',
+  '  GET  /api/audit-fill/companies                已配置客户列表（含资料文件路径）',
+  '  GET  /api/audit-fill/status                   全部公司勾稽状态',
+  '  GET  /api/audit-fill/company?name=中天         单家：验数门禁 + 勾稽明细 + 填表明细',
+  '  POST /api/audit-fill/run                      上传资料生成底稿（company/tb/fs，可带 voucher）',
+  '改前端的完整方法见 auditdesk-design/ 手册（产品文档/开发文档/使用方法等）。',
+].join('\n')
+
+// 改前端的方法：agent 用原生 read/edit 文件工具改 client.js，让它读上面的接口
+const FRONTEND_METHOD = [
+  '改前端的方法（前端代码 = client.js，React + window.__ModuleLoader__）：',
+  '  1. 前端代码在 ~/Documents/deepseek-harness/default-workspace/audit-workbench-dsh/client.js（权威源）；',
+  '     运行中 harness 实际加载 ~/.dsh/profiles/desktop/node_modules/@local/dsh-audit-workbench/client.js（file: 副本，需同步）。',
+  '  2. 数据一律 fetch /api/audit-fill/*（见 audit-api 接口清单），不把数据硬编码进 client.js。',
+  '  3. 用 read 工具读 client.js 找要改的组件（CompaniesPage / 审计程序 zone），再用 edit / str_replace 改。',
+  '  4. 改完用 bash 跑 node --check 验语法；前端刷新即生效（client.js 由 workbench 插件加载）。',
+  '  5. 改前端的完整口径见 auditdesk-design/ 手册（产品文档 / 开发文档 / 使用方法 / 接口文档）。',
+].join('\n')
+
 const changesTool = {
   name: 'audit_changes',
   description: '查看底稿变动留痕：每次刷新数据库时，与上一版不同的单元格（工作簿/工作表/单元格/旧值/新值/时间）。',
@@ -490,11 +521,60 @@ function sendJson(res, code, payload) {
   res.end(body)
 }
 
+// ===== 前端数据接口的公共工具 =====
+function parseQuery(req) {
+  const q = {}
+  try {
+    const url = new URL(req.url || '/', 'http://localhost')
+    for (const [k, v] of url.searchParams.entries()) q[k] = v
+  } catch { /* ignore */ }
+  return q
+}
+
+async function readJsonFile(file) {
+  const { readFile } = await import('node:fs/promises')
+  return JSON.parse(await readFile(file, 'utf8'))
+}
+
+async function readJsonFileOr(file, fallback) {
+  try { return await readJsonFile(file) } catch { return fallback }
+}
+
+// 底稿包输出目录：优先带期间（out/<company>/<period>/底稿包），回退无期间
+function packageDirs(company, period) {
+  const base = path.join(PROJECT, 'out', company)
+  const dirs = []
+  if (period) dirs.push(path.join(base, String(period), '底稿包'))
+  dirs.push(path.join(base, '底稿包'))
+  return dirs
+}
+
+async function listCompanies() {
+  const script = [
+    'import json, sys',
+    'sys.path.insert(0, "tools")',
+    'import run_company',
+    'print(json.dumps({"companies":[{"name":k,"tb":v[0],"fs":v[1],"voucher":v[2],"client":v[3]} for k,v in run_company.CASES.items()]}, ensure_ascii=False))',
+  ].join('; ')
+  const out = await runPython(['-c', script], undefined)
+  return (lastJson(out).companies || [])
+}
+
 export function apply(ctx) {
   ctx.effect(() => ctx.systemPrompt.section({
     name: 'audit-workflow',
     order: 60,
     text: () => WORKFLOW_GUIDE,
+  }))
+  ctx.effect(() => ctx.systemPrompt.section({
+    name: 'audit-api',
+    order: 61,
+    text: () => API_GUIDE,
+  }))
+  ctx.effect(() => ctx.systemPrompt.section({
+    name: 'audit-frontend',
+    order: 62,
+    text: () => FRONTEND_METHOD,
   }))
   ctx.effect(() => ctx.tools.register(processTool))
   ctx.effect(() => ctx.tools.register(listTool))
@@ -582,9 +662,127 @@ export function apply(ctx) {
     },
   }))
 
+  // ===== 前端数据接口（前端 client.js 直接读这些接口，后端只管把数据备齐）=====
+
+  // 86 张程序表：列表（轻量）或详情（?subject=货币资金）
+  ctx.effect(() => ctx.webServer.register({
+    kind: 'exact',
+    path: '/api/audit-fill/program-tables',
+    handler: async (req, res) => {
+      try {
+        const q = parseQuery(req)
+        const programs = await readJsonFile(path.join(PROJECT, 'data', 'program_tables.json'))
+        if (q.subject) {
+          const p = programs[q.subject]
+          if (!p) return sendJson(res, 404, { ok: false, error: 'subject not found: ' + q.subject })
+          return sendJson(res, 200, { ok: true, program: p })
+        }
+        const subjects = Object.entries(programs).map(([subject, p]) => ({
+          subject,
+          idx: p.idx,
+          proj: p.proj,
+          objective_count: (p.objectives || []).length,
+          proc_count: (p.procs || []).length,
+        }))
+        sendJson(res, 200, { ok: true, count: subjects.length, subjects })
+      } catch (e) {
+        sendJson(res, 500, { ok: false, error: String(e && e.message || e) })
+      }
+    },
+  }))
+
+  // 底稿表格字典（表名→索引号/表类/簿），供「程序表→附表」连线；?prefix=ZA 按索引号前缀过滤
+  ctx.effect(() => ctx.webServer.register({
+    kind: 'exact',
+    path: '/api/audit-fill/dict',
+    handler: async (req, res) => {
+      try {
+        const q = parseQuery(req)
+        const dict = await readJsonFile(path.join(PROJECT, 'data', '底稿表格字典.json'))
+        if (q.prefix) {
+          const pre = String(q.prefix)
+          const filtered = {}
+          for (const [k, v] of Object.entries(dict)) {
+            if (k.startsWith(pre) || String(v['索引号'] || '').startsWith(pre)) filtered[k] = v
+          }
+          return sendJson(res, 200, { ok: true, count: Object.keys(filtered).length, dict: filtered })
+        }
+        sendJson(res, 200, { ok: true, count: Object.keys(dict).length, dict })
+      } catch (e) {
+        sendJson(res, 500, { ok: false, error: String(e && e.message || e) })
+      }
+    },
+  }))
+
+  // 已配置客户列表（CASES，含资料文件路径）
+  ctx.effect(() => ctx.webServer.register({
+    kind: 'exact',
+    path: '/api/audit-fill/companies',
+    handler: async (_req, res) => {
+      try {
+        const companies = await listCompanies()
+        sendJson(res, 200, { ok: true, count: companies.length, companies })
+      } catch (e) {
+        sendJson(res, 500, { ok: false, error: String(e && e.message || e) })
+      }
+    },
+  }))
+
+  // 全部公司勾稽状态（来自工作台导出 manifest.json）
+  ctx.effect(() => ctx.webServer.register({
+    kind: 'exact',
+    path: '/api/audit-fill/status',
+    handler: async (_req, res) => {
+      try {
+        const m = await readJsonFileOr(path.join(PROJECT, 'out', '工作台导出', 'manifest.json'), { companies: [] })
+        sendJson(res, 200, { ok: true, generated_at: m.generated_at, rows: m.companies || [] })
+      } catch (e) {
+        sendJson(res, 500, { ok: false, error: String(e && e.message || e) })
+      }
+    },
+  }))
+
+  // 某家公司的门禁 + 勾稽明细 + 填表明细（?name=中天&period=2025）
+  ctx.effect(() => ctx.webServer.register({
+    kind: 'exact',
+    path: '/api/audit-fill/company',
+    handler: async (req, res) => {
+      try {
+        const q = parseQuery(req)
+        if (!q.name) return sendJson(res, 400, { ok: false, error: 'name required' })
+        const name = q.name
+        const { existsSync } = await import('node:fs')
+        let gate = null
+        let lines = []
+        let workbooks = []
+        for (const d of packageDirs(name, q.period)) {
+          const reportPath = path.join(d, '校验报告.json')
+          if (existsSync(reportPath)) {
+            const r = await readJsonFile(reportPath)
+            gate = r.gate || null
+            lines = r.lines || []
+            workbooks = r.workbooks || []
+            break
+          }
+        }
+        if (!gate) {
+          for (const d of packageDirs(name, q.period)) {
+            const gatePath = path.join(d, '验数门禁.json')
+            if (existsSync(gatePath)) { const g = await readJsonFile(gatePath); gate = g.gate || g; break }
+          }
+        }
+        const m = await readJsonFileOr(path.join(PROJECT, 'out', '工作台导出', 'manifest.json'), { companies: [] })
+        const status = (m.companies || []).find((c) => c.company === name) || null
+        sendJson(res, 200, { ok: true, name, gate, status, lines, workbooks })
+      } catch (e) {
+        sendJson(res, 500, { ok: false, error: String(e && e.message || e) })
+      }
+    },
+  }))
+
   ctx.effect(() => ctx.webServer.register({
     kind: 'exact',
     path: '/api/audit-fill/health',
-    handler: (_req, res) => sendJson(res, 200, { ok: true, service: 'audit-fill' }),
+    handler: (_req, res) => sendJson(res, 200, { ok: true, service: 'audit-fill', project: PROJECT }),
   }))
 }

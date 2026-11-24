@@ -825,6 +825,68 @@ window.__ModuleLoader__.load({
       )
     }
 
+    // 资料清单：凭证异常扫描（7 条校准规则，data 来自 /api/audit-fill/voucher-rules）
+    function VoucherScanPanel(props) {
+      const [data, setData] = React.useState(null)
+      const [err, setErr] = React.useState('')
+      const [openRule, setOpenRule] = React.useState('')
+      const code = props.client || ''
+
+      React.useEffect(function () {
+        if (!code) return
+        setErr('')
+        fetch('/api/audit-fill/voucher-rules?company=' + encodeURIComponent(code))
+          .then(function (r) { return r.json() })
+          .then(function (d) {
+            if (d && d.ok) { setData(d) }
+            else { setData(null); setErr((d && d.error) || '扫描失败') }
+          })
+          .catch(function (e) { setData(null); setErr(String(e)) })
+      }, [code])
+
+      if (!code) return null
+      const RISK_LABEL = { high: '高', medium: '关注', low: '正常', unknown: '—' }
+      const RISK_COLOR = { high: '#dc2626', medium: '#f59e0b' }
+      const fmtAmt = function (v) { return (v === undefined || v === null) ? '' : Number(v).toLocaleString() }
+
+      return h('div', { className: 'ad-card' },
+        h('div', { className: 'ad-head', style: { marginBottom: '8px' } },
+          h('div', null,
+            h('div', { className: 'ad-row-title' }, '凭证异常扫描（7 条规则）'),
+            h('div', { className: 'ad-row-meta' }, data
+              ? (code + ' · ' + data.entries + ' 条分录 · ' + ((data.summary || {}).headline || ''))
+              : '正在扫描凭证…')),
+          null),
+        err ? h('div', { className: 'ad-note' }, err) : null,
+        data ? h('div', null,
+          h('div', { className: 'ad-row ad-th' },
+            h('span', { style: { flex: 1 } }, '规则'),
+            h('span', { style: { minWidth: '52px', textAlign: 'center' } }, '风险'),
+            h('span', { style: { minWidth: '66px', textAlign: 'right' } }, '命中'),
+            h('span', { style: { minWidth: '48px', textAlign: 'center' } }, '明细')),
+          (data.results || []).map(function (r) {
+            const open = openRule === r.rule
+            const has = (r.samples || []).length > 0
+            return h('div', { key: r.rule, style: { borderBottom: '0.5px solid var(--dsw-alias-border-l3)' } },
+              h('div', { className: 'ad-row', style: { cursor: has ? 'pointer' : 'default' }, onClick: function () { if (has) setOpenRule(open ? '' : r.rule) } },
+                h(ui.StateDot, { state: r.risk === 'high' ? 'error' : r.risk === 'medium' ? 'warning' : 'done' }),
+                h('span', { style: { flex: 1, minWidth: 0 } }, r.name),
+                h('span', { style: { minWidth: '52px', textAlign: 'center', fontSize: '11px', color: RISK_COLOR[r.risk] || 'var(--dsw-alias-label-secondary)' } }, RISK_LABEL[r.risk] || '—'),
+                h('span', { className: 'ad-row-meta', style: { minWidth: '66px', textAlign: 'right' } }, r.count || 0),
+                h('span', { className: 'ad-row-meta', style: { minWidth: '48px', textAlign: 'center' } }, has ? (open ? '收起' : (r.samples.length + ' 条')) : '')),
+              h('div', { className: 'ad-row-meta', style: { paddingLeft: '20px', paddingBottom: '4px' } }, r.detail),
+              open && has ? h('div', { style: { paddingLeft: '20px', paddingBottom: '8px' } },
+                (r.samples || []).map(function (sm, i) {
+                  const parts = [sm.kind, sm.date, sm.vno, sm.code, sm.name, sm.summary,
+                    sm.amount !== undefined ? fmtAmt(sm.amount) : '',
+                    sm.digit !== undefined ? ('首位 ' + sm.digit + '：' + sm.observed + '% vs 期望 ' + sm.expected + '%') : '',
+                    sm.from !== undefined ? (sm.month + ' 月 ' + sm.from + '→' + sm.to + '（缺 ' + sm.missing + '）') : '']
+                  return h('div', { key: 'sp-' + r.rule + '-' + i, className: 'ad-row-meta', style: { lineHeight: 1.75 } },
+                    parts.filter(function (x) { return x !== '' && x !== undefined && x !== null }).join(' · '))
+                })) : null)
+          })) : null)
+    }
+
     function Zone(props) {
       const readOnly = Boolean(props.readOnly)
       const tmpElementsState = React.useState({}); const tmpElements = tmpElementsState[0]; const setTmpElements = tmpElementsState[1]
@@ -1398,7 +1460,7 @@ window.__ModuleLoader__.load({
                   h('span', null, (event.item_name || '') + ' · ' + (event.actor || '') + (event.new_status ? ' · ' + event.new_status : '')),
                   h('span', null, event.created_at))
               })) : null),
-          rows, checkPanel, addForm, eventsBlock('pbc'))
+          rows, checkPanel, h(VoucherScanPanel, { client: (props.project && props.project.client) || '' }), addForm, eventsBlock('pbc'))
       }
       if (props.zone === '审计底稿') {
         const toneOfWp = function (status) { return status === '已完成' || status === '已执行' || status === '已预填' || status === '已生成' ? 'ok' : status === '进行中' ? 'warn' : status === '不适用' ? 'muted' : 'bad' }
