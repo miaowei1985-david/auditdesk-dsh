@@ -4615,20 +4615,37 @@ window.__ModuleLoader__.load({
       const [cClient, setCClient] = React.useState('')
       const [cProject, setCProject] = React.useState('')
       const [cSeal, setCSeal] = React.useState('双章')
+      const [ownerName, setOwnerName] = React.useState('')
+      const [riskLevel, setRiskLevel] = React.useState('低')
+      const [approvers, setApprovers] = React.useState([])
+      const [submitFor, setSubmitFor] = React.useState(null)
+      const [approverPick, setApproverPick] = React.useState('')
+      const [decisionFor, setDecisionFor] = React.useState(null)
+      const [opinion, setOpinion] = React.useState('')
       const role = (props.auth && props.auth.user && props.auth.user.role) || ''
       const canApprove = ['manager', 'partner', 'kb-admin', 'admin'].indexOf(role) >= 0
       function loadClients() { api('/audit/clients').then(function (d) { setClients(d.items || []) }).catch(function () {}) }
       function loadContracts() { api('/audit/contracts').then(function (d) { setContracts(d.items || []) }).catch(function () {}) }
       React.useEffect(function () { loadClients(); loadContracts() }, [])
+      React.useEffect(function () { api('/audit/approvers').then(function (d) { setApprovers(d.items || []) }).catch(function () {}) }, [])
       function createClient() {
         if (!name.trim()) { setMsg('客户名称必填'); return }
-        api('/audit/clients/create', null, { method: 'POST', body: { name: name, credit_code: creditCode, client_type: clientType, contact: contact } })
-          .then(function () { setMsg('客户已建档，待审批'); setName(''); setCreditCode(''); setContact(''); loadClients() })
+        api('/audit/clients/create', null, { method: 'POST', body: { name: name, credit_code: creditCode, client_type: clientType, contact: contact, owner_name: ownerName, risk_level: riskLevel } })
+          .then(function () { setMsg('客户已建档（待提交）。下一步：指定审批人提交准入'); setName(''); setCreditCode(''); setContact(''); setOwnerName(''); loadClients() })
           .catch(function (e) { setMsg('建档失败：' + e) })
       }
-      function approveClient(id) {
-        api('/audit/clients/approve', null, { method: 'POST', body: { id: id } })
-          .then(function () { setMsg('客户已审批。下一步：切到「合同」页签登记业务约定书'); loadClients() })
+      function submitClient(id) {
+        if (!approverPick) { setMsg('请选择审批人'); return }
+        api('/audit/clients/submit', null, { method: 'POST', body: { id: id, approver_username: approverPick } })
+          .then(function () { setMsg('已提交审批，等待审批人处理'); setSubmitFor(null); setApproverPick(''); loadClients() })
+          .catch(function (e) { setMsg('提交失败：' + e) })
+      }
+      function decideClient(id, decision) {
+        api('/audit/clients/decide', null, { method: 'POST', body: { id: id, decision: decision, opinion: opinion } })
+          .then(function () {
+            setMsg(decision === 'approve' ? '客户已通过准入。下一步：切到「合同」页签登记业务约定书' : '已驳回，客户补充资料后可重新提交')
+            setDecisionFor(null); setOpinion(''); loadClients()
+          })
           .catch(function (e) { setMsg('审批失败：' + e) })
       }
       function createContract() {
@@ -4661,16 +4678,31 @@ window.__ModuleLoader__.load({
             h('label', { className: 'ad-field' }, '统一社会信用代码', h('input', { className: 'ad-input', value: creditCode, onChange: function (e) { setCreditCode(e.target.value) } })),
             h('label', { className: 'ad-field' }, '客户类型', h('select', { className: 'ad-input', value: clientType, onChange: function (e) { setClientType(e.target.value) } }, ['其他', '企业', '事业单位', '政府', '个人'].map(function (t) { return h('option', { key: 'ct-' + t, value: t }, t) }))),
             h('label', { className: 'ad-field' }, '联系信息', h('input', { className: 'ad-input', value: contact, onChange: function (e) { setContact(e.target.value) } })),
+            h('label', { className: 'ad-field' }, '业务责任人', h('input', { className: 'ad-input', value: ownerName, placeholder: '姓名', onChange: function (e) { setOwnerName(e.target.value) } })),
+            h('label', { className: 'ad-field' }, '风险等级', h('select', { className: 'ad-input', value: riskLevel, onChange: function (e) { setRiskLevel(e.target.value) } }, ['低', '中', '高'].map(function (x) { return h('option', { key: 'rl-' + x, value: x }, x) }))),
             h('div', { className: 'ad-form-actions' }, h('button', { className: 'ad-btn primary', onClick: createClient }, '建档'))),
           clients === null ? h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '加载客户…') :
             (clients.length ? clients.map(function (c) {
-              return h('div', { key: 'cl-' + c.id, className: 'ad-row' },
-                h('div', null,
+              return h('div', { key: 'cl-' + c.id, className: 'ad-row', style: { alignItems: 'flex-start' } },
+                h('div', { style: { minWidth: 0, flex: 1 } },
                   h('div', { className: 'ad-row-title' }, c.name),
-                  h('div', { className: 'ad-row-meta' }, [c.client_type, c.credit_code, c.contact].filter(Boolean).join(' · '))),
+                  h('div', { className: 'ad-row-meta' }, [c.client_type, c.credit_code, c.contact, c.risk_level ? '风险 ' + c.risk_level : '', c.owner_name ? '责任人 ' + c.owner_name : ''].filter(Boolean).join(' · ')),
+                  (c.approver_name && c.status !== '待提交') ? h('div', { className: 'ad-row-meta' }, '审批人：' + c.approver_name + (c.submitted_at ? ' · 提交 ' + c.submitted_at : '') + (c.approve_opinion ? ' · 意见：' + c.approve_opinion : '')) : null,
+                  submitFor === c.id ? h('div', { className: 'ad-actions', style: { marginTop: '6px' } },
+                    h('select', { className: 'ad-input', style: { width: 'auto' }, value: approverPick, onChange: function (e) { setApproverPick(e.target.value) } },
+                      h('option', { value: '' }, '选择审批人'),
+                      approvers.map(function (a) { return h('option', { key: 'ap-' + a.username, value: a.username }, a.name + '（' + a.role + '）') })),
+                    h('button', { className: 'ad-btn primary', onClick: function () { submitClient(c.id) } }, '提交'),
+                    h('button', { className: 'ad-btn', onClick: function () { setSubmitFor(null); setApproverPick('') } }, '取消')) : null,
+                  decisionFor === c.id ? h('div', { className: 'ad-actions', style: { marginTop: '6px' } },
+                    h('input', { className: 'ad-input', style: { width: '240px' }, value: opinion, placeholder: '审批意见', onChange: function (e) { setOpinion(e.target.value) } }),
+                    h('button', { className: 'ad-btn primary', onClick: function () { decideClient(c.id, 'approve') } }, '通过'),
+                    h('button', { className: 'ad-btn quiet', onClick: function () { decideClient(c.id, 'reject') } }, '驳回'),
+                    h('button', { className: 'ad-btn', onClick: function () { setDecisionFor(null); setOpinion('') } }, '取消')) : null),
                 h('div', { className: 'ad-actions' },
-                  h('span', { className: 'ad-pill ' + (c.status === '已审批' ? 'ok' : 'warn') }, c.status),
-                  (c.status === '待审批' && canApprove) ? h('button', { className: 'ad-btn quiet', onClick: function () { approveClient(c.id) } }, '审批') : null))
+                  h('span', { className: 'ad-pill ' + (c.status === '已审批' ? 'ok' : c.status === '已驳回' ? 'warn' : '') }, c.status),
+                  (c.status === '待提交' || c.status === '已驳回') ? h('button', { className: 'ad-btn quiet', onClick: function () { setSubmitFor(c.id); setApproverPick(c.approver_username || '') } }, '提交审批') : null,
+                  (c.status === '待审批' && canApprove) ? h('button', { className: 'ad-btn quiet', onClick: function () { setDecisionFor(c.id); setOpinion('') } }, '审批') : null))
             }) : h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '暂无客户，先建档'))
         ) : h('div', null,
           h('div', { className: 'ad-form' },
