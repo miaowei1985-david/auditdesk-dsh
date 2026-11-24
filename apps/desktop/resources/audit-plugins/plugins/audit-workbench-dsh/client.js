@@ -2091,7 +2091,10 @@ window.__ModuleLoader__.load({
               return h('div', { key: 'cp-' + item.key, style: { display: 'flex', justifyContent: 'space-between', padding: '2px 0', color: COLORS.muted } },
                 h('span', null, (item.status === 'OK' ? '✓ ' : item.status === 'RISK' ? '✗ ' : '○ ') + item.label),
                 h('span', null, item.detail))
-            })) : null,
+            }))
+            // 加载失败时不要静默：让用户知道「有这项检查，只是没拿到」，而不是以为没有
+            : h('div', { style: { marginBottom: '12px', padding: '8px 12px', borderRadius: '10px', border: '1px dashed ' + COLORS.line, fontSize: '11.5px', color: COLORS.muted } },
+                '完整性检查暂不可用——可能是服务未响应。刷新页面或稍后重试；此期间报告仍可生成，但无法判断是否可出具。'),
           report.message ? h('div', { style: { fontSize: '12px', color: '#b45309', marginBottom: '10px' } }, report.message) : null,
           h('div', { className: 'ad-actions', style: { marginBottom: '16px' } },
             h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onLoadChecklist) props.onLoadChecklist() } }, '检查清单'),
