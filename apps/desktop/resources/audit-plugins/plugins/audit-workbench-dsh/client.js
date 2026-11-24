@@ -1548,6 +1548,9 @@ window.__ModuleLoader__.load({
                           if (file && props.onUploadAttachment) props.onUploadAttachment(item, file)
                           event.target.value = ''
                         } })),
+                    h(ui.Button, { variant: 'ghost', size: 'sm', title: '查看这份资料的变更历史（状态流转；附件记录按文件名另查）',
+                      style: { fontSize: '11px', padding: '1px 6px', minHeight: '20px' },
+                      onClick: function (e) { e.stopPropagation(); if (props.onOpenPbcHistory) props.onOpenPbcHistory(item) } }, '历史'),
                     readOnly ? null : h(ui.Button, { variant: 'ghost', size: 'sm', onClick: function () { if (props.onDeletePbc) props.onDeletePbc(item) }, 'data-pbc-delete': String(item.id) }, '删除'),
                     h('span', {
                       onClick: function () { if (!readOnly && props.onCyclePbc) props.onCyclePbc(item) },
@@ -3656,10 +3659,10 @@ window.__ModuleLoader__.load({
         : null
 
       // 从对象跳到它的变更历史：写筛选条件 + 切到留痕页
-      function openWorkpaperHistory(item) {
+      function openObjectHistory(item, itemType) {
         try {
           localStorage.setItem('auditdesk.events.filters', JSON.stringify({
-            project: activeProject, type: 'workpaper', itemName: item.name || ''
+            project: activeProject, type: itemType, itemName: item.name || item.item_name || ''
           }))
         } catch (e) {}
         try { window.dispatchEvent(new CustomEvent('auditdesk:goto-settings-tab', { detail: 'events' })) } catch (e) {}
@@ -3667,6 +3670,8 @@ window.__ModuleLoader__.load({
         // 留痕页若已在打开状态，不会重新挂载，用事件让它重读筛选条件
         try { setTimeout(function () { window.dispatchEvent(new CustomEvent('auditdesk:events-refresh')) }, 50) } catch (e) {}
       }
+      function openWorkpaperHistory(item) { openObjectHistory(item, 'workpaper') }
+      function openPbcHistory(item) { openObjectHistory(item, '') }
       const zoneProps = {
         zone: zone, pbc: pbc, wp: wp, linked: linked, events: events, approvals: approvals,
         auth: props.auth, readOnly: readOnly,
@@ -3683,7 +3688,7 @@ window.__ModuleLoader__.load({
         generated: generated, generating: generating, generateMessage: generateMessage,
         reviewerName: reviewerName, onReviewerNameChange: setReviewerName,
         members: members, newMemberName: newMemberName, onNewMemberNameChange: setNewMemberName,
-        onAddMember: addProjectMember, onRemoveMember: removeProjectMember, onOpenWorkpaperHistory: openWorkpaperHistory,
+        onAddMember: addProjectMember, onRemoveMember: removeProjectMember, onOpenWorkpaperHistory: openWorkpaperHistory, onOpenPbcHistory: openPbcHistory,
         generatedDate: generatedDate, onGeneratedDateChange: setGeneratedDate,
         onOpenWorkpaperIndex: openWorkpaperByIndex, onGenerateWorkpaper: generateWorkpaper,
         onGenerateAll: generateAllWorkpapers, onGenerateLocal: generateLocalWorkpapers, localAtt: localAtt, onLocalAttChange: setLocalAtt, localAtts: localAttachments(), onExportWorkpapers: exportWorkpapersZip, reportVersionFilter: reportVersionFilter, onSetReportVersionFilter: setReportVersionFilter, approvalFilter: approvalFilter, onSetApprovalFilter: setApprovalFilter, onExportApprovals: exportApprovals, todoOverdueOnly: todoOverdueOnly, onSetTodoOverdueOnly: setTodoOverdueOnly, wpStatusFilter: wpStatusFilter, onSetWpStatusFilter: setWpStatusFilter, wpSearch: wpSearch, onSetWpSearch: setWpSearch, onExportWorkpaperList: exportWorkpaperListCsv, onJumpTodoZone: jumpTodoZone, onJumpZone: function (name) { setZone(name) }, onVerifyWorkpapersZip: verifyWorkpapersZip, wpsVerifyMessage: wpsVerifyMessage,
