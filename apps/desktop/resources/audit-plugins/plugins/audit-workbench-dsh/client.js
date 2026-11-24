@@ -4652,11 +4652,15 @@ window.__ModuleLoader__.load({
                 h(AStatus, { tone: c.priority === 'high' ? 'warn' : '' }, c.kind),
                 h('span', { className: 'ad-row-meta' }, c.metric)),
               h('div', { className: 'ad-row-title' }, c.project),
-              h('div', { className: 'ad-row-meta' }, c.action),
-              (c.kind === '补资料' && (materials[c.client] || []).length)
-                ? h('div', { style: { fontSize: '10.5px', color: '#b45309', fontWeight: 600, marginTop: '2px' } },
-                    '缺：' + materials[c.client].join(' / '))
-                : null)
+              (function () {
+                const missing = materials[c.client] || []
+                // 知道缺哪份时，用「请客户补：序时账」替代泛泛的「上传余额表/报表/凭证」，一行说清
+                if (c.kind === '补资料' && missing.length) {
+                  return h('div', { style: { fontSize: '11.5px', color: '#b45309', fontWeight: 600, marginTop: '2px' } },
+                    '请客户补：' + missing.join('、'))
+                }
+                return h('div', { className: 'ad-row-meta' }, c.action)
+              })())
           })))
     }
 
