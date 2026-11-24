@@ -593,7 +593,8 @@ window.__ModuleLoader__.load({
           h('div', null,
             h('h1', { className: 'ad-title' }, '审计程序'),
             h('div', { className: 'ad-sub' }, list === null ? '加载程序表…' : (list.length + ' 张程序表 · 选中科目查看 5 项认定与实质性程序'))),
-          null),
+          h('div', { className: 'ad-actions' },
+            h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onJumpZone) props.onJumpZone('程序执行') } }, '看项目执行进度'))),
         err ? h('div', { className: 'ad-note' }, err) : null,
         h('div', { style: { display: 'flex', gap: '16px', alignItems: 'flex-start' } },
           h('div', { style: { width: '296px', flexShrink: 0 } },
@@ -1626,7 +1627,7 @@ window.__ModuleLoader__.load({
       }
       if (props.zone === '审计程序') {
         // 程序表主界面：86 张程序表 + 逐科目 5 认定 / 实质性程序 / 关联底稿表
-        return h(ProgramTablesZone, { project: props.project })
+        return h(ProgramTablesZone, { project: props.project, onJumpZone: props.onJumpZone })
       }
       if (props.zone === '程序执行') {
         const rows = props.programs || []
@@ -1672,7 +1673,9 @@ window.__ModuleLoader__.load({
             h('div', null,
               h('h1', { className: 'ad-title' }, '程序执行'),
               h('div', { className: 'ad-sub' }, (((props.project || {}).business_type) || '年报审计') + ' · ' + rows.length + ' 项。改完点保存。')),
-            readOnly ? null : h(ui.Button, { variant: 'primary', size: 'sm', onClick: function () { if (props.onSavePrograms) props.onSavePrograms() } }, '保存')),
+            h('div', { className: 'ad-actions' },
+              h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onJumpZone) props.onJumpZone('审计程序') } }, '看程序表模板'),
+              readOnly ? null : h(ui.Button, { variant: 'primary', size: 'sm', onClick: function () { if (props.onSavePrograms) props.onSavePrograms() } }, '保存'))),
           h('details', { className: 'ad-more' },
             h('summary', null, '导出与补全'),
             h('div', { className: 'ad-actions' },
