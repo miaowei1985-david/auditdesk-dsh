@@ -1708,6 +1708,9 @@ window.__ModuleLoader__.load({
           h(EngineFillsPanel, { projectId: props.project ? props.project.id : '' }),
           h('div', { style: { padding: '8px 14px 0', display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center', fontSize: '11px' } },
             h('span', { style: { color: COLORS.muted } }, '底稿统计：共 ' + generated.length + ' 份 · 台账 ' + (items ? items.length : 0) + ' 项'),
+            readOnly ? null : h(ui.Button, { variant: 'ghost', size: 'sm', title: '把引擎实际填过的表标为「已生成」（不标已完成，复核仍需人工）',
+              style: { fontSize: '11px', padding: '1px 6px', minHeight: '20px' },
+              onClick: function () { if (props.onSyncEngine) props.onSyncEngine() } }, '同步引擎状态'),
             h(ui.Input, { className: 'ad-plain', value: props.wpSearch || '', placeholder: '搜索底稿名称/索引/说明', onChange: function (e) { if (props.onSetWpSearch) props.onSetWpSearch(e.target.value) },
               style: { width: '170px', padding: '4px 8px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px' } }),
             h('select', { value: wpCycle, onChange: function (e) { setWpCycle(e.target.value) },
@@ -3619,7 +3622,9 @@ window.__ModuleLoader__.load({
       }
 
       function cycleWp(item) {
-        const order = ['待执行', '进行中', '已完成', '已生成', '不适用']
+        // 顺序要符合实际过程：先生成（引擎填数）→ 再复核完成 → 不适用
+        // 旧顺序把「已生成」放在「已完成」之后，从「已生成」点击会直接跳到「不适用」，等于跳过复核
+        const order = ['待执行', '进行中', '已生成', '已完成', '不适用']
         const next = order[(order.indexOf(item.status) + 1) % order.length]
         setWp(function (prev) { return (prev || []).map(function (row) { return row.id === item.id ? Object.assign({}, row, { status: next }) : row }) })
         api('/audit/workpapers/status', null, { method: 'POST', body: { id: item.id, status: next } })
@@ -3738,6 +3743,18 @@ window.__ModuleLoader__.load({
           })
           .catch(function (e) { try { window.alert('补全失败：' + String(e)) } catch (e2) {} })
       }
+      function syncEngineStatus() {
+        if (!activeProject) return
+        api('/audit/workpapers/sync-engine', null, { method: 'POST', body: { project: activeProject } })
+          .then(function (d) {
+            const msg = d && d.matched
+              ? ('已同步 ' + d.matched + ' 张底稿为「已生成」（引擎实际填过的表）')
+              : ('没有可同步的底稿' + (d && d.note ? '：' + d.note : ''))
+            try { window.alert(msg) } catch (e) {}
+            api('/audit/workpapers', { project: activeProject }).then(function (r) { setWp(r.items || []) }).catch(function () {})
+          })
+          .catch(function (e) { try { window.alert('同步失败：' + String(e)) } catch (e2) {} })
+      }
       function initPbcTemplate() {
         if (!activeProject) return
         api('/audit/pbc/init', null, { method: 'POST', body: { project: activeProject } })
@@ -3762,7 +3779,7 @@ window.__ModuleLoader__.load({
         generated: generated, generating: generating, generateMessage: generateMessage,
         reviewerName: reviewerName, onReviewerNameChange: setReviewerName,
         members: members, newMemberName: newMemberName, onNewMemberNameChange: setNewMemberName,
-        onAddMember: addProjectMember, onRemoveMember: removeProjectMember, onOpenWorkpaperHistory: openWorkpaperHistory, onOpenPbcHistory: openPbcHistory, onInitPbc: initPbcTemplate, onInitStdProject: initStdProject,
+        onAddMember: addProjectMember, onRemoveMember: removeProjectMember, onOpenWorkpaperHistory: openWorkpaperHistory, onOpenPbcHistory: openPbcHistory, onInitPbc: initPbcTemplate, onInitStdProject: initStdProject, onSyncEngine: syncEngineStatus,
         generatedDate: generatedDate, onGeneratedDateChange: setGeneratedDate,
         onOpenWorkpaperIndex: openWorkpaperByIndex, onGenerateWorkpaper: generateWorkpaper,
         onGenerateAll: generateAllWorkpapers, onGenerateLocal: generateLocalWorkpapers, localAtt: localAtt, onLocalAttChange: setLocalAtt, localAtts: localAttachments(), onExportWorkpapers: exportWorkpapersZip, reportVersionFilter: reportVersionFilter, onSetReportVersionFilter: setReportVersionFilter, approvalFilter: approvalFilter, onSetApprovalFilter: setApprovalFilter, onExportApprovals: exportApprovals, todoOverdueOnly: todoOverdueOnly, onSetTodoOverdueOnly: setTodoOverdueOnly, wpStatusFilter: wpStatusFilter, onSetWpStatusFilter: setWpStatusFilter, wpSearch: wpSearch, onSetWpSearch: setWpSearch, onExportWorkpaperList: exportWorkpaperListCsv, onJumpTodoZone: jumpTodoZone, onJumpZone: function (name) { setZone(name) }, onVerifyWorkpapersZip: verifyWorkpapersZip, wpsVerifyMessage: wpsVerifyMessage,
