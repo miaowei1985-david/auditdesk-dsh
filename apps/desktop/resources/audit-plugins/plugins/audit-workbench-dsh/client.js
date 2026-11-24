@@ -5218,7 +5218,7 @@ window.__ModuleLoader__.load({
         h('div', { style: { padding: '14px', borderRadius: '12px', border: '1px solid ' + COLORS.line } },
           h('div', { style: { fontSize: '13px', fontWeight: 600, marginBottom: '6px' } }, '升级方式'),
           h('div', { style: { fontSize: '12px', lineHeight: 1.9, color: COLORS.muted } },
-            '当前构建未启用自动更新（unsigned）。升级请下载最新安装包手动安装；安装完成后桌面/开始菜单会有「安装审计插件」快捷方式（如首次安装）。'),
+            '当前构建未启用自动更新（unsigned）。升级请下载最新安装包手动安装；安装完成后桌面（Windows 为开始菜单）会有「安装审计插件」快捷方式（如首次安装）。'),
           error ? h('div', { style: { fontSize: '12px', color: '#b91c1c', marginTop: '8px' } }, '服务连接失败：' + error) : null))
     }
 
