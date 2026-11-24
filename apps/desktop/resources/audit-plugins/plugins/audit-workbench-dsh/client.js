@@ -4332,10 +4332,13 @@ window.__ModuleLoader__.load({
               (o || '—') + ' → ' + (n || '—'))
           })(),
           h('span', { style: { color: COLORS.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } },
-            item.item_type === 'workpaper' && item.item_id
-              ? h('span', { style: { color: COLORS.accent, cursor: 'pointer' }, title: '切到审计底稿并预填该科目循环',
-                  onClick: function () { gotoObject(item) } }, '查看现状')
-              : item.project_id))
+            (function () {
+              // workpaper 类型同时记「台账项」和「生成的底稿文件」；文件类没有台账行可跳
+              const isFile = /\.(zip|xlsx|xls|docx|doc|pdf|html|csv)$/i.test(String(item.item_name || ''))
+              if (item.item_type !== 'workpaper' || !item.item_id || isFile) return item.project_id
+              return h('span', { style: { color: COLORS.accent, cursor: 'pointer' }, title: '切到审计底稿并预填该科目循环',
+                onClick: function () { gotoObject(item) } }, '查看现状')
+            })()))
       })
 
       return h('div', { className: 'ad-zone-page' },
