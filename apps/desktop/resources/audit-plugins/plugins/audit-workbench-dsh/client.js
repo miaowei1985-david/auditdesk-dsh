@@ -5997,9 +5997,10 @@ window.__ModuleLoader__.load({
           .then(function () { setMsg('客户已建档（待提交）。下一步：指定审批人提交准入'); setName(''); setCreditCode(''); setContact(''); setOwnerName(''); setSelCats([]); setSelItems([]); setFee(''); setShowCreateClient(false); loadClients() })
           .catch(function (e) { setMsg('建档失败：' + e) })
       }
-      function submitClient(id) {
-        if (!approverPick) { setMsg('请选择审批人'); return }
-        api('/audit/clients/submit', null, { method: 'POST', body: { id: id, approver_username: approverPick } })
+      function submitClient(id, approver) {
+        const pick = String(approver || approverPick || '').trim()
+        if (!pick) { setMsg('请选择审批人'); return }
+        api('/audit/clients/submit', null, { method: 'POST', body: { id: id, approver_username: pick } })
           .then(function () { setMsg('已提交审批，等待审批人处理'); setSubmitFor(null); setApproverPick(''); loadClients() })
           .catch(function (e) { setMsg('提交失败：' + e) })
       }
@@ -6064,7 +6065,21 @@ window.__ModuleLoader__.load({
                   h(ClientFlow, { flow: flowOf(c) })),
                 h('div', { className: 'ad-actions' },
                   h(AStatus, { tone: c.status === '已审批' ? 'ok' : c.status === '已驳回' ? 'warn' : '' }, c.status),
-                  h('span', { className: 'ad-metric-val' }, st.overall + '%')))
+                  h('span', { className: 'ad-metric-val' }, st.overall + '%'),
+                  // 准入流转：待提交 → 指定审批人；待审批 → 通过/驳回（原来这两个函数定义了却没接按钮）
+                  c.status === '待提交'
+                    ? h(ui.Button, { variant: 'outline', size: 'sm', onClick: function (e) {
+                        e.stopPropagation()
+                        let pick = ''
+                        try { pick = window.prompt('审批人用户名（manager / partner / admin）', 'manager') || '' } catch (err) { pick = '' }
+                        if (pick.trim()) submitClient(c.id, pick.trim())
+                      } }, '提交审批')
+                    : null,
+                  c.status === '待审批'
+                    ? h('span', { style: { display: 'flex', gap: '4px' } },
+                        h(ui.Button, { variant: 'outline', size: 'sm', style: { color: '#16a34a' }, onClick: function (e) { e.stopPropagation(); decideClient(c.id, 'approve') } }, '通过'),
+                        h(ui.Button, { variant: 'ghost', size: 'sm', style: { color: '#b91c1c' }, onClick: function (e) { e.stopPropagation(); decideClient(c.id, 'reject') } }, '驳回'))
+                    : null))
             })) : h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '暂无客户，点「新建客户」开始建档')))
         ) : h('div', null,
           h('div', { className: 'ad-toolbar', style: { marginBottom: '12px' } },
