@@ -1100,13 +1100,13 @@ window.__ModuleLoader__.load({
         if (!props.project) return
         fetch(BASE + '/audit/workpapers/cutoff', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-KB-Token': currentToken() }, body: JSON.stringify({ project: props.project.id, asof: cutoffAsOf || undefined, days: Number(cutoffDays) || 5 }) })
           .then(function (resp) { if (!resp.ok) throw new Error('HTTP ' + resp.status); return resp.blob() })
-          .then(function (blob) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = '截止测试底稿.docx'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); setTimeout(function () { if (props.onRefreshWorkpapers) props.onRefreshWorkpapers() }, 300) }).catch(function () {})
+          .then(function (blob) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = '截止测试底稿.docx'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); setTimeout(function () { if (props.onRefreshWorkpapers) props.onRefreshWorkpapers() }, 300) }).catch(function (e) { try { window.alert('下载失败：' + String((e && e.message) || e)) } catch (x) {} })
       }
       function exportInventoryCount() {
         if (!props.project) return
         fetch(BASE + '/audit/workpapers/inventory-sheet', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-KB-Token': currentToken() }, body: JSON.stringify({ project: props.project.id }) })
           .then(function (resp) { if (!resp.ok) throw new Error('HTTP ' + resp.status); return resp.blob() })
-          .then(function (blob) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = '存货监盘表.docx'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); setTimeout(function () { if (props.onRefreshWorkpapers) props.onRefreshWorkpapers() }, 300) }).catch(function () {})
+          .then(function (blob) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = '存货监盘表.docx'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); setTimeout(function () { if (props.onRefreshWorkpapers) props.onRefreshWorkpapers() }, 300) }).catch(function (e) { try { window.alert('下载失败：' + String((e && e.message) || e)) } catch (x) {} })
       }
       function runSampling() {
         if (!props.project) return
@@ -1136,13 +1136,13 @@ window.__ModuleLoader__.load({
         if (!props.project) return
         fetch(BASE + '/audit/workpapers/confirmation', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-KB-Token': currentToken() }, body: JSON.stringify({ project: props.project.id }) })
           .then(function (resp) { if (!resp.ok) throw new Error('HTTP ' + resp.status); return resp.blob() })
-          .then(function (blob) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = '函证清单.docx'; setTimeout(function(){ if (props.onRefreshWorkpapers) props.onRefreshWorkpapers() }, 300); document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url) }).catch(function () {})
+          .then(function (blob) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = '函证清单.docx'; setTimeout(function(){ if (props.onRefreshWorkpapers) props.onRefreshWorkpapers() }, 300); document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url) }).catch(function (e) { try { window.alert('下载失败：' + String((e && e.message) || e)) } catch (x) {} })
       }
       function exportAging() {
         if (!props.project) return
         fetch(BASE + '/audit/workpapers/aging', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-KB-Token': currentToken() }, body: JSON.stringify({ project: props.project.id }) })
           .then(function (resp) { if (!resp.ok) throw new Error('HTTP ' + resp.status); return resp.blob() })
-          .then(function (blob) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = '账龄分析.docx'; setTimeout(function(){ if (props.onRefreshWorkpapers) props.onRefreshWorkpapers() }, 300); document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url) }).catch(function () {})
+          .then(function (blob) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = '账龄分析.docx'; setTimeout(function(){ if (props.onRefreshWorkpapers) props.onRefreshWorkpapers() }, 300); document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url) }).catch(function (e) { try { window.alert('下载失败：' + String((e && e.message) || e)) } catch (x) {} })
       }
       if (props.zone === '概览') {
         const role = ((props.auth && props.auth.user && props.auth.user.role) || 'auditor')
@@ -2557,10 +2557,14 @@ window.__ModuleLoader__.load({
       function addPbcItem(name) {
         const value = String(name || '').trim()
         if (!value) return
-        api('/audit/pbc/add', null, { method: 'POST', body: { project: activeProject, name: value } }).then(refreshPbc).catch(function () {})
+        api('/audit/pbc/add', null, { method: 'POST', body: { project: activeProject, name: value } })
+          .then(refreshPbc)
+          .catch(function (e) { try { window.alert('添加资料项失败：' + String((e && e.message) || e)) } catch (x) {} })
       }
       function deletePbcItem(item) {
-        api('/audit/pbc/delete', null, { method: 'POST', body: { id: item.id } }).then(refreshPbc).catch(function () {})
+        api('/audit/pbc/delete', null, { method: 'POST', body: { id: item.id } })
+          .then(refreshPbc)
+          .catch(function (e) { try { window.alert('删除资料项失败：' + String((e && e.message) || e)) } catch (x) {} })
       }
       function uploadPbcAttachment(item, file) {
         fetch(BASE + '/audit/pbc/upload?pbc_id=' + item.id + '&project=' + encodeURIComponent(activeProject) + '&filename=' + encodeURIComponent(file.name), {
@@ -2660,7 +2664,7 @@ window.__ModuleLoader__.load({
       function downloadConfirmationAttachment(itemId) {
         fetch(BASE + '/audit/confirmations/attachment?item_id=' + itemId, { headers: { 'X-KB-Token': currentToken() } })
           .then(function (resp) { if (!resp.ok) throw new Error('HTTP ' + resp.status); return resp.blob() })
-          .then(function (blob) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = '回函扫描件'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url) }).catch(function () {})
+          .then(function (blob) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = '回函扫描件'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url) }).catch(function (e) { try { window.alert('下载失败：' + String((e && e.message) || e)) } catch (x) {} })
       }
       function replyConfirmation(itemId, repliedAmount, note) {
         if (!activeProject) return
@@ -2673,7 +2677,7 @@ window.__ModuleLoader__.load({
         if (!activeProject) return
         fetch(BASE + '/audit/workpapers/confirmation-differences', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-KB-Token': currentToken() }, body: JSON.stringify({ project: activeProject }) })
           .then(function (resp) { if (!resp.ok) throw new Error('HTTP ' + resp.status); return resp.blob() })
-          .then(function (blob) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = '函证差异调节表.docx'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); refreshWorkpapers() }).catch(function () {})
+          .then(function (blob) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = '函证差异调节表.docx'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); refreshWorkpapers() }).catch(function (e) { try { window.alert('下载失败：' + String((e && e.message) || e)) } catch (x) {} })
       }
       function updateInventoryRow(code, field, value) {
         setInventoryCounts(function (prev) { return (prev || []).map(function (row) { return row.code === code ? Object.assign({}, row, { [field]: value }) : row }) })
@@ -2682,13 +2686,13 @@ window.__ModuleLoader__.load({
         if (!activeProject) return
         fetch(BASE + '/audit/workpapers/inventory-exceptions', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-KB-Token': currentToken() }, body: JSON.stringify({ project: activeProject }) })
           .then(function (resp) { if (!resp.ok) throw new Error('HTTP ' + resp.status); return resp.blob() })
-          .then(function (blob) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = '存货监盘差异事项.docx'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url) }).catch(function () {})
+          .then(function (blob) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = '存货监盘差异事项.docx'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url) }).catch(function (e) { try { window.alert('下载失败：' + String((e && e.message) || e)) } catch (x) {} })
       }
       function exportInventorySummary() {
         if (!activeProject) return
         fetch(BASE + '/audit/inventory-summary/export?project=' + encodeURIComponent(activeProject), { headers: { 'X-KB-Token': currentToken() } })
           .then(function (resp) { if (!resp.ok) throw new Error('HTTP ' + resp.status); return resp.blob() })
-          .then(function (blob) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = '存货监盘汇总.xlsx'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url) }).catch(function () {})
+          .then(function (blob) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = '存货监盘汇总.xlsx'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url) }).catch(function (e) { try { window.alert('下载失败：' + String((e && e.message) || e)) } catch (x) {} })
       }
       function updateInventoryMeta(field, value) {
         setInventoryMeta(function (prev) { return Object.assign({}, prev, { [field]: value }) })
@@ -2767,12 +2771,12 @@ window.__ModuleLoader__.load({
       function downloadFinancialTemplate() {
         fetch(BASE + '/audit/data/template-fs', { headers: { 'X-KB-Token': currentToken() } })
           .then(function (resp) { if (!resp.ok) throw new Error('HTTP ' + resp.status); return resp.blob() })
-          .then(function (blob) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = '财务报表_标准模板.xlsx'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url) }).catch(function () {})
+          .then(function (blob) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = '财务报表_标准模板.xlsx'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url) }).catch(function (e) { try { window.alert('下载失败：' + String((e && e.message) || e)) } catch (x) {} })
       }
       function downloadImportTemplate(kind) {
         fetch(BASE + '/audit/data/template?kind=' + kind, { headers: { 'X-KB-Token': currentToken() } })
           .then(function (resp) { if (!resp.ok) throw new Error('HTTP ' + resp.status); return resp.blob() })
-          .then(function (blob) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = kind === 'tb' ? '科目余额表_标准模板.xlsx' : '序时账_标准模板.xlsx'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url) }).catch(function () {})
+          .then(function (blob) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = kind === 'tb' ? '科目余额表_标准模板.xlsx' : '序时账_标准模板.xlsx'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url) }).catch(function (e) { try { window.alert('下载失败：' + String((e && e.message) || e)) } catch (x) {} })
       }
       function chooseMultiSheetFile(file) {
         if (!file) return
@@ -3334,19 +3338,19 @@ window.__ModuleLoader__.load({
         if (!activeProject) return
         fetch(BASE + '/audit/programs/export?project=' + encodeURIComponent(activeProject), { headers: { 'X-KB-Token': currentToken() } })
           .then(function (resp) { if (!resp.ok) throw new Error('HTTP ' + resp.status); return resp.blob() })
-          .then(function (blob) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = '审计程序表.docx'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url) }).catch(function () {})
+          .then(function (blob) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = '审计程序表.docx'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url) }).catch(function (e) { try { window.alert('下载失败：' + String((e && e.message) || e)) } catch (x) {} })
       }
       function exportProgramsXlsx() {
         if (!activeProject) return
         fetch(BASE + '/audit/programs/export-xlsx?project=' + encodeURIComponent(activeProject), { headers: { 'X-KB-Token': currentToken() } })
           .then(function (resp) { if (!resp.ok) throw new Error('HTTP ' + resp.status); return resp.blob() })
-          .then(function (blob) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = '审计程序表.xlsx'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url) }).catch(function () {})
+          .then(function (blob) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = '审计程序表.xlsx'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url) }).catch(function (e) { try { window.alert('下载失败：' + String((e && e.message) || e)) } catch (x) {} })
       }
       function exportProgramHistory() {
         if (!activeProject) return
         fetch(BASE + '/audit/programs/history-xlsx?project=' + encodeURIComponent(activeProject), { headers: { 'X-KB-Token': currentToken() } })
           .then(function (resp) { if (!resp.ok) throw new Error('HTTP ' + resp.status); return resp.blob() })
-          .then(function (blob) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = '程序变更历史.xlsx'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url) }).catch(function () {})
+          .then(function (blob) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = '程序变更历史.xlsx'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url) }).catch(function (e) { try { window.alert('下载失败：' + String((e && e.message) || e)) } catch (x) {} })
       }
       function savePrograms() {
         if (!activeProject) return
@@ -3707,7 +3711,9 @@ window.__ModuleLoader__.load({
         try {
           if (!window.confirm('确认「' + actionLabel + '」：' + (item.title || '') + '？\n\n审批决定提交后不可撤销。')) return
         } catch (e) { return }
-        api('/audit/approvals/decide', null, { method: 'POST', body: { id: item.id, decision: decision, opinion: opinion } }).then(refreshApprovals).catch(function () {})
+        api('/audit/approvals/decide', null, { method: 'POST', body: { id: item.id, decision: decision, opinion: opinion } })
+          .then(refreshApprovals)
+          .catch(function (e) { try { window.alert('审批失败：' + String((e && e.message) || e)) } catch (x) {} })
       }
 
       function newProjectSession(company, project) {
