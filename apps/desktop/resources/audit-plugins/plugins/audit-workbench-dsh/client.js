@@ -4796,7 +4796,27 @@ window.__ModuleLoader__.load({
                   h('span', { className: 'ad-prog-item-name' }, it.name),
                   h('span', { className: 'ad-prog-item-status' }, it.status))
               }))
-          }))
+          }),
+          h('div', { className: 'ad-card' },
+            h('div', { className: 'ad-head', style: { marginBottom: '8px' } },
+              h('div', null,
+                h('div', { className: 'ad-row-title' }, '业务约定书'),
+                h('div', { className: 'ad-row-meta' }, '登记 → 签署 → 归档。立项需要已签署的合同。')),
+              h(ui.Button, { variant: 'ghost', size: 'sm', onClick: function () { setShowCreateContract(!showCreateContract) } }, showCreateContract ? '取消' : '新建合同')),
+            (showCreateContract || ((contracts || []).filter(function (x) { return x.client_name === c.name }).length === 0)) ? h('div', { className: 'ad-form' },
+              h('label', { className: 'ad-field' }, '项目名称', h(ui.Input, { className: 'ad-iw', value: cProject, onChange: function (e) { setCProject(e.target.value) } })),
+              h('label', { className: 'ad-field' }, '盖章类型', h('select', { className: 'ad-input', value: cSeal, onChange: function (e) { setCSeal(e.target.value) } }, ['双章', '单章(客户章)'].map(function (t) { return h('option', { key: 'cs-' + t, value: t }, t) }))),
+              h('div', { className: 'ad-form-actions' }, h(ui.Button, { variant: 'primary', size: 'sm', onClick: function () { createContractFor(c.name) } }, '登记'))) : null,
+            ((contracts || []).filter(function (x) { return x.client_name === c.name })).map(function (ct) {
+              return h('div', { key: 'ct-' + ct.id, className: 'ad-row' },
+                h('div', null,
+                  h('div', { className: 'ad-row-title' }, ct.project_name || ct.client_name),
+                  h('div', { className: 'ad-row-meta' }, [ct.seal_type, ct.signed_by ? '签署 ' + ct.signed_by + (ct.signed_at ? '（' + ct.signed_at + '）' : '') : ''].filter(Boolean).join(' · '))),
+                h('div', { className: 'ad-actions' },
+                  h(AStatus, { tone: ct.status === '已归档' || ct.status === '已签' ? 'ok' : 'warn' }, ct.status === '已归档' ? '已归档' : ct.status === '已签' ? '已签' : '待签'),
+                  ct.status === '待归档' ? h(ui.Button, { variant: 'ghost', size: 'sm', onClick: function () { signContract(ct.id) } }, '签署') : null,
+                  ct.status === '已签' ? h(ui.Button, { variant: 'ghost', size: 'sm', onClick: function () { archiveContract(ct.id) } }, '归档') : null))
+            })))
       }
       function createClient() {
         if (!name.trim()) { setMsg('客户名称必填'); return }
@@ -4824,6 +4844,15 @@ window.__ModuleLoader__.load({
         if (picked.status !== '已审批') { setMsg('该客户尚未审批，不能登记合同'); return }
         api('/audit/contracts/create', null, { method: 'POST', body: { client_name: cClient, project_name: cProject, seal_type: cSeal } })
           .then(function () { setMsg('合同已登记，待签'); setCClient(''); setCProject(''); setShowCreateContract(false); loadContracts() })
+          .catch(function (e) { setMsg('登记失败：' + e) })
+      }
+      // 客户详情内登记合同（客户已由上下文确定，仍校验准入状态）
+      function createContractFor(clientName) {
+        const picked = (clients || []).filter(function (c) { return c.name === clientName })[0]
+        if (!picked) { setMsg('客户不存在'); return }
+        if (picked.status !== '已审批') { setMsg('该客户尚未审批，不能登记合同'); return }
+        api('/audit/contracts/create', null, { method: 'POST', body: { client_name: clientName, project_name: cProject, seal_type: cSeal } })
+          .then(function () { setMsg('合同已登记，待签'); setCProject(''); setShowCreateContract(false); loadContracts() })
           .catch(function (e) { setMsg('登记失败：' + e) })
       }
       function signContract(id) {
@@ -5151,28 +5180,13 @@ window.__ModuleLoader__.load({
     }
 
     function CommercePage(props) {
-      const [tab, setTab] = React.useState('clients')
       return h('div', { className: 'ad-page' }, h('div', { className: 'ad-page-inner' },
         h('div', { className: 'ad-head' },
           h('div', null,
-            h('h1', { className: 'ad-title' }, '商务'),
-            h('div', { className: 'ad-sub' }, '客户建档审批，再登记合同。没有合同不能立项。')),
+            h('h1', { className: 'ad-title' }, '客户'),
+            h('div', { className: 'ad-sub' }, '客户准入：建档 → 指定审批人 → 通过。合同与开票在客户详情里处理。')),
           null),
-        h(ui.SegmentedTabs, {
-          className: 'ad-tabs-fit',
-          items: [
-            { value: 'clients', label: '客户', id: 'tab-clients', panelId: 'panel-clients' },
-            { value: 'contracts', label: '合同', id: 'tab-contracts', panelId: 'panel-contracts' },
-            { value: 'invoices', label: '发票', id: 'tab-invoices', panelId: 'panel-invoices' }
-          ],
-          value: tab,
-          onChange: setTab,
-          label: '商务页签',
-          size: 'sm'
-        }),
-        tab === 'invoices'
-          ? h(InvoicesPage, { auth: props.auth, embedded: true })
-          : h(ClientsContractsPage, { auth: props.auth, embedded: true, section: tab })))
+        h(ClientsContractsPage, { auth: props.auth, embedded: true, section: 'clients' })))
     }
 
     function settingsTabsFor(role) {
