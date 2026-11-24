@@ -1019,6 +1019,8 @@ window.__ModuleLoader__.load({
       const readOnly = Boolean(props.readOnly)
       // 程序执行：65 项一次铺开太长，给一个状态筛选
       const progFilterState = React.useState('all'); const progFilter = progFilterState[0]; const setProgFilter = progFilterState[1]
+      // 底稿台账：32 张分属 9 个科目循环，按循环筛选
+      const wpCycleState = React.useState('all'); const wpCycle = wpCycleState[0]; const setWpCycle = wpCycleState[1]
       const tmpElementsState = React.useState({}); const tmpElements = tmpElementsState[0]; const setTmpElements = tmpElementsState[1]
       const matEditState = React.useState(false); const matEditing = matEditState[0]; const setMatEditing = matEditState[1]
       const matOverallState = React.useState(''); const matOverall = matOverallState[0]; const setMatOverall = matOverallState[1]
@@ -1622,10 +1624,16 @@ window.__ModuleLoader__.load({
           rows, checkPanel, h(VoucherScanPanel, { client: (props.project && props.project.client) || '' }), addForm, eventsBlock('pbc'))
       }
       if (props.zone === '审计底稿') {
+        const WP_CYCLE = { ZA: '货币资金', ZE: '应收账款', ZJ: '存货', ZP: '固定资产', FE: '应付账款', FH: '应交税费', FG: '应付职工薪酬', QA: '所有者权益', SA: '营业收入' }
+        const cycleOf = function (code) {
+          const m = String(code || '').match(/^[A-Z]+/)
+          return m ? m[0] : ''
+        }
         const toneOfWp = function (status) { return status === '已完成' || status === '已执行' || status === '已预填' || status === '已生成' ? 'ok' : status === '进行中' ? 'warn' : status === '不适用' ? 'muted' : 'bad' }
         const items = props.wp === null ? null : props.wp
         const wpFilter = props.wpStatusFilter || 'all'
         const visibleItems = items === null ? null : items.filter(function (item) {
+          if (wpCycle !== 'all' && cycleOf(item.index_no) !== wpCycle) return false
           if (wpFilter !== 'all' && item.status !== wpFilter) return false
           const query = String(props.wpSearch || '').trim().toLowerCase()
           if (!query) return true
@@ -1679,6 +1687,14 @@ window.__ModuleLoader__.load({
             h('span', { style: { color: COLORS.muted } }, '底稿统计：共 ' + generated.length + ' 份 · 台账 ' + (items ? items.length : 0) + ' 项'),
             h(ui.Input, { className: 'ad-plain', value: props.wpSearch || '', placeholder: '搜索底稿名称/索引/说明', onChange: function (e) { if (props.onSetWpSearch) props.onSetWpSearch(e.target.value) },
               style: { width: '170px', padding: '4px 8px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px' } }),
+            h('select', { value: wpCycle, onChange: function (e) { setWpCycle(e.target.value) },
+              style: { padding: '4px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px' } },
+              h('option', { value: 'all' }, '全部循环 ' + (items ? items.length : 0)),
+              Object.keys(WP_CYCLE).map(function (prefix) {
+                const n = (items || []).filter(function (it) { return cycleOf(it.index_no) === prefix }).length
+                if (!n) return null
+                return h('option', { key: 'cyc-' + prefix, value: prefix }, WP_CYCLE[prefix] + ' ' + prefix + ' · ' + n)
+              })),
             h('select', { value: wpFilter, onChange: function (e) { if (props.onSetWpStatusFilter) props.onSetWpStatusFilter(e.target.value) },
               style: { padding: '4px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px' } },
               h('option', { value: 'all' }, '全部状态'),
