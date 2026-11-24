@@ -5510,6 +5510,10 @@ window.__ModuleLoader__.load({
                 h('div', { style: { flex: 1, height: '2px', background: i === last ? 'transparent' : (done ? '#16a34a' : 'rgba(127,127,127,0.2)') } })),
               h('div', { style: { fontSize: '11px', fontWeight: st.status === 'current' ? 700 : 600, color: st.status === 'pending' ? COLORS.muted : 'inherit' } }, st.label),
               h('div', { style: { fontSize: '9px', color: meta.color, marginTop: '2px' } }, meta.txt),
+              (st.status === 'done' && st.confirmed_at)
+                ? h('div', { title: (st.confirmed_by || '') + ' 于 ' + st.confirmed_at + ' 确认', style: { fontSize: '8px', color: COLORS.muted, marginTop: '1px', whiteSpace: 'nowrap' } },
+                    String(st.confirmed_at).slice(5, 16))
+                : null,
               st.metrics.map(function (m) {
                 const text = m.label + ' ' + m.value
                 const blocking = /待补|待处理|待审|不平|未生成|未归档|未定|缺|失败/.test(text)
