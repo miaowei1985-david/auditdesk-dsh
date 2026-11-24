@@ -114,8 +114,8 @@ window.__ModuleLoader__.load({
         h('form', { onSubmit: submit, style: { width: '320px', padding: '24px', borderRadius: '14px', border: '1px solid ' + COLORS.line, background: COLORS.bg } },
           h('div', { style: { fontSize: '16px', fontWeight: 600, marginBottom: '6px' } }, '登录 AuditDesk'),
           h('div', { style: { fontSize: '12px', color: COLORS.muted, marginBottom: '16px' } }, '用项目组账号登录；不同角色权限不同（演示账号见下）'),
-          h('input', { value: username, onChange: function (e) { setUsername(e.target.value) }, placeholder: '用户名', autoFocus: true, style: inputStyle }),
-          h('input', { value: password, onChange: function (e) { setPassword(e.target.value) }, placeholder: '密码', type: 'password', style: inputStyle }),
+          h(ui.Input, { className: 'ad-plain', value: username, onChange: function (e) { setUsername(e.target.value) }, placeholder: '用户名', autoFocus: true, style: inputStyle }),
+          h(ui.Input, { className: 'ad-plain', value: password, onChange: function (e) { setPassword(e.target.value) }, placeholder: '密码', type: 'password', style: inputStyle }),
           error ? h('div', { style: { fontSize: '12px', color: '#b91c1c', marginBottom: '10px' } }, error) : null,
           h('button', { type: 'submit', disabled: loading, style: { width: '100%', padding: '10px 12px', borderRadius: '8px', border: 0, background: COLORS.accent, color: 'var(--dsw-alias-label-primary-foreground)', fontSize: '13px', cursor: 'pointer' } }, loading ? '登录中…' : '登录'),
           h('div', { style: { fontSize: '11px', color: COLORS.muted, marginTop: '12px', lineHeight: 1.7 } },
@@ -215,6 +215,7 @@ window.__ModuleLoader__.load({
       '.ad-tile{flex:1 1 260px;min-width:260px;padding:14px 16px;border-radius:12px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1)}',
       '.ad-iw{width:100%;box-sizing:border-box}',
       '.ad-iw input{width:100%;background:transparent;border:0;outline:none;color:inherit;font-size:13px}',
+      '.ad-plain input{padding:0 !important;border:0 !important;background:transparent !important;color:inherit !important;font-size:13px !important;outline:none}',
       '.ad-ml6{margin-left:6px}',
       '.ad-tabs-fit{width:fit-content}',
       '.ad-tile.wide{flex:2 1 420px;min-width:420px}',
@@ -651,7 +652,7 @@ window.__ModuleLoader__.load({
               materiality ? (matEditing
                 ? h('div', { style: { display: 'flex', flexDirection: 'column', gap: '6px' } },
                     h('div', { style: { fontSize: '11px', color: COLORS.muted } }, '基准：' + materiality.basis),
-                    h('input', { value: matOverall, onChange: function (e) {
+                    h(ui.Input, { className: 'ad-plain', value: matOverall, onChange: function (e) {
                         const value = e.target.value
                         setMatOverall(value)
                         const numeric = Number(value)
@@ -661,11 +662,11 @@ window.__ModuleLoader__.load({
                         }
                       }, placeholder: '整体重要性',
                       style: { padding: '5px 8px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }),
-                    h('input', { value: matPerf, onChange: function (e) { setMatPerf(e.target.value) }, placeholder: '实际执行重要性',
+                    h(ui.Input, { className: 'ad-plain', value: matPerf, onChange: function (e) { setMatPerf(e.target.value) }, placeholder: '实际执行重要性',
                       style: { padding: '5px 8px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }),
-                    h('input', { value: matTrivial, onChange: function (e) { setMatTrivial(e.target.value) }, placeholder: '明显微小错报',
+                    h(ui.Input, { className: 'ad-plain', value: matTrivial, onChange: function (e) { setMatTrivial(e.target.value) }, placeholder: '明显微小错报',
                       style: { padding: '5px 8px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }),
-                    h('input', { value: matNote, onChange: function (e) { setMatNote(e.target.value) }, placeholder: '确认说明（选填）',
+                    h(ui.Input, { className: 'ad-plain', value: matNote, onChange: function (e) { setMatNote(e.target.value) }, placeholder: '确认说明（选填）',
                       style: { padding: '5px 8px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }),
                     h('div', { style: { display: 'flex', gap: '6px' } },
                       h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onConfirmMateriality) props.onConfirmMateriality({ basis: materiality.basis, overall: Number(matOverall), performance: Number(matPerf), trivial: Number(matTrivial), note: matNote }); setMatEditing(false) },
@@ -736,9 +737,9 @@ window.__ModuleLoader__.load({
                 className: 'ad-btn quiet' }, '抽样底稿') : null),
             readOnly ? null : h('div', { style: { display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '8px' } },
               h('span', { style: { fontSize: '12px', color: COLORS.muted } }, '样本量'),
-              h('input', { value: sampleSize, onChange: function (e) { setSampleSize(e.target.value) }, style: { width: '64px', padding: '5px 8px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }),
+              h(ui.Input, { className: 'ad-plain', value: sampleSize, onChange: function (e) { setSampleSize(e.target.value) }, style: { width: '64px', padding: '5px 8px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }),
               h('span', { style: { fontSize: '12px', color: COLORS.muted } }, '种子'),
-              h('input', { value: sampleSeed, onChange: function (e) { setSampleSeed(e.target.value) }, style: { width: '64px', padding: '5px 8px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }),
+              h(ui.Input, { className: 'ad-plain', value: sampleSeed, onChange: function (e) { setSampleSeed(e.target.value) }, style: { width: '64px', padding: '5px 8px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }),
               h(ui.Button, { variant: 'primary', size: 'sm', onClick: runSampling, disabled: sampling }, sampling ? '抽样中…' : '执行抽样')),
             sampleResult && sampleResult.available ? h('div', null,
               h('div', { style: { fontSize: '12px', color: COLORS.muted, marginBottom: '6px' } },
@@ -760,9 +761,9 @@ window.__ModuleLoader__.load({
                   h(ui.Button, { variant: 'outline', size: 'sm', onClick: exportInventoryCount }, '存货监盘表')))),
             readOnly ? null : h('div', { style: { display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '6px' } },
               h('span', { style: { fontSize: '12px', color: COLORS.muted } }, '截止日'),
-              h('input', { value: cutoffAsOf, onChange: function (e) { setCutoffAsOf(e.target.value) }, placeholder: 'YYYY-MM-DD', style: { width: '110px', padding: '5px 8px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }),
+              h(ui.Input, { className: 'ad-plain', value: cutoffAsOf, onChange: function (e) { setCutoffAsOf(e.target.value) }, placeholder: 'YYYY-MM-DD', style: { width: '110px', padding: '5px 8px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }),
               h('span', { style: { fontSize: '12px', color: COLORS.muted } }, '前后'),
-              h('input', { value: cutoffDays, onChange: function (e) { setCutoffDays(e.target.value) }, style: { width: '52px', padding: '5px 8px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }),
+              h(ui.Input, { className: 'ad-plain', value: cutoffDays, onChange: function (e) { setCutoffDays(e.target.value) }, style: { width: '52px', padding: '5px 8px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }),
               h('span', { style: { fontSize: '12px', color: COLORS.muted } }, '天'),
               h(ui.Button, { variant: 'primary', size: 'sm', onClick: runCutoff }, '执行截止测试')),
             cutoffResult && cutoffResult.available ? h('div', { style: { fontSize: '12px', color: COLORS.muted } },
@@ -785,20 +786,20 @@ window.__ModuleLoader__.load({
               (props.inventoryCounts || []).map(function (row) {
                 return h('div', { key: 'inv-' + row.code, style: { display: 'grid', gridTemplateColumns: '60px 1fr 90px 70px 70px 70px 1fr 60px', gap: '6px', alignItems: 'center', fontSize: '12px', padding: '2px 0' } },
                   h('span', null, row.code), h('span', null, row.name), h('span', null, Number(row.book_amount).toLocaleString()),
-                  h('input', { value: String(row.book_qty || ''), onChange: function (e) { if (props.onUpdateInventoryRow) props.onUpdateInventoryRow(row.code, 'book_qty', e.target.value) }, style: { width: '58px', padding: '3px 5px', borderRadius: '5px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px' } }),
-                  h('input', { value: String(row.counted_qty || ''), onChange: function (e) { if (props.onUpdateInventoryRow) props.onUpdateInventoryRow(row.code, 'counted_qty', e.target.value) }, style: { width: '58px', padding: '3px 5px', borderRadius: '5px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px' } }),
+                  h(ui.Input, { className: 'ad-plain', value: String(row.book_qty || ''), onChange: function (e) { if (props.onUpdateInventoryRow) props.onUpdateInventoryRow(row.code, 'book_qty', e.target.value) }, style: { width: '58px', padding: '3px 5px', borderRadius: '5px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px' } }),
+                  h(ui.Input, { className: 'ad-plain', value: String(row.counted_qty || ''), onChange: function (e) { if (props.onUpdateInventoryRow) props.onUpdateInventoryRow(row.code, 'counted_qty', e.target.value) }, style: { width: '58px', padding: '3px 5px', borderRadius: '5px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px' } }),
                   h('span', { style: { color: Number(row.difference || 0) === 0 ? COLORS.muted : '#b45309' } }, String(row.difference || 0)),
-                  h('input', { value: row.note || '', onChange: function (e) { if (props.onUpdateInventoryRow) props.onUpdateInventoryRow(row.code, 'note', e.target.value) }, style: { width: '100%', padding: '3px 5px', borderRadius: '5px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px' } }),
+                  h(ui.Input, { className: 'ad-plain', value: row.note || '', onChange: function (e) { if (props.onUpdateInventoryRow) props.onUpdateInventoryRow(row.code, 'note', e.target.value) }, style: { width: '100%', padding: '3px 5px', borderRadius: '5px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px' } }),
                   h(Badge, { tone: row.status === '已确认' ? 'ok' : row.status === '已录入' ? 'warn' : 'muted' }, row.status))
               }),
               h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center', marginTop: '6px', fontSize: '11px' } },
                 h('span', { style: { color: COLORS.muted } }, '监盘日期'),
-                h('input', { value: (props.inventoryMeta && props.inventoryMeta.counted_at) || '', onChange: function (e) { if (props.onUpdateInventoryMeta) props.onUpdateInventoryMeta('counted_at', e.target.value) }, placeholder: 'YYYY-MM-DD', style: { width: '92px', padding: '3px 6px', borderRadius: '5px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px' } }),
+                h(ui.Input, { className: 'ad-plain', value: (props.inventoryMeta && props.inventoryMeta.counted_at) || '', onChange: function (e) { if (props.onUpdateInventoryMeta) props.onUpdateInventoryMeta('counted_at', e.target.value) }, placeholder: 'YYYY-MM-DD', style: { width: '92px', padding: '3px 6px', borderRadius: '5px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px' } }),
                 h('span', { style: { color: COLORS.muted } }, '监盘人'),
-                h('input', { value: (props.inventoryMeta && props.inventoryMeta.auditor_rep) || '', onChange: function (e) { if (props.onUpdateInventoryMeta) props.onUpdateInventoryMeta('auditor_rep', e.target.value) }, placeholder: '监盘人', style: { width: '80px', padding: '3px 6px', borderRadius: '5px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px' } }),
+                h(ui.Input, { className: 'ad-plain', value: (props.inventoryMeta && props.inventoryMeta.auditor_rep) || '', onChange: function (e) { if (props.onUpdateInventoryMeta) props.onUpdateInventoryMeta('auditor_rep', e.target.value) }, placeholder: '监盘人', style: { width: '80px', padding: '3px 6px', borderRadius: '5px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px' } }),
                 h('span', { style: { color: COLORS.muted } }, '陪同人'),
-                h('input', { value: (props.inventoryMeta && props.inventoryMeta.client_rep) || '', onChange: function (e) { if (props.onUpdateInventoryMeta) props.onUpdateInventoryMeta('client_rep', e.target.value) }, placeholder: '客户陪同人', style: { width: '100px', padding: '3px 6px', borderRadius: '5px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px' } }),
-                h('input', { value: (props.inventoryMeta && props.inventoryMeta.note) || '', onChange: function (e) { if (props.onUpdateInventoryMeta) props.onUpdateInventoryMeta('note', e.target.value) }, placeholder: '监盘说明', style: { flex: 1, minWidth: '100px', padding: '3px 6px', borderRadius: '5px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px' } }),
+                h(ui.Input, { className: 'ad-plain', value: (props.inventoryMeta && props.inventoryMeta.client_rep) || '', onChange: function (e) { if (props.onUpdateInventoryMeta) props.onUpdateInventoryMeta('client_rep', e.target.value) }, placeholder: '客户陪同人', style: { width: '100px', padding: '3px 6px', borderRadius: '5px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px' } }),
+                h(ui.Input, { className: 'ad-plain', value: (props.inventoryMeta && props.inventoryMeta.note) || '', onChange: function (e) { if (props.onUpdateInventoryMeta) props.onUpdateInventoryMeta('note', e.target.value) }, placeholder: '监盘说明', style: { flex: 1, minWidth: '100px', padding: '3px 6px', borderRadius: '5px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px' } }),
                 readOnly ? null : h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onSaveInventoryMeta) props.onSaveInventoryMeta() }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '11px', cursor: 'pointer' } }, '保存监盘信息')),
               h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px', marginTop: '6px', fontSize: '12px', flexWrap: 'wrap' } },
                 h('span', { style: { color: COLORS.muted } }, '盘点表扫描件（' + (props.inventoryAttachments || []).length + '）'),
@@ -859,8 +860,8 @@ window.__ModuleLoader__.load({
                             h('span', { onClick: function () { if (!readOnly && props.onCycleConfirmation) props.onCycleConfirmation(item) }, title: '点击切换回函状态', style: { cursor: 'pointer' } },
                               h(Badge, { tone: item.status === '已回函' ? 'ok' : item.status === '未回函' ? 'bad' : item.status === '已发' ? 'warn' : 'muted' }, item.status)))),
                         replyItem === item.id ? h('div', { style: { display: 'flex', gap: '6px', marginTop: '4px' } },
-                          h('input', { value: replyAmount, onChange: function (e) { setReplyAmount(e.target.value) }, placeholder: '回函金额', style: { width: '110px', padding: '4px 7px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }),
-                          h('input', { value: replyNote, onChange: function (e) { setReplyNote(e.target.value) }, placeholder: '差异说明', style: { flex: 1, minWidth: '80px', padding: '4px 7px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }),
+                          h(ui.Input, { className: 'ad-plain', value: replyAmount, onChange: function (e) { setReplyAmount(e.target.value) }, placeholder: '回函金额', style: { width: '110px', padding: '4px 7px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }),
+                          h(ui.Input, { className: 'ad-plain', value: replyNote, onChange: function (e) { setReplyNote(e.target.value) }, placeholder: '差异说明', style: { flex: 1, minWidth: '80px', padding: '4px 7px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }),
                           h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onReplyConfirmation) props.onReplyConfirmation(item.id, Number(replyAmount) || 0, replyNote); setReplyItem(null) },
                             style: { padding: '4px 10px', borderRadius: '6px', border: 0, background: COLORS.accent, color: 'var(--dsw-alias-label-primary-foreground)', fontSize: '11px', cursor: 'pointer' } }, '保存')) : null)
                     })
@@ -941,9 +942,9 @@ window.__ModuleLoader__.load({
             h('div', { style: { fontSize: '13px', fontWeight: 600, marginBottom: '6px' } }, '项目数据导入'),
             h('div', { style: { fontSize: '11px', color: COLORS.muted, marginBottom: '8px' } }, '导入科目余额表与序时账后，可执行试算平衡、勾稽与抽样程序（支持 .xlsx / .xls / .csv）。'),
             readOnly ? h('div', { className: 'ad-row-meta' }, '项目已归档，不可导入') : h('div', { className: 'ad-form' },
-              h('label', { className: 'ad-field' }, '科目余额表', h(ui.Input, { className: 'ad-iw', type: 'file', accept: '.xlsx,.xls,.csv', onChange: function (e) { const f = e.target.files && e.target.files[0]; if (f && props.onImportData) props.onImportData('tb', f); e.target.value = '' } })),
-              h('label', { className: 'ad-field' }, '序时账', h(ui.Input, { className: 'ad-iw', type: 'file', accept: '.xlsx,.xls,.csv', onChange: function (e) { const f = e.target.files && e.target.files[0]; if (f && props.onImportData) props.onImportData('journal', f); e.target.value = '' } })),
-              h('label', { className: 'ad-field' }, '财务报表', h(ui.Input, { className: 'ad-iw', type: 'file', accept: '.xlsx', onChange: function (e) { const f = e.target.files && e.target.files[0]; if (f && props.onImportFinancialStatements) props.onImportFinancialStatements(f); e.target.value = '' } }))),
+              h('label', { className: 'ad-field' }, '科目余额表', h('input', { type: 'file', accept: '.xlsx,.xls,.csv', onChange: function (e) { const f = e.target.files && e.target.files[0]; if (f && props.onImportData) props.onImportData('tb', f); e.target.value = '' } })),
+              h('label', { className: 'ad-field' }, '序时账', h('input', { type: 'file', accept: '.xlsx,.xls,.csv', onChange: function (e) { const f = e.target.files && e.target.files[0]; if (f && props.onImportData) props.onImportData('journal', f); e.target.value = '' } })),
+              h('label', { className: 'ad-field' }, '财务报表', h('input', { type: 'file', accept: '.xlsx', onChange: function (e) { const f = e.target.files && e.target.files[0]; if (f && props.onImportFinancialStatements) props.onImportFinancialStatements(f); e.target.value = '' } }))),
             h('div', { style: { display: 'flex', gap: '10px', marginTop: '6px', fontSize: '11px' } },
               h('span', { style: { color: COLORS.muted } }, '标准模板：'),
               h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onDownloadImportTemplate) props.onDownloadImportTemplate('tb') }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '11px', cursor: 'pointer' } }, '下载科目余额表模板'),
@@ -1023,7 +1024,7 @@ window.__ModuleLoader__.load({
           h(EngineFillsPanel, { projectId: props.project ? props.project.id : '' }),
           h('div', { style: { padding: '8px 14px 0', display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center', fontSize: '11px' } },
             h('span', { style: { color: COLORS.muted } }, '底稿统计：共 ' + generated.length + ' 份 · 台账 ' + (items ? items.length : 0) + ' 项'),
-            h('input', { value: props.wpSearch || '', placeholder: '搜索底稿名称/索引/说明', onChange: function (e) { if (props.onSetWpSearch) props.onSetWpSearch(e.target.value) },
+            h(ui.Input, { className: 'ad-plain', value: props.wpSearch || '', placeholder: '搜索底稿名称/索引/说明', onChange: function (e) { if (props.onSetWpSearch) props.onSetWpSearch(e.target.value) },
               style: { width: '170px', padding: '4px 8px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px' } }),
             h('select', { value: wpFilter, onChange: function (e) { if (props.onSetWpStatusFilter) props.onSetWpStatusFilter(e.target.value) },
               style: { padding: '4px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px' } },
@@ -1045,7 +1046,7 @@ window.__ModuleLoader__.load({
                 style: { padding: '7px 9px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } },
                 h('option', { value: '待复核' }, '复核人：待复核'),
                 (props.members || []).map(function (m) { return h('option', { key: m.id, value: m.name }, '复核人：' + m.name) })),
-              h('input', { type: 'date', value: props.generatedDate || '', onChange: function (e) { if (props.onGeneratedDateChange) props.onGeneratedDateChange(e.target.value) },
+              h(ui.Input, { className: 'ad-plain', type: 'date', value: props.generatedDate || '', onChange: function (e) { if (props.onGeneratedDateChange) props.onGeneratedDateChange(e.target.value) },
                 style: { padding: '6px 8px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }),
               h(ui.Button, { variant: 'outline', size: 'sm', disabled: props.generating || readOnly, onClick: function () { if (props.onGenerateLocal) props.onGenerateLocal() } }, '本机引擎生成'),
               ['tb', 'fs', 'voucher'].map(function (k) {
@@ -1165,7 +1166,7 @@ window.__ModuleLoader__.load({
                     h('span', { onClick: function () { if (!readOnly && props.onUpdateProgramRow) props.onUpdateProgramRow(row.id, 'status', cycle[(cycle.indexOf(row.status || '待执行') + 1) % cycle.length]) }, title: '点击切换状态', style: { cursor: readOnly ? 'default' : 'pointer' } },
                       h(Badge, { tone: row.status === '已完成' ? 'ok' : row.status === '进行中' ? 'warn' : row.status === '不适用' ? 'muted' : 'bad' }, row.status || '待执行')),
                     ownerSelect(row),
-                    h('input', { value: row.note || '', onChange: function (e) { if (props.onUpdateProgramRow) props.onUpdateProgramRow(row.id, 'note', e.target.value) }, placeholder: '备注/证据', style: { padding: '4px 7px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', minWidth: 0 } }))
+                    h(ui.Input, { className: 'ad-plain', value: row.note || '', onChange: function (e) { if (props.onUpdateProgramRow) props.onUpdateProgramRow(row.id, 'note', e.target.value) }, placeholder: '备注/证据', style: { padding: '4px 7px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', minWidth: 0 } }))
                 }))
             })
           })() : h('div', { style: { padding: '14px', fontSize: '12px', color: COLORS.muted } }, '暂无审计程序，点「补全程序清单」生成全量清单'),
@@ -1231,7 +1232,7 @@ window.__ModuleLoader__.load({
                 actions.push(h('div', { key: 'waiting', style: { marginTop: '8px', fontSize: '11px', color: COLORS.muted } }, '等待指派审批人「' + (item.assigned_name || item.assigned_username) + '」审批'))
               }
               if (item.status === '待审批' && canApprove && isAssigned) {
-                actions.push(h('input', { key: 'op', placeholder: '审批意见', value: opinions[item.id] || '',
+                actions.push(h(ui.Input, { className: 'ad-plain', key: 'op', placeholder: '审批意见', value: opinions[item.id] || '',
                   onChange: function (e) { const v = e.target.value; setOpinions(function (prev) { const next = Object.assign({}, prev); next[item.id] = v; return next }) },
                   style: { marginTop: '8px', width: '260px', padding: '6px 8px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }))
                 actions.push(h(ui.Button, { variant: 'outline', size: 'sm', key: 'ok', onClick: function () { if (props.onDecideApproval) props.onDecideApproval(item, 'approve', opinions[item.id] || '') },
@@ -2939,8 +2940,8 @@ window.__ModuleLoader__.load({
           h('div', { style: { fontSize: '14px', fontWeight: 600, marginBottom: '10px' } }, renameOpen ? '重命名项目' : '删除项目'),
           renameOpen
             ? h('div', null,
-                h('input', { value: mgmtClient, onChange: function (e) { setMgmtClient(e.target.value) }, placeholder: '被审计单位全称', style: inputStyle }),
-                h('input', { value: mgmtName, onChange: function (e) { setMgmtName(e.target.value) }, placeholder: '项目名称', style: inputStyle }))
+                h(ui.Input, { className: 'ad-plain', value: mgmtClient, onChange: function (e) { setMgmtClient(e.target.value) }, placeholder: '被审计单位全称', style: inputStyle }),
+                h(ui.Input, { className: 'ad-plain', value: mgmtName, onChange: function (e) { setMgmtName(e.target.value) }, placeholder: '项目名称', style: inputStyle }))
             : h('div', { style: { fontSize: '12px', lineHeight: 1.7, marginBottom: '8px' } },
                 '确认删除项目「' + activeProject + '」？其资料清单、底稿台账、成员、审批、会话关联等数据将一并删除，已生成文件保留在磁盘。'),
           mgmtError ? h('div', { style: { fontSize: '12px', color: '#b91c1c', marginBottom: '8px' } }, mgmtError) : null,
@@ -2985,7 +2986,7 @@ window.__ModuleLoader__.load({
             h('div', null, '项目'),
             h(ui.Button, { variant: 'ghost', size: 'sm', onClick: function () { setShowCreate(!showCreate); setCreateError(''); api('/audit/contracts').then(function (d) { setContracts(d.items || []) }).catch(function () {}) } }, '+ 新建')),
           h('div', { style: { padding: '0 12px 8px', display: 'flex', gap: '6px' } },
-            h('input', { value: search, onChange: function (e) { setSearch(e.target.value) }, placeholder: '搜索客户/项目…', style: inputStyle }),
+            h(ui.Input, { className: 'ad-plain', value: search, onChange: function (e) { setSearch(e.target.value) }, placeholder: '搜索客户/项目…', style: inputStyle }),
             h('select', { value: statusFilter, onChange: function (e) { setStatusFilter(e.target.value) }, style: Object.assign({}, inputStyle, { width: '86px', flexShrink: 0 }) },
               h('option', { value: '' }, '全部'),
               h('option', { value: '进行中' }, '进行中'),
@@ -3437,7 +3438,7 @@ window.__ModuleLoader__.load({
               h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { toggleUserStatus(user) }, style: { padding: '6px 8px', borderRadius: '6px', border: '1px solid ' + (active ? '#b91c1c' : '#16a34a'), background: 'transparent', color: active ? '#b91c1c' : '#16a34a', fontSize: '11px', cursor: 'pointer' } }, active ? '停用' : '启用'),
             resetUser === user.username
               ? h('div', { style: { display: 'flex', gap: '4px' } },
-                  h('input', { value: resetPassword, onChange: function (e) { setResetPassword(e.target.value) }, placeholder: '新密码', style: Object.assign({}, inputStyle, { width: '90px' }) }),
+                  h(ui.Input, { className: 'ad-plain', value: resetPassword, onChange: function (e) { setResetPassword(e.target.value) }, placeholder: '新密码', style: Object.assign({}, inputStyle, { width: '90px' }) }),
                   h(ui.Button, { variant: 'outline', size: 'sm', onClick: submitReset, style: { padding: '6px 8px', borderRadius: '6px', border: 0, background: COLORS.accent, color: 'var(--dsw-alias-label-primary-foreground)', fontSize: '11px', cursor: 'pointer' } }, '保存'))
               : h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { setResetUser(user.username); setResetPassword('') }, style: { padding: '6px 8px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px', cursor: 'pointer' } }, '重置密码')))
         }))
@@ -3793,11 +3794,11 @@ window.__ModuleLoader__.load({
             h('label', { style: { display: 'flex', gap: '6px', alignItems: 'center' } },
               h('input', { type: 'checkbox', checked: !!settings.auto, onChange: function (e) { setSettings(Object.assign({}, settings, { auto: e.target.checked })) } }), '启用自动扫描'),
             h('label', { style: { display: 'flex', gap: '6px', alignItems: 'center' } }, '超期天数',
-              h('input', { type: 'number', min: 1, value: settings.days || 2, onChange: function (e) { setSettings(Object.assign({}, settings, { days: Number(e.target.value) || 2 })) }, style: { width: '64px', padding: '4px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit' } })),
+              h(ui.Input, { className: 'ad-plain', type: 'number', min: 1, value: settings.days || 2, onChange: function (e) { setSettings(Object.assign({}, settings, { days: Number(e.target.value) || 2 })) }, style: { width: '64px', padding: '4px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit' } })),
             h('label', { style: { display: 'flex', gap: '6px', alignItems: 'center' } }, '扫描间隔（小时）',
-              h('input', { type: 'number', min: 1, value: settings.interval_hours || 6, onChange: function (e) { setSettings(Object.assign({}, settings, { interval_hours: Number(e.target.value) || 6 })) }, style: { width: '64px', padding: '4px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit' } })),
+              h(ui.Input, { className: 'ad-plain', type: 'number', min: 1, value: settings.interval_hours || 6, onChange: function (e) { setSettings(Object.assign({}, settings, { interval_hours: Number(e.target.value) || 6 })) }, style: { width: '64px', padding: '4px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit' } })),
             h('label', { style: { display: 'flex', gap: '6px', alignItems: 'center' } }, '去重（小时）',
-              h('input', { type: 'number', min: 1, value: settings.dedupe_hours || 24, onChange: function (e) { setSettings(Object.assign({}, settings, { dedupe_hours: Number(e.target.value) || 24 })) }, style: { width: '64px', padding: '4px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit' } })),
+              h(ui.Input, { className: 'ad-plain', type: 'number', min: 1, value: settings.dedupe_hours || 24, onChange: function (e) { setSettings(Object.assign({}, settings, { dedupe_hours: Number(e.target.value) || 24 })) }, style: { width: '64px', padding: '4px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit' } })),
             h(ui.Button, { variant: 'ghost', size: 'sm', onClick: function () { saveSettings(settings, backupSettings, reportPushSettings, (kbSync && kbSync.config) || kbSync) } }, '保存全部设置'),
             settingsMessage ? h('span', { style: { color: '#16a34a' } }, settingsMessage) : null),
           h('div', { style: { marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed ' + COLORS.line, display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', fontSize: '12px' } },
@@ -3805,24 +3806,24 @@ window.__ModuleLoader__.load({
             backupSettings ? h('label', { style: { display: 'flex', gap: '6px', alignItems: 'center' } },
               h('input', { type: 'checkbox', checked: !!backupSettings.auto, onChange: function (e) { setBackupSettings(Object.assign({}, backupSettings, { auto: e.target.checked })) } }), '启用自动备份') : null,
             backupSettings ? h('label', { style: { display: 'flex', gap: '6px', alignItems: 'center' } }, '保留份数',
-              h('input', { type: 'number', min: 1, value: backupSettings.keep || 10, onChange: function (e) { setBackupSettings(Object.assign({}, backupSettings, { keep: Number(e.target.value) || 10 })) }, style: { width: '64px', padding: '4px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit' } })) : null,
+              h(ui.Input, { className: 'ad-plain', type: 'number', min: 1, value: backupSettings.keep || 10, onChange: function (e) { setBackupSettings(Object.assign({}, backupSettings, { keep: Number(e.target.value) || 10 })) }, style: { width: '64px', padding: '4px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit' } })) : null,
             backupSettings ? h('label', { style: { display: 'flex', gap: '6px', alignItems: 'center' } }, '备份间隔（小时）',
-              h('input', { type: 'number', min: 1, value: backupSettings.interval_hours || 24, onChange: function (e) { setBackupSettings(Object.assign({}, backupSettings, { interval_hours: Number(e.target.value) || 24 })) }, style: { width: '64px', padding: '4px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit' } })) : null),
+              h(ui.Input, { className: 'ad-plain', type: 'number', min: 1, value: backupSettings.interval_hours || 24, onChange: function (e) { setBackupSettings(Object.assign({}, backupSettings, { interval_hours: Number(e.target.value) || 24 })) }, style: { width: '64px', padding: '4px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit' } })) : null),
           h('div', { style: { marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed ' + COLORS.line, display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', fontSize: '12px' } },
             h('div', { style: { fontWeight: 600, width: '100%', marginBottom: '2px' } }, '运维报告推送'),
             reportPushSettings ? h('label', { style: { display: 'flex', gap: '6px', alignItems: 'center' } },
               h('input', { type: 'checkbox', checked: !!reportPushSettings.auto, onChange: function (e) { setReportPushSettings(Object.assign({}, reportPushSettings, { auto: e.target.checked })) } }), '每日自动推送') : null,
             reportPushSettings ? h('label', { style: { display: 'flex', gap: '6px', alignItems: 'center' } }, '推送时间',
-              h('input', { type: 'number', min: 0, max: 23, value: reportPushSettings.hour || 8, onChange: function (e) { setReportPushSettings(Object.assign({}, reportPushSettings, { hour: Number(e.target.value) || 0 })) }, style: { width: '64px', padding: '4px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit' } }), '点') : null,
+              h(ui.Input, { className: 'ad-plain', type: 'number', min: 0, max: 23, value: reportPushSettings.hour || 8, onChange: function (e) { setReportPushSettings(Object.assign({}, reportPushSettings, { hour: Number(e.target.value) || 0 })) }, style: { width: '64px', padding: '4px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit' } }), '点') : null,
             reportPushSettings ? h('label', { style: { display: 'flex', gap: '6px', alignItems: 'center' } }, '失败重试',
-              h('input', { type: 'number', min: 1, max: 10, value: reportPushSettings.retries || 3, onChange: function (e) { setReportPushSettings(Object.assign({}, reportPushSettings, { retries: Number(e.target.value) || 3 })) }, style: { width: '54px', padding: '4px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit' } }), '次') : null),
+              h(ui.Input, { className: 'ad-plain', type: 'number', min: 1, max: 10, value: reportPushSettings.retries || 3, onChange: function (e) { setReportPushSettings(Object.assign({}, reportPushSettings, { retries: Number(e.target.value) || 3 })) }, style: { width: '54px', padding: '4px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit' } }), '次') : null),
           h('div', { style: { marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed ' + COLORS.line, display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', fontSize: '12px' } },
             h('div', { style: { fontWeight: 600, width: '100%', marginBottom: '2px' } }, '知识库定时更新'),
             h('label', { style: { display: 'flex', gap: '6px', alignItems: 'center' } },
               h('input', { type: 'checkbox', checked: !!((kbSync && kbSync.config) || {}).auto,
                 onChange: function (e) { const cfg = Object.assign({}, (kbSync && kbSync.config) || {}, { auto: e.target.checked }); setKbSync(Object.assign({}, kbSync || {}, { config: cfg })) } }), '每日自动检查'),
             h('label', { style: { display: 'flex', gap: '6px', alignItems: 'center' } }, '检查时间',
-              h('input', { type: 'number', min: 0, max: 23, value: ((kbSync && kbSync.config) || {}).hour || 6, onChange: function (e) { const cfg = Object.assign({}, (kbSync && kbSync.config) || {}, { hour: Number(e.target.value) || 0 }); setKbSync(Object.assign({}, kbSync || {}, { config: cfg })) }, style: { width: '60px', padding: '4px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit' } }), '点'))) : null,
+              h(ui.Input, { className: 'ad-plain', type: 'number', min: 0, max: 23, value: ((kbSync && kbSync.config) || {}).hour || 6, onChange: function (e) { const cfg = Object.assign({}, (kbSync && kbSync.config) || {}, { hour: Number(e.target.value) || 0 }); setKbSync(Object.assign({}, kbSync || {}, { config: cfg })) }, style: { width: '60px', padding: '4px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit' } }), '点'))) : null,
         isAdmin ? h('div', { className: 'ad-card' },
           h('div', { className: 'ad-head', style: { marginBottom: '8px' } },
             h('div', null,
@@ -4250,8 +4251,8 @@ window.__ModuleLoader__.load({
             groupItems.map(function (item) {
               if (editing === item.id) {
                 return h('div', { key: 'cat-item-' + item.id, style: { display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid ' + COLORS.line } },
-                  h('input', { value: draft.category, onChange: function (e) { setDraft(Object.assign({}, draft, { category: e.target.value })) }, placeholder: '分类', style: Object.assign({}, inputStyle, { width: '150px' }) }),
-                  h('input', { value: draft.name, onChange: function (e) { setDraft(Object.assign({}, draft, { name: e.target.value })) }, placeholder: '程序名称', style: Object.assign({}, inputStyle, { flex: 1, minWidth: '180px' }) }),
+                  h(ui.Input, { className: 'ad-plain', value: draft.category, onChange: function (e) { setDraft(Object.assign({}, draft, { category: e.target.value })) }, placeholder: '分类', style: Object.assign({}, inputStyle, { width: '150px' }) }),
+                  h(ui.Input, { className: 'ad-plain', value: draft.name, onChange: function (e) { setDraft(Object.assign({}, draft, { name: e.target.value })) }, placeholder: '程序名称', style: Object.assign({}, inputStyle, { flex: 1, minWidth: '180px' }) }),
                   h('select', { value: draft.source, onChange: function (e) { setDraft(Object.assign({}, draft, { source: e.target.value })) }, style: inputStyle },
                     ['账载', '外部', '现场', '程序'].map(function (src) { return h('option', { key: 'edit-src-' + src, value: src }, src) })),
                   h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { submitSave(item.id) }, style: Object.assign({}, smallBtn, { border: 0, background: COLORS.accent, color: 'var(--dsw-alias-label-primary-foreground)' }) }, '保存'),
@@ -4475,9 +4476,9 @@ window.__ModuleLoader__.load({
       return h('div', { style: { marginTop: '10px', padding: '10px 12px', borderRadius: '8px', border: '1px solid ' + COLORS.line } },
         h('div', { style: { fontSize: '12px', fontWeight: 600, marginBottom: '6px' } }, '项目立项信息'),
         h('div', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' } },
-          h('input', { value: f.principal, placeholder: '主委托方', onChange: function (e) { upd('principal', e.target.value) }, style: inp }),
-          h('input', { value: f.service_unit, placeholder: '被服务单位', onChange: function (e) { upd('service_unit', e.target.value) }, style: inp }),
-          h('input', { value: f.project_type, placeholder: '项目类型', onChange: function (e) { upd('project_type', e.target.value) }, style: inp }),
+          h(ui.Input, { className: 'ad-plain', value: f.principal, placeholder: '主委托方', onChange: function (e) { upd('principal', e.target.value) }, style: inp }),
+          h(ui.Input, { className: 'ad-plain', value: f.service_unit, placeholder: '被服务单位', onChange: function (e) { upd('service_unit', e.target.value) }, style: inp }),
+          h(ui.Input, { className: 'ad-plain', value: f.project_type, placeholder: '项目类型', onChange: function (e) { upd('project_type', e.target.value) }, style: inp }),
           h('select', { value: f.risk_level, onChange: function (e) { upd('risk_level', e.target.value) }, style: inp }, ['A', 'B', 'C'].map(function (t) { return h('option', { key: 'rl-' + t, value: t }, '风险 ' + t) })),
           h(ui.Button, { variant: 'outline', size: 'sm', onClick: save, style: { padding: '4px 10px', borderRadius: '6px', border: 0, background: COLORS.accent, color: 'var(--dsw-alias-label-primary-foreground)', fontSize: '11px', cursor: 'pointer' } }, '保存'),
           msg ? h('span', { style: { fontSize: '11px', color: '#16a34a' } }, msg) : null))
@@ -4919,11 +4920,11 @@ window.__ModuleLoader__.load({
         items.length ? h('div', { style: { marginTop: '6px' } }, items.map(function (item) {
           if (editing === item.id) {
             return h('div', { key: 'it-' + item.id, style: { display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid ' + COLORS.line } },
-              h('input', { value: draft.needle, onChange: function (e) { setDraft(Object.assign({}, draft, { needle: e.target.value })) }, style: Object.assign({}, inputStyle, { width: '170px' }) }),
-              h('input', { value: draft.std, onChange: function (e) { setDraft(Object.assign({}, draft, { std: e.target.value })) }, style: Object.assign({}, inputStyle, { width: '110px' }) }),
+              h(ui.Input, { className: 'ad-plain', value: draft.needle, onChange: function (e) { setDraft(Object.assign({}, draft, { needle: e.target.value })) }, style: Object.assign({}, inputStyle, { width: '170px' }) }),
+              h(ui.Input, { className: 'ad-plain', value: draft.std, onChange: function (e) { setDraft(Object.assign({}, draft, { std: e.target.value })) }, style: Object.assign({}, inputStyle, { width: '110px' }) }),
               h('select', { value: draft.kind, onChange: function (e) { setDraft(Object.assign({}, draft, { kind: e.target.value })) }, style: inputStyle },
                 KINDS.map(function (k) { return h('option', { key: 'e-' + k.code, value: k.code }, k.label) })),
-              h('input', { value: draft.note, onChange: function (e) { setDraft(Object.assign({}, draft, { note: e.target.value })) }, placeholder: '备注', style: Object.assign({}, inputStyle, { flex: 1, minWidth: '120px' }) }),
+              h(ui.Input, { className: 'ad-plain', value: draft.note, onChange: function (e) { setDraft(Object.assign({}, draft, { note: e.target.value })) }, placeholder: '备注', style: Object.assign({}, inputStyle, { flex: 1, minWidth: '120px' }) }),
               h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { submitSave(item.id) }, style: Object.assign({}, smallBtn, { border: 0, background: COLORS.accent, color: 'var(--dsw-alias-label-primary-foreground)' }) }, '保存'),
               h(ui.Button, { variant: 'outline', size: 'sm', onClick: cancelEdit, style: smallBtn }, '取消'))
           }
