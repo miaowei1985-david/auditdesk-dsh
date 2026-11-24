@@ -731,8 +731,10 @@ window.__ModuleLoader__.load({
       const supColor = function (st) { return st === 'placed' || st === 'sampled' ? '#22C55E' : st === 'overflow' ? '#F59E0B' : 'var(--dsw-alias-border-l2)' }
       const supPlaced = SUP_SUBJECTS.filter(function (x) { var st = supSubjectState((supMap[x] || {}).tables || []); return st === 'placed' || st === 'sampled' }).length
       const supOverflow = SUP_SUBJECTS.filter(function (x) { return supSubjectState((supMap[x] || {}).tables || []) === 'overflow' }).length
-      const supplementPanel = h('div', { className: 'ad-card' },
-        h('div', { className: 'ad-row-title', style: { marginBottom: '8px' } }, '附表落位（程序表驱动）'),
+      const supplementPanel = h('details', { className: 'ad-more ad-card' },
+        h('summary', null, '附表落位 · ' + SUP_SUBJECTS.length + ' 科目 · 已落位 ' + supPlaced
+          + (supOverflow ? ' · 溢出待补 ' + supOverflow : '')),
+        h('div', { className: 'ad-row-title', style: { marginTop: '6px', marginBottom: '8px' } }, '附表落位（程序表驱动）'),
         h('div', { style: { display: 'flex', gap: '18px', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap' } },
           h(Ring, { value: SUP_SUBJECTS.length ? (supPlaced / SUP_SUBJECTS.length * 100) : 0 }),
           h('div', { className: 'ad-row-meta', style: { minWidth: '120px' } },
@@ -770,6 +772,10 @@ window.__ModuleLoader__.load({
                 (t.warnings || []).length ? h('div', { className: 'ad-note', style: { margin: '4px 0 0', color: 'var(--dsw-alias-state-warn-primary)' } }, (t.warnings || []).join('；')) : null)
             }))
         }))
+      const lineOk = lines.filter(function (l) { return l.diff === 0 }).length
+      const lineNo = lines.filter(function (l) { return l.diff === null || l.diff === undefined }).length
+      const lineBad = lines.length - lineOk - lineNo
+      const wbCells = workbooks.reduce(function (a, w) { return a + (w.writes || 0) }, 0)
       return h('div', null,
         h('div', { className: 'ad-card' },
           h('div', { className: 'ad-head', style: { marginBottom: '8px' } },
@@ -785,9 +791,12 @@ window.__ModuleLoader__.load({
                 h('div', { className: 'ad-row-meta' }, c.detail || '')))
           }),
           (gate.blocked_by || []).length ? h('div', { className: 'ad-note', style: { marginTop: '8px' } }, '阻塞项：' + (gate.blocked_by || []).join('；')) : null),
-        h('div', { className: 'ad-card' },
-          h('div', { className: 'ad-row-title', style: { marginBottom: '8px' } }, '勾稽明细（' + lines.length + '）'),
-          h('div', { className: 'ad-row ad-th' },
+        h('details', { className: 'ad-more ad-card' },
+          h('summary', null, '勾稽明细 · ' + lines.length + ' 行'
+            + (lineOk ? ' · 一致 ' + lineOk : '')
+            + (lineBad ? ' · 差异 ' + lineBad : '')
+            + (lineNo ? ' · 报表无此行 ' + lineNo : '')),
+          h('div', { className: 'ad-row ad-th', style: { marginTop: '6px' } },
             h('span', { style: { flex: 1, minWidth: 0 } }, '科目'),
             h('span', { style: { minWidth: '112px', textAlign: 'right' } }, '计算数'),
             h('span', { style: { minWidth: '112px', textAlign: 'right' } }, '报表数'),
@@ -804,9 +813,9 @@ window.__ModuleLoader__.load({
               h('span', { style: { minWidth: '88px', display: 'flex', justifyContent: 'center' } }, h(AStatus, { tone: tone }, label)),
               l.hint ? h('span', { className: 'ad-row-meta', style: { minWidth: '72px' } }, l.hint) : null)
           })),
-        h('div', { className: 'ad-card' },
-          h('div', { className: 'ad-row-title', style: { marginBottom: '8px' } }, '填表明细（' + workbooks.length + ' 本）'),
-          h('div', { className: 'ad-row ad-th' },
+        h('details', { className: 'ad-more ad-card' },
+          h('summary', null, '填表明细 · ' + workbooks.length + ' 本 · 共 ' + wbCells + ' 格'),
+          h('div', { className: 'ad-row ad-th', style: { marginTop: '6px' } },
             h('span', { style: { flex: 1, minWidth: 0 } }, '工作簿'),
             h('span', { style: { minWidth: '56px', textAlign: 'right' } }, '填写格数')),
           workbooks.map(function (w) {
@@ -1436,8 +1445,8 @@ window.__ModuleLoader__.load({
             h('div', null,
               h('h1', { className: 'ad-title' }, '资料清单'),
               h('div', { className: 'ad-sub' }, '点状态切换未交、待补、已交。上传和删除写在行上，不另开一排按钮。'))),
-          h('div', { style: { marginTop: '12px', padding: '14px', borderRadius: '12px', border: '1px solid ' + COLORS.line } },
-            h('div', { style: { fontSize: '13px', fontWeight: 600, marginBottom: '6px' } }, '项目数据导入'),
+          h('details', { className: 'ad-more ad-card', style: { marginTop: '12px' } },
+            h('summary', null, '项目数据导入 · 科目余额表 / 序时账 / 财务报表'),
             h('div', { style: { fontSize: '11px', color: COLORS.muted, marginBottom: '8px' } }, '导入科目余额表与序时账后，可执行试算平衡、勾稽与抽样程序（支持 .xlsx / .xls / .csv）。'),
             readOnly ? h('div', { className: 'ad-row-meta' }, '项目已归档，不可导入') : h('div', { className: 'ad-form' },
               h('label', { className: 'ad-field' }, '科目余额表', h('input', { type: 'file', accept: '.xlsx,.xls,.csv', onChange: function (e) { const f = e.target.files && e.target.files[0]; if (f && props.onImportData) props.onImportData('tb', f); e.target.value = '' } })),
@@ -4991,9 +5000,9 @@ window.__ModuleLoader__.load({
           .then(function () { setMsg('已保存') }).catch(function (e) { setMsg('保存失败：' + e) })
       }
       const inp = { padding: '4px 8px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px' }
-      return h('div', { style: { marginTop: '10px', padding: '10px 12px', borderRadius: '8px', border: '1px solid ' + COLORS.line } },
-        h('div', { style: { fontSize: '12px', fontWeight: 600, marginBottom: '6px' } }, '项目立项信息'),
-        h('div', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' } },
+      return h('details', { className: 'ad-more', style: { marginTop: '10px', padding: '10px 12px', borderRadius: '8px', border: '1px solid ' + COLORS.line } },
+        h('summary', null, '项目立项信息 · 主委托方 / 被服务单位 / 风险等级'),
+        h('div', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center', marginTop: '6px' } },
           h(ui.Input, { className: 'ad-plain', value: f.principal, placeholder: '主委托方', onChange: function (e) { upd('principal', e.target.value) }, style: inp }),
           h(ui.Input, { className: 'ad-plain', value: f.service_unit, placeholder: '被服务单位', onChange: function (e) { upd('service_unit', e.target.value) }, style: inp }),
           h(ui.Input, { className: 'ad-plain', value: f.project_type, placeholder: '项目类型', onChange: function (e) { upd('project_type', e.target.value) }, style: inp }),
