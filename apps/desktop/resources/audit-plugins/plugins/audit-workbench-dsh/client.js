@@ -237,6 +237,10 @@ window.__ModuleLoader__.load({
       '.ad-prog-item-status{font-size:11px;color:var(--dsw-alias-label-secondary);white-space:nowrap}',
       '.ad-cats{display:flex;flex-wrap:wrap;gap:8px 14px;margin-top:2px}',
       '.ad-cat-check{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--dsw-alias-label-secondary);cursor:pointer}',
+      '.ad-staff-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px}',
+      '.ad-staff-label{width:64px;flex:none;color:var(--dsw-alias-label-secondary)}',
+      '.ad-staff-input{width:76px;flex:none}',
+      '.ad-staff-input input{width:100%}',
       '.ad-tile.wide{flex:2 1 420px;min-width:420px}',
       'body:not([data-ds-dark-theme]) .ad-tile{box-shadow:var(--dsw-shadow-lv1),var(--dsw-shadow-lv1-blur)}',
       '.ad-card summary{list-style:none;cursor:pointer}',
@@ -4711,6 +4715,12 @@ window.__ModuleLoader__.load({
       const [selectedClient, setSelectedClient] = React.useState(null)
       const [selPrograms, setSelPrograms] = React.useState(null)
       const [selCats, setSelCats] = React.useState([])
+      const [staffing, setStaffing] = React.useState({
+        auditor: { count: 2, hours: 40 },
+        manager: { count: 1, hours: 16 },
+        partner: { count: 1, hours: 4 }
+      })
+      const [fee, setFee] = React.useState('')
       const role = (props.auth && props.auth.user && props.auth.user.role) || ''
       const canApprove = ['manager', 'partner', 'kb-admin', 'admin'].indexOf(role) >= 0
       function loadClients() { api('/audit/clients').then(function (d) { setClients(d.items || []) }).catch(function () {}) }
@@ -4818,10 +4828,78 @@ window.__ModuleLoader__.load({
                   ct.status === '已签' ? h(ui.Button, { variant: 'ghost', size: 'sm', onClick: function () { archiveContract(ct.id) } }, '归档') : null))
             })))
       }
+      // 新建客户弹窗：基本信息 + 科目循环 + 人力投入 + 预计收费
+      function createClientModal() {
+        const roles = [
+          { key: 'auditor', label: '审计员' },
+          { key: 'manager', label: '项目经理' },
+          { key: 'partner', label: '合伙人' }
+        ]
+        const totalHours = roles.reduce(function (s, r) {
+          const v = staffing[r.key] || { count: 0, hours: 0 }
+          return s + (Number(v.count) || 0) * (Number(v.hours) || 0)
+        }, 0)
+        const feeNum = Number(fee) || 0
+        const perHour = totalHours > 0 && feeNum > 0 ? Math.round(feeNum / totalHours) : 0
+        return h(ui.Modal, {
+          open: showCreateClient,
+          onClose: function () { setShowCreateClient(false) },
+          title: '新建客户',
+          closeLabel: '关闭',
+          description: '建档时一并评估业务范围与人力投入，便于判断收费是否合理。',
+          footer: h('div', { className: 'ad-actions' },
+            h(ui.Button, { variant: 'outline', onClick: function () { setShowCreateClient(false) } }, '取消'),
+            h(ui.Button, { variant: 'primary', onClick: createClient }, '建档'))
+        },
+          h('div', { className: 'ad-form' },
+            h('label', { className: 'ad-field' }, '客户名称', h(ui.Input, { className: 'ad-iw', value: name, placeholder: '必填', onChange: function (e) { setName(e.target.value) } })),
+            h('label', { className: 'ad-field' }, '统一社会信用代码', h(ui.Input, { className: 'ad-iw', value: creditCode, onChange: function (e) { setCreditCode(e.target.value) } })),
+            h('label', { className: 'ad-field' }, '客户类型', h('select', { className: 'ad-input', value: clientType, onChange: function (e) { setClientType(e.target.value) } }, ['其他', '企业', '事业单位', '政府', '个人'].map(function (t) { return h('option', { key: 'ct-' + t, value: t }, t) }))),
+            h('label', { className: 'ad-field' }, '联系信息', h(ui.Input, { className: 'ad-iw', value: contact, onChange: function (e) { setContact(e.target.value) } })),
+            h('label', { className: 'ad-field' }, '业务责任人', h(ui.Input, { className: 'ad-iw', value: ownerName, placeholder: '姓名', onChange: function (e) { setOwnerName(e.target.value) } })),
+            h('label', { className: 'ad-field' }, '风险等级', h('select', { className: 'ad-input', value: riskLevel, onChange: function (e) { setRiskLevel(e.target.value) } }, ['低', '中', '高'].map(function (x) { return h('option', { key: 'rl-' + x, value: x }, x) })))),
+          h('div', { className: 'ad-field', style: { marginTop: '14px' } },
+            h('span', null, '适用科目循环（不选 = 全部 13 类）'),
+            h('div', { className: 'ad-cats' },
+              PROGRAM_CATEGORIES.map(function (cat) {
+                const on = selCats.indexOf(cat) >= 0
+                return h('label', { key: cat, className: 'ad-cat-check' },
+                  h('input', { type: 'checkbox', checked: on, onChange: function () {
+                    setSelCats(function (prev) { return prev.indexOf(cat) >= 0 ? prev.filter(function (x) { return x !== cat }) : prev.concat([cat]) })
+                  } }),
+                  h('span', null, cat))
+              }))),
+          h('div', { style: { marginTop: '16px' } },
+            h('div', { className: 'ad-row-title', style: { marginBottom: '6px' } }, '人力投入'),
+            roles.map(function (r) {
+              const v = staffing[r.key] || { count: 0, hours: 0 }
+              return h('div', { key: r.key, className: 'ad-staff-row' },
+                h('span', { className: 'ad-staff-label' }, r.label),
+                h(ui.Input, { className: 'ad-staff-input', type: 'number', min: 0, value: String(v.count), onChange: function (e) {
+                  setStaffing(function (prev) { const n = Object.assign({}, prev); n[r.key] = Object.assign({}, n[r.key], { count: e.target.value }); return n })
+                } }),
+                h('span', null, '人 ×'),
+                h(ui.Input, { className: 'ad-staff-input', type: 'number', min: 0, value: String(v.hours), onChange: function (e) {
+                  setStaffing(function (prev) { const n = Object.assign({}, prev); n[r.key] = Object.assign({}, n[r.key], { hours: e.target.value }); return n })
+                } }),
+                h('span', null, '小时'))
+            }),
+            h('div', { className: 'ad-row-meta' }, '合计工时：' + totalHours + ' 小时')),
+          h('div', { className: 'ad-form', style: { marginTop: '12px' } },
+            h('label', { className: 'ad-field' }, '预计收费（元）', h(ui.Input, { className: 'ad-iw', type: 'number', value: fee, onChange: function (e) { setFee(e.target.value) } })),
+            perHour ? h('div', { className: 'ad-row-meta' }, '折算 ' + perHour + ' 元/小时') : null))
+      }
       function createClient() {
         if (!name.trim()) { setMsg('客户名称必填'); return }
-        api('/audit/clients/create', null, { method: 'POST', body: { name: name, credit_code: creditCode, client_type: clientType, contact: contact, owner_name: ownerName, risk_level: riskLevel, program_categories: selCats.join(',') } })
-          .then(function () { setMsg('客户已建档（待提交）。下一步：指定审批人提交准入'); setName(''); setCreditCode(''); setContact(''); setOwnerName(''); setSelCats([]); setShowCreateClient(false); loadClients() })
+        api('/audit/clients/create', null, { method: 'POST', body: {
+          name: name, credit_code: creditCode, client_type: clientType, contact: contact,
+          owner_name: ownerName, risk_level: riskLevel, program_categories: selCats.join(','),
+          staff_plan: JSON.stringify(Object.keys(staffing).map(function (k) {
+            return { role: k, count: Number(staffing[k].count) || 0, hours: Number(staffing[k].hours) || 0 }
+          })),
+          fee_estimate: Number(fee) || 0
+        } })
+          .then(function () { setMsg('客户已建档（待提交）。下一步：指定审批人提交准入'); setName(''); setCreditCode(''); setContact(''); setOwnerName(''); setSelCats([]); setFee(''); setShowCreateClient(false); loadClients() })
           .catch(function (e) { setMsg('建档失败：' + e) })
       }
       function submitClient(id) {
@@ -4880,27 +4958,7 @@ window.__ModuleLoader__.load({
           h('div', { className: 'ad-toolbar', style: { marginBottom: '12px' } },
             h('span', { className: 'ad-row-meta' }, clients === null ? '加载中…' : (clients.length + ' 家客户')),
             h(ui.Button, { variant: 'primary', size: 'sm', onClick: function () { setShowCreateClient(!showCreateClient) } }, showCreateClient ? '取消' : '新建客户')),
-          (showCreateClient || (clients && clients.length === 0)) ? h('div', { className: 'ad-form' },
-            h('label', { className: 'ad-field' }, '客户名称', h(ui.Input, { className: 'ad-iw', value: name, placeholder: '必填', onChange: function (e) { setName(e.target.value) } })),
-            h('label', { className: 'ad-field' }, '统一社会信用代码', h(ui.Input, { className: 'ad-iw', value: creditCode, onChange: function (e) { setCreditCode(e.target.value) } })),
-            h('label', { className: 'ad-field' }, '客户类型', h('select', { className: 'ad-input', value: clientType, onChange: function (e) { setClientType(e.target.value) } }, ['其他', '企业', '事业单位', '政府', '个人'].map(function (t) { return h('option', { key: 'ct-' + t, value: t }, t) }))),
-            h('label', { className: 'ad-field' }, '联系信息', h(ui.Input, { className: 'ad-iw', value: contact, onChange: function (e) { setContact(e.target.value) } })),
-            h('label', { className: 'ad-field' }, '业务责任人', h(ui.Input, { className: 'ad-iw', value: ownerName, placeholder: '姓名', onChange: function (e) { setOwnerName(e.target.value) } })),
-            h('label', { className: 'ad-field' }, '风险等级', h('select', { className: 'ad-input', value: riskLevel, onChange: function (e) { setRiskLevel(e.target.value) } }, ['低', '中', '高'].map(function (x) { return h('option', { key: 'rl-' + x, value: x }, x) }))),
-            h('div', { className: 'ad-field', style: { gridColumn: '1 / -1' } },
-              h('span', null, '适用科目循环（不选 = 全部 13 类）'),
-              h('div', { className: 'ad-cats' },
-                PROGRAM_CATEGORIES.map(function (cat) {
-                  const on = selCats.indexOf(cat) >= 0
-                  return h('label', { key: cat, className: 'ad-cat-check' },
-                    h('input', { type: 'checkbox', checked: on, onChange: function () {
-                      setSelCats(function (prev) {
-                        return prev.indexOf(cat) >= 0 ? prev.filter(function (x) { return x !== cat }) : prev.concat([cat])
-                      })
-                    } }),
-                    h('span', null, cat))
-                }))),
-            h('div', { className: 'ad-form-actions' }, h(ui.Button, { variant: 'primary', size: 'sm', onClick: createClient }, '建档'))) : null,
+          createClientModal(),
           clients === null ? h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '加载客户…') :
             (clients.length ? h('div', null, clients.map(function (c) {
               const st = statsOf(c)
@@ -4912,7 +4970,7 @@ window.__ModuleLoader__.load({
                 h('div', { className: 'ad-actions' },
                   h(AStatus, { tone: c.status === '已审批' ? 'ok' : c.status === '已驳回' ? 'warn' : '' }, c.status),
                   h('span', { className: 'ad-metric-val' }, st.overall + '%')))
-            })) : h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '暂无客户，先建档')))
+            })) : h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '暂无客户，点「新建客户」开始建档')))
         ) : h('div', null,
           h('div', { className: 'ad-toolbar', style: { marginBottom: '12px' } },
             h('span', { className: 'ad-row-meta' }, contracts === null ? '加载中…' : (contracts.length + ' 份合同')),
