@@ -3598,7 +3598,7 @@ window.__ModuleLoader__.load({
         h('div', { style: { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' } },
           h('div', { className: 'ad-zones' },
             activeProject ? h(ui.Button, { variant: 'ghost', size: 'sm', style: { alignSelf: 'flex-end', flexShrink: 0, marginRight: '10px', marginBottom: '4px', minHeight: '30px' }, onClick: function () { setActiveProject(null) } }, '← 项目列表') : null,
-            [{ label: '执行', items: ['概览', '风险评估', '审计程序', '程序执行', '资料清单', '审计底稿', '项目对话'] }, { label: '交付', items: ['报告', '审批状态', '归档'] }].map(function (group) {
+            [{ label: '执行', items: ['概览', '风险评估', '资料清单', '审计程序', '程序执行', '审计底稿', '项目对话'] }, { label: '交付', items: ['报告', '审批状态', '归档'] }].map(function (group) {
               return h('div', { key: group.label, className: 'ad-zone-group' },
                 h('span', { className: 'ad-zone-label' }, group.label),
                 group.items.map(function (name) {
