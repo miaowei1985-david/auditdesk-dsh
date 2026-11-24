@@ -4301,7 +4301,14 @@ window.__ModuleLoader__.load({
           h('span', { style: { color: COLORS.muted } }, item.created_at),
           h('span', null, item.actor || '-'),
           h('span', { style: { color: COLORS.muted, fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, TYPE_NAMES[item.item_type] || item.item_type),
-          h('span', { title: item.item_name || '', style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, item.item_name || '—'),
+          h('span', { style: { display: 'flex', gap: '6px', alignItems: 'center', minWidth: 0 } },
+            h('span', { title: item.item_name || '', style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, item.item_name || '—'),
+            (function () {
+              const isFile = /\.(zip|xlsx|xls|docx|doc|pdf|html|csv)$/i.test(String(item.item_name || ''))
+              if (item.item_type !== 'workpaper' || !item.item_id || isFile) return null
+              return h('span', { style: { color: COLORS.accent, cursor: 'pointer', fontSize: '10px', flexShrink: 0, whiteSpace: 'nowrap' },
+                title: '切到审计底稿并预填该科目循环', onClick: function () { gotoObject(item) } }, '查看')
+            })()),
           (function () {
             const o = item.old_status || ''
             const n = item.new_status || ''
@@ -4331,14 +4338,7 @@ window.__ModuleLoader__.load({
             return h('span', { style: { color: tone, fontSize: '11px', fontWeight: tone === '#b91c1c' ? 700 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }, title: (o || '—') + ' → ' + (n || '—') },
               (o || '—') + ' → ' + (n || '—'))
           })(),
-          h('span', { style: { color: COLORS.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } },
-            (function () {
-              // workpaper 类型同时记「台账项」和「生成的底稿文件」；文件类没有台账行可跳
-              const isFile = /\.(zip|xlsx|xls|docx|doc|pdf|html|csv)$/i.test(String(item.item_name || ''))
-              if (item.item_type !== 'workpaper' || !item.item_id || isFile) return item.project_id
-              return h('span', { style: { color: COLORS.accent, cursor: 'pointer' }, title: '切到审计底稿并预填该科目循环',
-                onClick: function () { gotoObject(item) } }, '查看现状')
-            })()))
+          h('span', { style: { color: COLORS.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }, title: item.project_id }, item.project_id))
       })
 
       return h('div', { className: 'ad-zone-page' },
