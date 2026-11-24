@@ -792,7 +792,9 @@ window.__ModuleLoader__.load({
         }))
       const lineOk = lines.filter(function (l) { return l.diff === 0 }).length
       const lineNo = lines.filter(function (l) { return l.diff === null || l.diff === undefined }).length
-      const lineBad = lines.length - lineOk - lineNo
+      const lineBadAll = lines.filter(function (l) { return l.diff !== 0 && l.diff !== null && l.diff !== undefined })
+      const lineReport = lineBadAll.filter(function (l) { return Boolean(l.hint) })
+      const lineBad = lineBadAll.filter(function (l) { return !l.hint })
       const wbCells = workbooks.reduce(function (a, w) { return a + (w.writes || 0) }, 0)
       return h('div', null,
         h('div', { className: 'ad-card' },
@@ -810,10 +812,11 @@ window.__ModuleLoader__.load({
           }),
           (gate.blocked_by || []).length ? h('div', { className: 'ad-note', style: { marginTop: '8px' } }, '阻塞项：' + (gate.blocked_by || []).join('；')) : null),
         h('details', { className: 'ad-more ad-card' },
-          h('summary', { style: lineBad ? { color: '#b91c1c', fontWeight: 600 } : undefined },
+          h('summary', { style: lineBad.length ? { color: '#b91c1c', fontWeight: 600 } : (lineReport.length ? { color: '#b45309' } : undefined) },
             '勾稽明细 · ' + lines.length + ' 行'
             + (lineOk ? ' · 一致 ' + lineOk : '')
-            + (lineBad ? ' · 差异 ' + lineBad + '（需处理）' : '')
+            + (lineBad.length ? ' · 待确认差异 ' + lineBad.length : '')
+            + (lineReport.length ? ' · 列报差异 ' + lineReport.length : '')
             + (lineNo ? ' · 报表无此行 ' + lineNo : '')),
           h('div', { className: 'ad-row ad-th', style: { marginTop: '6px' } },
             h('span', { style: { flex: 1, minWidth: 0 } }, '科目'),
@@ -823,8 +826,9 @@ window.__ModuleLoader__.load({
           lines.map(function (l, i) {
             const diff = l.diff
             const noRow = diff === null || diff === undefined
-            const tone = noRow ? '' : (diff === 0 ? 'ok' : 'bad')
-            const label = noRow ? '报表无此行' : (diff === 0 ? '一致' : '差 ' + fmt(diff))
+            const hasHint = Boolean(l.hint)
+            const tone = noRow ? '' : (diff === 0 ? 'ok' : (hasHint ? 'warn' : 'bad'))
+            const label = noRow ? '报表无此行' : (diff === 0 ? '一致' : (hasHint ? '列报差异 ' + fmt(diff) : '差 ' + fmt(diff)))
             return h('div', { key: 'ln-' + i, className: 'ad-row' },
               h('span', { style: { flex: 1, minWidth: 0 } }, l.line),
               h('span', { className: 'ad-row-meta', style: { minWidth: '112px', textAlign: 'right' } }, fmt(l.calc)),
