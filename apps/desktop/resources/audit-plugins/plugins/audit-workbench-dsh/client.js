@@ -4269,7 +4269,19 @@ window.__ModuleLoader__.load({
           (function () {
             const o = item.old_status || ''
             const n = item.new_status || ''
-            // 两边都不是状态 → 这是动作描述，别伪装成状态变更
+            const act = String(item.action || '').trim()
+            const det = String(item.detail || '').trim()
+            // 有独立 action 字段时（新记录），动作信息放 title，不和状态变更抢列
+            const extra = act ? (act + (det ? '：' + det : '')) : ''
+            if (act && isStatus(o) && isStatus(n)) {
+              const tone = TRANSITION_TONE(o, n)
+              return h('span', { style: { color: tone, fontSize: '11px', fontWeight: tone === '#b91c1c' ? 700 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }, title: (o + ' → ' + n) + ' · ' + extra },
+                (o + ' → ' + n))
+            }
+            if (act && !isStatus(n)) {
+              return h('span', { title: extra, style: { color: COLORS.muted, fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, '动作：' + act)
+            }
+            // 旧记录没有 action 列，退回白名单判断
             if (!isStatus(o) && !isStatus(n) && (o || n)) {
               return h('span', { title: '动作：' + (o || n), style: { color: COLORS.muted, fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } },
                 '动作：' + (o || n))
