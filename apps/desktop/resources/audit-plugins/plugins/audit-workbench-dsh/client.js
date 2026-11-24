@@ -1799,6 +1799,15 @@ window.__ModuleLoader__.load({
             canApprove ? h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onEscalateApprovals) props.onEscalateApprovals() } }, '超期提醒') : null),
           props.escalateMessage ? h('div', { className: 'ad-note' }, props.escalateMessage) : null,
           identityBar,
+          (function () {
+            const versions = (props.report && props.report.versions) || []
+            const finalized = versions.filter(function (v) { return v.status === '已定稿' }).length
+            const reviewPending = (items || []).filter(function (i) { return i.kind === 'review' && (i.status === '待提交' || i.status === '已驳回') })
+            if (!reviewPending.length || finalized) return null
+            return h('div', { className: 'ad-note', style: { borderColor: '#b45309', color: '#b45309' } },
+              h('div', { style: { marginBottom: '6px' } }, '有 ' + reviewPending.length + ' 项成果复核待提交，但报告还没有已定稿版本。按流程应先在「报告」定稿，再提交复核。'),
+              h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onJumpZone) props.onJumpZone('报告') } }, '去报告页定稿'))
+          })(),
           h('div', null, rows), eventsBlock('approval'))
       }
       if (props.zone === '报告') {
