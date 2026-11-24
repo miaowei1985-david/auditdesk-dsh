@@ -1727,7 +1727,15 @@ window.__ModuleLoader__.load({
           h(WorkpaperGatePanel, { client: (props.project && props.project.client) || '', projectId: props.project ? props.project.id : '', onAddMisstatement: props.onAddMisstatement }),
           h(EngineFillsPanel, { projectId: props.project ? props.project.id : '' }),
           h('div', { style: { padding: '8px 14px 0', display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center', fontSize: '11px' } },
-            h('span', { style: { color: COLORS.muted } }, '底稿统计：共 ' + generated.length + ' 份 · 台账 ' + (items ? items.length : 0) + ' 项'),
+            h('span', { style: { color: COLORS.muted, display: 'inline-flex', alignItems: 'center', gap: '4px' } },
+              '底稿统计：共 ' + generated.length + ' 份 · 台账 ' + (items ? items.length : 0) + ' 项',
+              h('span', { title: '完成口径（悬停或点击查看）',
+                onClick: function () {
+                  try {
+                    window.alert('完成口径：\n\n· 资料清单：已交才算完成（未交、待补都不算）\n· 底稿台账：已完成 / 不适用才算完成\n  （「已生成」= 引擎填了数，还没人复核，不算完成）\n· 审计程序：已完成 / 不适用才算完成\n· 审批：已通过才算完成')
+                  } catch (e) {}
+                },
+                style: { fontSize: '10px', width: '14px', height: '14px', lineHeight: '14px', textAlign: 'center', borderRadius: '50%', border: '1px solid ' + COLORS.line, color: COLORS.muted, cursor: 'help', flexShrink: 0 } }, '?')),
             readOnly ? null : h(ui.Button, { variant: 'ghost', size: 'sm', title: '把引擎实际填过的表标为「已生成」（不标已完成，复核仍需人工）',
               style: { fontSize: '11px', padding: '1px 6px', minHeight: '20px' },
               onClick: function () { if (props.onSyncEngine) props.onSyncEngine() } }, '同步引擎状态'),
