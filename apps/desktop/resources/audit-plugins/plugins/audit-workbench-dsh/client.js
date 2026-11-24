@@ -3796,6 +3796,7 @@ window.__ModuleLoader__.load({
       const hitsState = React.useState(null); const hits = hitsState[0]; const setHits = hitsState[1]
       const codeState = React.useState(''); const code = codeState[0]; const setCode = codeState[1]
       const docState = React.useState(null); const doc = docState[0]; const setDoc = docState[1]
+      const [targetSection, setTargetSection] = React.useState('')
       const searchingState = React.useState(false); const searching = searchingState[0]; const setSearching = searchingState[1]
       const errorState = React.useState(''); const error = errorState[0]; const setError = errorState[1]
 
@@ -3814,8 +3815,11 @@ window.__ModuleLoader__.load({
           .catch(function (e) { setError(String(e)) })
           .then(function () { setSearching(false) })
       }
-      function openDoc(ref) {
-        const path = String(ref).split(' › ')[0]
+      function openDoc(ref, section) {
+        const raw = String(ref)
+        const path = raw.split(' › ')[0]
+        const sec = section || (raw.indexOf(' › ') > 0 ? raw.split(' › ')[1] : '')
+        setTargetSection(sec || '')
         setError('')
         api('/kb/doc', { doc: path }).then(function (d) { setDoc(d) }).catch(function (e) { setError(String(e)) })
       }
@@ -3889,7 +3893,7 @@ window.__ModuleLoader__.load({
         listItems = hits.map(function (hit, i) {
           const title = hit.doc && hit.doc.title ? hit.doc.title : hit.ref
           const meta = (hit.doc && hit.doc.code ? (CAT[hit.doc.code] || hit.doc.code) : '') + ' · ' + (hit.section || '')
-          return h('div', { key: 'hit-' + i, className: 'ad-row', onClick: function () { openDoc(hit.ref) }, style: { cursor: 'pointer', alignItems: 'flex-start' } },
+          return h('div', { key: 'hit-' + i, className: 'ad-row', onClick: function () { openDoc(hit.ref, hit.section) }, style: { cursor: 'pointer', alignItems: 'flex-start' } },
             h('div', null,
               h('div', { className: 'ad-row-title' }, markKw(title, q)),
               h('div', { className: 'ad-row-meta' }, meta),
@@ -3919,7 +3923,7 @@ window.__ModuleLoader__.load({
           doc.meta && doc.meta.effective ? '生效 ' + doc.meta.effective : '',
         ].filter(Boolean).join(' · ')
         const chunks = (doc.chunks || []).map(function (c, i) {
-          return h('div', { key: 'chunk-' + i, className: 'ad-chunk' },
+          return h('div', { key: 'chunk-' + i, className: 'ad-chunk', 'data-section': c.section || '' },
             h('div', { className: 'ad-chunk-h' }, c.section || '正文'),
             h('div', { style: { fontSize: '14px', lineHeight: 1.75, whiteSpace: 'pre-wrap' } }, c.text))
         })
@@ -3928,6 +3932,17 @@ window.__ModuleLoader__.load({
           h('div', { className: 'ad-sub', style: { marginBottom: '22px' } }, metaLine),
           chunks)
       }
+      React.useEffect(function () {
+        if (!doc || !targetSection) return
+        const want = String(targetSection).trim()
+        if (!want) return
+        const nodes = Array.prototype.slice.call(document.querySelectorAll('.ad-chunk'))
+        const hit = nodes.filter(function (el) {
+          const sec = String((el.getAttribute('data-section') || '')).trim()
+          return sec && (sec === want || sec.indexOf(want) >= 0 || want.indexOf(sec) >= 0)
+        })[0]
+        if (hit) { try { hit.scrollIntoView({ block: 'start', behavior: 'auto' }) } catch (e) {} }
+      }, [doc, targetSection])
       const rightPane = h('div', { style: { flex: 1, minWidth: 0, overflow: 'auto' } }, right)
       return h('div', { className: 'ad-split' }, left, middle, rightPane)
     }
