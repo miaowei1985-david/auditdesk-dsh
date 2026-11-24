@@ -3484,10 +3484,11 @@ window.__ModuleLoader__.load({
           .catch(function () { setArchiveVerifyMessage('校验失败，请重试') })
       }
       function exportWorkpaperListCsv() {
-        const rows = [['索引号', '底稿名称', '状态', '说明', '更新人', '更新时间']]
+        // 字段名以 wp_items 表为准：index_no / name / status / note / updated_at（没有 code、没有 updated_by）
+        const rows = [['索引号', '底稿名称', '状态', '说明', '更新时间']]
         const wpList = Array.isArray(wp) ? wp : ((wp && wp.items) || [])
         ;wpList.forEach(function (item) {
-          rows.push([item.code || '', item.name || '', item.status || '', item.note || '', item.updated_by || '', item.updated_at || ''])
+          rows.push([item.index_no || '', item.name || '', item.status || '', item.note || '', item.updated_at || ''])
         })
         const csv = '\ufeff' + rows.map(function (row) { return row.map(function (cell) { return '"' + String(cell).replace(/"/g, '""') + '"' }).join(',') }).join('\n')
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
@@ -4240,9 +4241,10 @@ window.__ModuleLoader__.load({
           }).catch(function (e) { setError(String(e)) })
       }
       function exportPageCsv() {
-        const rows = [['ID', '项目', '类型', '对象', '原状态', '新状态', '操作人', 'IP', '时间']]
+        // 与后端 /audit/events/export 保持同样的列（含 action/detail）
+        const rows = [['ID', '项目', '类型', '对象', '原状态', '新状态', '操作人', 'IP', '时间', '动作', '细节']]
         ;(events || []).forEach(function (event) {
-          rows.push([event.id, event.project_id, event.item_type, event.item_name, event.old_status, event.new_status, event.actor, event.source_ip, event.created_at])
+          rows.push([event.id, event.project_id, event.item_type, event.item_name, event.old_status, event.new_status, event.actor, event.source_ip, event.created_at, event.action || '', event.detail || ''])
         })
         const csv = '\ufeff' + rows.map(function (row) { return row.map(function (cell) { return '"' + String(cell === null || cell === undefined ? '' : cell).replace(/"/g, '""') + '"' }).join(',') }).join('\n')
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
