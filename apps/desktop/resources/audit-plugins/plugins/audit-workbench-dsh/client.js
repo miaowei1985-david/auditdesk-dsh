@@ -239,10 +239,12 @@ window.__ModuleLoader__.load({
       '.ad-modal-wide .ad-form{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 16px}',
       '.ad-cats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px 12px;margin-top:2px}',
       '.ad-cat-check{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--dsw-alias-label-secondary);cursor:pointer;line-height:1.4}',
-      '.ad-staff-row{display:grid;grid-template-columns:72px 88px 32px 88px 46px;gap:8px;align-items:center;margin-bottom:8px;font-size:12px}',
-      '.ad-staff-label{color:var(--dsw-alias-label-secondary)}',
-      '.ad-staff-input{width:100%}',
-      '.ad-staff-input input{width:100%}',
+      '.ad-staff-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:12px}',
+      '.ad-staff-label{width:64px;flex:none;color:var(--dsw-alias-label-secondary)}',
+      '.ad-staff-x{width:44px;flex:none;color:var(--dsw-alias-label-secondary)}',
+      '.ad-staff-unit{width:36px;flex:none;color:var(--dsw-alias-label-secondary)}',
+      '.ad-staff-input{width:72px;flex:none}',
+      '.ad-staff-input input{width:100%;box-sizing:border-box}',
       '.ad-tile.wide{flex:2 1 420px;min-width:420px}',
       'body:not([data-ds-dark-theme]) .ad-tile{box-shadow:var(--dsw-shadow-lv1),var(--dsw-shadow-lv1-blur)}',
       '.ad-card summary{list-style:none;cursor:pointer}',
@@ -4881,11 +4883,11 @@ window.__ModuleLoader__.load({
                 h(ui.Input, { className: 'ad-staff-input', type: 'number', min: 0, value: String(v.count), onChange: function (e) {
                   setStaffing(function (prev) { const n = Object.assign({}, prev); n[r.key] = Object.assign({}, n[r.key], { count: e.target.value }); return n })
                 } }),
-                h('span', null, '人 ×'),
+                h('span', { className: 'ad-staff-x' }, '人 ×'),
                 h(ui.Input, { className: 'ad-staff-input', type: 'number', min: 0, value: String(v.hours), onChange: function (e) {
                   setStaffing(function (prev) { const n = Object.assign({}, prev); n[r.key] = Object.assign({}, n[r.key], { hours: e.target.value }); return n })
                 } }),
-                h('span', null, '小时'))
+                h('span', { className: 'ad-staff-unit' }, '小时'))
             }),
             h('div', { className: 'ad-row-meta' }, '合计工时：' + totalHours + ' 小时')),
           h('div', { className: 'ad-form', style: { marginTop: '12px' } },
