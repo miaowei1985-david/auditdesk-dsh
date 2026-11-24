@@ -115,13 +115,14 @@ window.__ModuleLoader__.load({
           h('input', { value: username, onChange: function (e) { setUsername(e.target.value) }, placeholder: '用户名', autoFocus: true, style: inputStyle }),
           h('input', { value: password, onChange: function (e) { setPassword(e.target.value) }, placeholder: '密码', type: 'password', style: inputStyle }),
           error ? h('div', { style: { fontSize: '12px', color: '#b91c1c', marginBottom: '10px' } }, error) : null,
-          h('button', { type: 'submit', disabled: loading, style: { width: '100%', padding: '10px 12px', borderRadius: '8px', border: 0, background: COLORS.accent, color: '#fff', fontSize: '13px', cursor: 'pointer' } }, loading ? '登录中…' : '登录'),
+          h('button', { type: 'submit', disabled: loading, style: { width: '100%', padding: '10px 12px', borderRadius: '8px', border: 0, background: COLORS.accent, color: 'var(--dsw-alias-label-primary-foreground)', fontSize: '13px', cursor: 'pointer' } }, loading ? '登录中…' : '登录'),
           h('div', { style: { fontSize: '11px', color: COLORS.muted, marginTop: '12px', lineHeight: 1.7 } },
             '演示账号：auditor/auditor123（审计员）、manager/manager123（项目经理）、partner/partner123（合伙人）、admin/admin123（管理员）')))
     }
 
     function withAuth(PageComponent) {
       return function AuthenticatedPage(props) {
+        ensureAuditUi()
         const auth = useAuth()
         if (!auth.user) return h(LoginForm, null)
         return h('div', { style: { height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 } },
@@ -137,7 +138,94 @@ window.__ModuleLoader__.load({
       'K-05': '职业道德', 'K-06': '质量控制', 'K-07': '底稿模板', 'K-08': '客户档案',
       'K-09': '历史经验', 'K-10': '行业专精', 'K-11': '银行函证', 'K-12': '法律法规', 'K-13': '重要性参数',
     }
-    const COLORS = { text: 'inherit', muted: 'rgba(127,127,127,0.85)', line: 'rgba(127,127,127,0.22)', accent: '#2f7cf6', bg: 'rgba(127,127,127,0.06)' }
+    const COLORS = { text: 'var(--dsw-alias-label-primary)', muted: 'var(--dsw-alias-label-secondary)', line: 'var(--dsw-alias-border-l1)', accent: 'var(--dsw-alias-brand-primary)', bg: 'var(--dsw-alias-bg-layer-1)' }
+    const AUDIT_UI_CSS = [
+      '.ad-page{height:100%;overflow:auto;box-sizing:border-box;padding:20px 24px 56px;color:var(--dsw-alias-label-primary);background:transparent}',
+      'body:not([data-ds-dark-theme]) .ad-page{background:var(--dsw-static-neutral-bluish-75)}',
+      '.ad-page-inner{max-width:1080px}',
+      '.ad-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin-bottom:18px}',
+      '.ad-title{margin:0;font-size:22px;font-weight:650;letter-spacing:-0.03em;line-height:1.15}',
+      '.ad-sub{margin-top:6px;font-size:13px;line-height:1.5;color:var(--dsw-alias-label-secondary)}',
+      '.ad-actions,.ad-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}',
+      '.ad-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:10px;margin:0 0 16px}',
+      '.ad-kpi{padding:14px 16px;border-radius:12px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1)}',
+      'body:not([data-ds-dark-theme]) .ad-kpi{box-shadow:var(--dsw-shadow-lv1),var(--dsw-shadow-lv1-blur)}',
+      '.ad-kpi-label{font-size:12px;color:var(--dsw-alias-label-secondary);margin-bottom:6px}',
+      '.ad-kpi-value{font-size:22px;font-weight:650;letter-spacing:-0.03em;font-variant-numeric:tabular-nums}',
+      '.ad-kpi-hint{margin-top:4px;font-size:11px;color:var(--dsw-alias-label-secondary)}',
+      '.ad-card{margin:0 0 14px;padding:14px 16px;border-radius:12px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1)}',
+      'body:not([data-ds-dark-theme]) .ad-card{box-shadow:var(--dsw-shadow-lv1),var(--dsw-shadow-lv1-blur)}',
+      '.ad-tabs{display:flex;gap:2px;border-bottom:1px solid var(--dsw-alias-border-l2);margin-bottom:16px;flex-wrap:wrap}',
+      '.ad-tab{border:0;background:transparent;padding:8px 12px;font-size:13px;cursor:pointer;color:var(--dsw-alias-label-secondary);border-bottom:2px solid transparent;margin-bottom:-1px}',
+      '.ad-tab:hover{color:var(--dsw-alias-label-primary)}',
+      '.ad-tab.on{color:var(--dsw-alias-brand-primary);border-bottom-color:var(--dsw-alias-brand-primary);font-weight:600}',
+      '.ad-btn{padding:7px 12px;border-radius:8px;border:1px solid var(--dsw-alias-border-l2);background:transparent;color:var(--dsw-alias-label-primary);font-size:12px;cursor:pointer}',
+      '.ad-btn:hover{background:var(--dsw-alias-interactive-bg-hover)}',
+      '.ad-btn.primary{border:0;background:var(--dsw-alias-brand-primary);color:var(--dsw-alias-label-primary-foreground)}',
+      '.ad-btn.primary:hover{filter:brightness(1.06)}',
+      '.ad-actions>.ad-btn,.ad-actions>.ad-btn.quiet{min-height:30px;display:inline-flex;align-items:center;box-sizing:border-box}',
+      '.ad-actions>details{min-height:30px;display:inline-flex;align-items:center}',
+      '.ad-actions>details>summary{margin-bottom:0}',
+      '.ad-btn.quiet{border:0;background:transparent;color:var(--dsw-alias-brand-primary);padding:4px 8px}',
+      '.ad-btn.quiet:hover{background:var(--dsw-alias-interactive-bg-hover);border-radius:6px}',
+      '.ad-btn:disabled{opacity:.5;cursor:default}',
+      '.ad-input{width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-base);color:inherit;font-size:13px}',
+      '.ad-input:focus{outline:none;border-color:var(--dsw-alias-brand-primary)}',
+      '.ad-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px 12px;margin-bottom:8px;padding:14px 16px;border-radius:12px;background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2)}',
+      'body:not([data-ds-dark-theme]) .ad-form{box-shadow:var(--dsw-shadow-lv1),var(--dsw-shadow-lv1-blur)}',
+      '.ad-field{display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--dsw-alias-label-secondary)}',
+      '.ad-form-actions{display:flex;align-items:flex-end}',
+      '.ad-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 4px;border-bottom:.5px solid var(--dsw-alias-border-l3)}',
+      '.ad-row:last-child{border-bottom:0}',
+      '.ad-row-title{font-size:13px;font-weight:600}',
+      '.ad-row-meta{margin-top:2px;font-size:12px;color:var(--dsw-alias-label-secondary)}',
+      '.ad-pill{font-size:11px;padding:2px 8px;border-radius:999px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary);white-space:nowrap}',
+      '.ad-pill.ok{color:var(--dsw-alias-state-success-primary)}',
+      '.ad-pill.warn{color:var(--dsw-alias-state-warn-primary)}',
+      '.ad-rail{width:248px;flex-shrink:0;overflow:auto;border-right:1px solid var(--dsw-alias-border-l1);background:var(--dsw-specific-sidebar-fill)}',
+      '.ad-rail-h{display:flex;justify-content:space-between;align-items:center;padding:16px 14px 8px;font-size:13px;font-weight:650}',
+      '.ad-nav{margin:1px 8px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13px}',
+      '.ad-nav:hover{background:var(--dsw-alias-interactive-bg-hover)}',
+      '.ad-nav.on{background:color-mix(in srgb,var(--dsw-alias-brand-primary) 14%,transparent);color:var(--dsw-alias-brand-primary)}',
+      '.ad-doc{padding:28px 36px 56px;max-width:760px}',
+      '.ad-doc-title{margin:0 0 6px;font-size:22px;font-weight:650;letter-spacing:-0.03em}',
+      '.ad-chunk{margin:0 0 20px}',
+      '.ad-chunk-h{font-size:11px;color:var(--dsw-alias-label-secondary);margin-bottom:4px}',
+      '.ad-note{margin:0 0 14px;padding:12px 14px;border-radius:12px;background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);font-size:13px;line-height:1.5}',
+      'body:not([data-ds-dark-theme]) .ad-note{box-shadow:var(--dsw-shadow-lv1),var(--dsw-shadow-lv1-blur)}',
+      '.ad-zones{display:flex;gap:18px;padding:8px 16px 0;border-bottom:1px solid var(--dsw-alias-border-l2);flex-wrap:wrap;align-items:flex-end}',
+      '.ad-zone-group{display:flex;align-items:flex-end;gap:2px}',
+      '.ad-zone-group+.ad-zone-group{border-left:1px solid var(--dsw-alias-border-l2);padding-left:16px}',
+      '.ad-zone-label{font-size:12px;font-weight:600;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-2);border-radius:6px;padding:2px 9px;margin:0 8px 8px 0;white-space:nowrap;letter-spacing:0}',
+      '.ad-next{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}',
+      '.ad-next-card{padding:12px 14px;border-radius:12px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);cursor:pointer}',
+      'body:not([data-ds-dark-theme]) .ad-next-card{box-shadow:var(--dsw-shadow-lv1),var(--dsw-shadow-lv1-blur)}',
+      '.ad-next-card:hover{box-shadow:var(--dsw-shadow-lv2)}',
+      '.ad-split{display:flex;height:100%;min-height:0;color:var(--dsw-alias-label-primary)}',
+      '.ad-zone-page{height:100%;overflow:auto;box-sizing:border-box;padding:20px 24px 56px;background:transparent}',
+      'body:not([data-ds-dark-theme]) .ad-zone-page{background:var(--dsw-static-neutral-bluish-75)}',
+      '.ad-more{margin:0 0 14px;font-size:12px;color:var(--dsw-alias-label-secondary)}',
+      '.ad-more summary{list-style:none;cursor:pointer;margin-bottom:8px;display:inline-flex;align-items:center;gap:6px;user-select:none;font-size:12px;color:var(--dsw-alias-label-secondary)}',
+      '.ad-more summary::-webkit-details-marker{display:none}',
+      '.ad-more summary::before{content:"+";display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:5px;border:1px solid var(--dsw-alias-border-l2);font-size:13px;line-height:1;color:var(--dsw-alias-label-secondary)}',
+      '.ad-more[open] summary::before{content:"\\2212"}',
+      '.ad-more summary:hover{color:var(--dsw-alias-label-primary)}',
+      '.ad-tile{flex:1 1 260px;min-width:260px;padding:14px 16px;border-radius:12px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1)}',
+      '.ad-tile.wide{flex:2 1 420px;min-width:420px}',
+      'body:not([data-ds-dark-theme]) .ad-tile{box-shadow:var(--dsw-shadow-lv1),var(--dsw-shadow-lv1-blur)}',
+      '.ad-card summary{list-style:none;cursor:pointer}',
+      '.ad-card summary::-webkit-details-marker{display:none}',
+    ].join('')
+    function ensureAuditUi() {
+      if (typeof document === 'undefined') return
+      let style = document.getElementById('auditdesk-ui')
+      if (!style) {
+        style = document.createElement('style')
+        style.id = 'auditdesk-ui'
+        document.head.appendChild(style)
+      }
+      if (style.textContent !== AUDIT_UI_CSS) style.textContent = AUDIT_UI_CSS
+    }
 
     function api(path, params, options) {
       const url = new URL(BASE + path)
@@ -317,6 +405,7 @@ window.__ModuleLoader__.load({
       const cutoffResultState = React.useState(null); const cutoffResult = cutoffResultState[0]; const setCutoffResult = cutoffResultState[1]
       const replyAmountState = React.useState(''); const replyAmount = replyAmountState[0]; const setReplyAmount = replyAmountState[1]
       const replyNoteState = React.useState(''); const replyNote = replyNoteState[0]; const setReplyNote = replyNoteState[1]
+      const wpKindState = React.useState('currency'); const wpKind = wpKindState[0]; const setWpKind = wpKindState[1]
       React.useEffect(function () {
         const mat = props.analysis && props.analysis.materiality
         if (!mat) return
@@ -409,12 +498,7 @@ window.__ModuleLoader__.load({
           'kb-admin': [['审批状态', '审批状态'], ['审计底稿', '审计底稿'], ['报告', '报告'], ['资料清单', '资料清单']],
           admin: [['审批状态', '审批状态'], ['审计底稿', '审计底稿'], ['报告', '报告'], ['资料清单', '资料清单']],
         }[role] || [['资料清单', '资料清单'], ['审计底稿', '审计底稿']]
-        const quickBar = h('div', { style: { marginBottom: '12px', padding: '10px 12px', borderRadius: '10px', border: '1px solid ' + COLORS.line, display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', fontSize: '12px' } },
-          h('span', { style: { color: COLORS.muted } }, '当前角色：' + roleName + ' · 常用入口'),
-          roleActions.map(function (pair) {
-            return h('button', { key: 'role-' + pair[1], onClick: function () { if (props.onJumpZone) props.onJumpZone(pair[1]) },
-              style: { padding: '5px 10px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, pair[0])
-          }))
+        const nextAction = roleActions[0]
         const pbcItems = props.pbc || []
         const wpItems = props.wp || []
         const approvalItems = props.approvals || []
@@ -435,58 +519,54 @@ window.__ModuleLoader__.load({
           if (overdueDiff !== 0) return overdueDiff
           return String(a.submitted_at || '').localeCompare(String(b.submitted_at || ''))
         })
-        const card = function (title, value, detail, tone) {
-          return h('div', { style: { flex: '1 1 180px', minWidth: '180px', padding: '14px', borderRadius: '12px', border: '1px solid ' + COLORS.line, background: COLORS.bg } },
-            h('div', { style: { fontSize: '12px', color: COLORS.muted } }, title),
-            h('div', { style: { fontSize: '26px', fontWeight: 700, margin: '4px 0', color: tone || 'inherit' } }, String(value)),
-            h('div', { style: { fontSize: '11px', color: COLORS.muted, lineHeight: 1.6 } }, detail))
+        const card = function (title, value, detail) {
+          return h('div', { className: 'ad-kpi' },
+            h('div', { className: 'ad-kpi-label' }, title),
+            h('div', { className: 'ad-kpi-value' }, String(value)),
+            h('div', { className: 'ad-kpi-hint' }, detail))
         }
         const progress = function (percent) {
           return h('div', { style: { height: '6px', borderRadius: '3px', background: 'rgba(127,127,127,0.2)', marginTop: '8px', overflow: 'hidden' } },
             h('div', { style: { width: Math.max(0, Math.min(100, percent)) + '%', height: '100%', background: percent >= 100 ? '#16a34a' : COLORS.accent } }))
         }
-        return h('div', { style: { padding: '18px', maxWidth: '960px', height: '100%', overflow: 'auto', boxSizing: 'border-box' } },
-          h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' } },
+        return h('div', { className: 'ad-zone-page' },
+          h('div', { className: 'ad-head' },
             h('div', null,
-              h('div', { style: { fontSize: '15px', fontWeight: 600, marginBottom: '4px' } }, props.company + ' / ' + (props.project ? props.project.name : '')),
-              h('div', { style: { fontSize: '12px', color: COLORS.muted, marginBottom: '14px' } }, '期间：' + (props.project ? props.project.period : '') + ' · ' + ((props.project && props.project.business_type) || '年报审计') + ' · 项目概览')),
-            h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px' } },
+              h('h1', { className: 'ad-title' }, props.company + ' / ' + (props.project ? props.project.name : '')),
+              h('div', { className: 'ad-sub' }, roleName + ' · ' + (props.project ? props.project.period : '') + ' · ' + ((props.project && props.project.business_type) || '年报审计'))),
+            h('div', { className: 'ad-actions' },
+              nextAction ? h('button', { className: 'ad-btn primary', onClick: function () { if (props.onJumpZone) props.onJumpZone(nextAction[1]) } }, '下一步：' + nextAction[0]) : null,
+              h('button', { className: 'ad-btn', onClick: function () { if (props.onExportArchive) props.onExportArchive() }, disabled: props.exporting }, props.exporting ? '打包中…' : '导出归档包'))),
+          h('details', { className: 'ad-more' },
+            h('summary', null, '项目操作'),
+            h('div', { className: 'ad-actions' },
               (['partner', 'kb-admin', 'admin'].indexOf(((props.auth && props.auth.user) || {}).role) >= 0 && !readOnly)
-                ? h('button', { onClick: function () { if (props.onOpenRename) props.onOpenRename() },
-                    style: { padding: '7px 12px', borderRadius: '8px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '重命名')
-                : null,
+                ? h('button', { className: 'ad-btn', onClick: function () { if (props.onOpenRename) props.onOpenRename() } }, '重命名') : null,
               (['partner', 'kb-admin', 'admin'].indexOf(((props.auth && props.auth.user) || {}).role) >= 0)
-                ? h('button', { onClick: function () { if (props.onOpenDelete) props.onOpenDelete() },
-                    style: { padding: '7px 12px', borderRadius: '8px', border: '1px solid #b91c1c', background: 'transparent', color: '#b91c1c', fontSize: '12px', cursor: 'pointer' } }, '删除项目')
-                : null,
-              h('label', { style: { padding: '7px 12px', borderRadius: '8px', border: '1px solid ' + COLORS.line, color: COLORS.muted, fontSize: '12px', cursor: 'pointer' } },
-                '校验归档包（ZIP）', h('input', { type: 'file', accept: '.zip', style: { display: 'none' }, onChange: function (e) { const f = e.target.files && e.target.files[0]; if (f && props.onVerifyArchiveFile) props.onVerifyArchiveFile(f); e.target.value = '' } })),
-              h('button', { onClick: function () { if (props.onExportArchive) props.onExportArchive() }, disabled: props.exporting,
-                style: { padding: '7px 12px', borderRadius: '8px', border: '1px solid ' + COLORS.accent, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } },
-                props.exporting ? '打包中…' : '导出归档包（ZIP）'),
-              readOnly
-                ? h('span', { style: { padding: '4px 10px', borderRadius: '10px', background: 'rgba(180,83,9,0.12)', color: '#b45309', fontSize: '12px' } }, '已归档 · 只读')
+                ? h('button', { className: 'ad-btn', onClick: function () { if (props.onOpenDelete) props.onOpenDelete() }, style: { color: 'var(--dsw-alias-state-error-primary)' } }, '删除项目') : null,
+              h('label', { className: 'ad-btn' }, '校验归档包', h('input', { type: 'file', accept: '.zip', style: { display: 'none' }, onChange: function (e) { const f = e.target.files && e.target.files[0]; if (f && props.onVerifyArchiveFile) props.onVerifyArchiveFile(f); e.target.value = '' } })),
+              readOnly ? h('span', { className: 'ad-pill warn' }, '已归档 · 只读')
                 : (['partner', 'kb-admin', 'admin'].indexOf(((props.auth && props.auth.user) || {}).role) >= 0
-                    ? h('button', { onClick: function () { if (props.onArchiveProject) props.onArchiveProject() },
-                        style: { padding: '7px 12px', borderRadius: '8px', border: '1px solid #b45309', background: 'transparent', color: '#b45309', fontSize: '12px', cursor: 'pointer' } }, '归档项目（只读）')
-                    : null))),
-          props.archiveVerifyMessage ? h('div', { style: { fontSize: '12px', marginBottom: '8px', color: props.archiveVerifyMessage.indexOf('通过') >= 0 && props.archiveVerifyMessage.indexOf('未') < 0 ? '#16a34a' : '#b45309' } }, props.archiveVerifyMessage) : null,
-          quickBar,
-          h('div', { style: { display: 'flex', gap: '10px', flexWrap: 'wrap' } },
-            h('div', { style: { flex: '1 1 180px', minWidth: '180px', padding: '14px', borderRadius: '12px', border: '1px solid ' + COLORS.line, background: COLORS.bg } },
-              h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '资料清单完成率'),
-              h('div', { style: { fontSize: '26px', fontWeight: 700, margin: '4px 0' } }, pbcPercent + '%'),
-              h('div', { style: { fontSize: '11px', color: COLORS.muted } }, '已交 ' + finishedPbc + ' / 共 ' + pbcItems.length + ' 项（待补 ' + (pbcCounts['待补'] || 0) + '，未交 ' + (pbcCounts['未交'] || 0) + '）'),
+                    ? h('button', { className: 'ad-btn', onClick: function () { if (props.onArchiveProject) props.onArchiveProject() } }, '归档项目') : null))),
+          props.archiveVerifyMessage ? h('div', { className: 'ad-note' }, props.archiveVerifyMessage) : null,
+          h(FlowPanel, { projectId: props.project ? props.project.id : '', onJumpZone: props.onJumpZone }),
+          h(ProjectFieldsPanel, { projectId: props.project ? props.project.id : '' }),
+          h(ArchivePackagePanel, { projectId: props.project ? props.project.id : '' }),
+          h('div', { className: 'ad-kpis' },
+            h('div', { className: 'ad-kpi' },
+              h('div', { className: 'ad-kpi-label' }, '资料清单完成率'),
+              h('div', { className: 'ad-kpi-value' }, pbcPercent + '%'),
+              h('div', { className: 'ad-kpi-hint' }, '已交 ' + finishedPbc + ' / 共 ' + pbcItems.length + ' 项'),
               progress(pbcPercent)),
             card('审计底稿', wpItems.length, '已生成 ' + (wpCounts['已生成'] || 0) + ' · 进行中 ' + (wpCounts['进行中'] || 0) + ' · 待执行 ' + (wpCounts['待执行'] || 0)),
             card('已生成文件', generatedItems.length, '可预览/下载，按索引号回写台账'),
             card('审批状态', approvalItems.length, '已通过 ' + (approvalCounts['已通过'] || 0) + ' · 待审批 ' + (approvalCounts['待审批'] || 0) + ' · 待提交 ' + (approvalCounts['待提交'] || 0)),
             card('审计程序', programPercent + '%', '已完成 ' + programDone + ' / ' + programItems.length + ' 项'),
             card('项目成员', memberItems.length, memberItems.map(function (m) { return m.name }).join('、'))),
-          h('div', { style: { marginTop: '16px', padding: '14px', borderRadius: '12px', border: '1px solid ' + COLORS.line } },
+          h('div', { className: 'ad-card' },
             h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' } },
-              h('div', { style: { fontSize: '13px', fontWeight: 600 } }, '我的待办' + (props.todoOverdueOnly ? '（仅超期）' : '')),
-              h('button', { onClick: function () { if (props.onSetTodoOverdueOnly) props.onSetTodoOverdueOnly(!props.todoOverdueOnly) }, style: { padding: '3px 8px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px', cursor: 'pointer' } }, props.todoOverdueOnly ? '查看全部' : '只看超期')),
+              h('div', { style: { fontSize: '13px', fontWeight: 650 } }, '我的待办' + (props.todoOverdueOnly ? '（仅超期）' : '')),
+              h('button', { className: 'ad-btn quiet', onClick: function () { if (props.onSetTodoOverdueOnly) props.onSetTodoOverdueOnly(!props.todoOverdueOnly) } }, props.todoOverdueOnly ? '查看全部' : '只看超期')),
             myApprovals.length
               ? myApprovals.map(function (item) {
                   const urgent = item.kind === '归档校验' || item.kind === '报告复核'
@@ -515,7 +595,7 @@ window.__ModuleLoader__.load({
         const completeness = analysis.completeness || {}
         const canConfirmMateriality = ['manager', 'partner', 'kb-admin', 'admin'].indexOf(((props.auth && props.auth.user) || {}).role) >= 0
         const card = function (title, rows) {
-          return h('div', { style: { flex: '1 1 260px', minWidth: '260px', padding: '14px', borderRadius: '12px', border: '1px solid ' + COLORS.line, background: COLORS.bg } },
+          return h('div', { className: 'ad-tile' },
             h('div', { style: { fontSize: '13px', fontWeight: 600, marginBottom: '8px' } }, title),
             rows.map(function (row, index) {
               return h('div', { key: index, style: { display: 'flex', justifyContent: 'space-between', gap: '10px', fontSize: '12px', padding: '3px 0' } },
@@ -523,16 +603,17 @@ window.__ModuleLoader__.load({
                 h('span', { style: { fontWeight: row[2] ? 600 : 400, color: row[2] ? '#b45309' : 'inherit' } }, row[1]))
             }))
         }
-        return h('div', { style: { padding: '18px', maxWidth: '960px', height: '100%', overflow: 'auto', boxSizing: 'border-box' } },
-          h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' } },
+        return h('div', { className: 'ad-zone-page' },
+          h('div', { className: 'ad-head' },
             h('div', null,
-              h('div', { style: { fontSize: '14px', fontWeight: 600, marginBottom: '4px' } }, '风险评估与重要性'),
-              h('div', { style: { fontSize: '12px', color: COLORS.muted, marginBottom: '14px' } }, '基于客户报表数据自动计算，审计师须结合职业判断确认')),
-            readOnly ? null : h('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' } },
-              h('button', { onClick: function () { if (props.onAskAiNextSteps) props.onAskAiNextSteps() },
-                style: { padding: '8px 14px', borderRadius: '8px', border: '1px solid ' + COLORS.accent, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, 'AI 建议后续程序'),
-              h('select', { value: props.checklistKind, onChange: function (e) { if (props.onSetChecklistKind) props.onSetChecklistKind(e.target.value) },
-                style: { padding: '7px 10px', borderRadius: '8px', border: '1px solid ' + COLORS.accent, background: 'transparent', color: 'inherit', fontSize: '12px' } },
+              h('h1', { className: 'ad-title' }, '风险评估'),
+              h('div', { className: 'ad-sub' }, '数字来自客户报表。重要性须由经理或合伙人确认，不能把测算当成结论。')),
+            readOnly ? null : h('button', { className: 'ad-btn primary', onClick: function () { if (props.onGenerateRiskDocx) props.onGenerateRiskDocx() } }, '生成风险评估底稿')),
+          readOnly ? null : h('details', { className: 'ad-more' },
+            h('summary', null, '检查表与后续程序'),
+            h('div', { className: 'ad-actions' },
+              h('button', { className: 'ad-btn', onClick: function () { if (props.onAskAiNextSteps) props.onAskAiNextSteps() } }, 'AI 建议后续程序'),
+              h('select', { className: 'ad-input', style: { width: 'auto' }, value: props.checklistKind, onChange: function (e) { if (props.onSetChecklistKind) props.onSetChecklistKind(e.target.value) } },
                 h('option', { value: 'subsequent' }, '期后事项检查表'),
                 h('option', { value: 'going' }, '持续经营评估'),
                 h('option', { value: 'related' }, '关联方交易检查表'),
@@ -542,12 +623,9 @@ window.__ModuleLoader__.load({
                 h('option', { value: 'fixed_assets' }, '固定资产审计底稿'),
                 h('option', { value: 'payroll' }, '应付职工薪酬审计底稿'),
                 h('option', { value: 'taxes' }, '应交税费审计底稿')),
-              h('button', { onClick: function () { if (props.onGenerateChecklist) props.onGenerateChecklist() },
-                style: { padding: '8px 14px', borderRadius: '8px', border: '1px solid ' + COLORS.accent, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '生成检查表（Word）'),
-              h('button', { onClick: function () { if (props.onGenerateRiskDocx) props.onGenerateRiskDocx() },
-                style: { padding: '8px 14px', borderRadius: '8px', border: 0, background: COLORS.accent, color: '#fff', fontSize: '12px', cursor: 'pointer' } }, '生成风险评估底稿（Word）'))),
+              h('button', { className: 'ad-btn', onClick: function () { if (props.onGenerateChecklist) props.onGenerateChecklist() } }, '生成检查表'))),
           h('div', { style: { display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '12px' } },
-            h('div', { style: { flex: '1 1 260px', minWidth: '260px', padding: '14px', borderRadius: '12px', border: '1px solid ' + COLORS.line, background: COLORS.bg } },
+            h('div', { className: 'ad-tile' },
               h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' } },
                 h('div', { style: { fontSize: '13px', fontWeight: 600 } }, '重要性水平'),
                 materiality ? h(Badge, { tone: materiality.confirmed ? 'ok' : 'warn' }, materiality.confirmed ? '已确认' : '自动测算') : null),
@@ -572,7 +650,7 @@ window.__ModuleLoader__.load({
                       style: { padding: '5px 8px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }),
                     h('div', { style: { display: 'flex', gap: '6px' } },
                       h('button', { onClick: function () { if (props.onConfirmMateriality) props.onConfirmMateriality({ basis: materiality.basis, overall: Number(matOverall), performance: Number(matPerf), trivial: Number(matTrivial), note: matNote }); setMatEditing(false) },
-                        style: { flex: 1, padding: '6px 10px', borderRadius: '7px', border: 0, background: COLORS.accent, color: '#fff', fontSize: '12px', cursor: 'pointer' } }, '确认'),
+                        style: { flex: 1, padding: '6px 10px', borderRadius: '7px', border: 0, background: COLORS.accent, color: 'var(--dsw-alias-label-primary-foreground)', fontSize: '12px', cursor: 'pointer' } }, '确认'),
                       h('button', { onClick: function () { setMatEditing(false) },
                         style: { padding: '6px 10px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '取消')))
                 : h('div', null,
@@ -599,7 +677,7 @@ window.__ModuleLoader__.load({
               ['序时账/明细账', completeness.has_journal ? '已导入' : '未导入', !completeness.has_journal],
               ['财务报表', (completeness.tables || []).length + ' 张', false],
             ]),
-            h('div', { style: { flex: '2 1 420px', minWidth: '420px', padding: '14px', borderRadius: '12px', border: '1px solid ' + COLORS.line, background: COLORS.bg } },
+            h('div', { className: 'ad-tile wide' },
               h('div', { style: { fontSize: '13px', fontWeight: 600, marginBottom: '8px' } }, '风险提示（' + (analysis.risks || []).length + '）'),
               (analysis.risks || []).length
                 ? (analysis.risks || []).map(function (risk, index) {
@@ -614,8 +692,7 @@ window.__ModuleLoader__.load({
             return h('div', { style: { marginTop: '12px', padding: '14px', borderRadius: '12px', border: '1px solid ' + COLORS.line } },
               h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' } },
                 h('div', { style: { fontSize: '13px', fontWeight: 600 } }, '试算平衡'),
-                readOnly ? null : h('button', { onClick: function () { if (props.onGenerateTrialBalance) props.onGenerateTrialBalance() },
-                  style: { padding: '7px 12px', borderRadius: '8px', border: 0, background: COLORS.accent, color: '#fff', fontSize: '12px', cursor: 'pointer' } }, '生成试算平衡底稿（Word）')),
+                readOnly ? null : h('button', { className: 'ad-btn quiet', onClick: function () { if (props.onGenerateTrialBalance) props.onGenerateTrialBalance() } }, '试算平衡底稿')),
               h('div', { style: { display: 'flex', gap: '10px', flexWrap: 'wrap' } },
                 card('科目余额表', [
                   ['借方发生额合计', Number(tb.debit || 0).toLocaleString()],
@@ -633,39 +710,42 @@ window.__ModuleLoader__.load({
                   ['结论', trial.difference_count ? '存在差异，需核实' : '无差异', trial.difference_count > 0],
                 ])))
           })(),
-          h('div', { style: { marginTop: '12px', padding: '14px', borderRadius: '12px', border: '1px solid ' + COLORS.line } },
-            h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' } },
-              h('div', { style: { fontSize: '13px', fontWeight: 600 } }, '凭证抽样（MUS 货币单位抽样）'),
+          h('div', { className: 'ad-card' },
+            h('div', { className: 'ad-head', style: { marginBottom: '8px' } },
+              h('div', { className: 'ad-row-title' }, '凭证抽样'),
               (sampleResult && sampleResult.available && !readOnly) ? h('button', { onClick: exportSamplingWorkpaper,
-                style: { padding: '7px 12px', borderRadius: '8px', border: 0, background: COLORS.accent, color: '#fff', fontSize: '12px', cursor: 'pointer' } }, '生成抽样底稿（Word）') : null),
+                className: 'ad-btn quiet' }, '抽样底稿') : null),
             readOnly ? null : h('div', { style: { display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '8px' } },
               h('span', { style: { fontSize: '12px', color: COLORS.muted } }, '样本量'),
               h('input', { value: sampleSize, onChange: function (e) { setSampleSize(e.target.value) }, style: { width: '64px', padding: '5px 8px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }),
               h('span', { style: { fontSize: '12px', color: COLORS.muted } }, '种子'),
               h('input', { value: sampleSeed, onChange: function (e) { setSampleSeed(e.target.value) }, style: { width: '64px', padding: '5px 8px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }),
-              h('button', { onClick: runSampling, disabled: sampling, style: { padding: '7px 12px', borderRadius: '8px', border: '1px solid ' + COLORS.accent, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, sampling ? '抽样中…' : '执行抽样')),
+              h('button', { className: 'ad-btn primary', onClick: runSampling, disabled: sampling }, sampling ? '抽样中…' : '执行抽样')),
             sampleResult && sampleResult.available ? h('div', null,
               h('div', { style: { fontSize: '12px', color: COLORS.muted, marginBottom: '6px' } },
                 '总体 ' + sampleResult.population_count + ' 笔 / 合计 ' + Number(sampleResult.total).toLocaleString() + ' · 间隔 ' + Number(sampleResult.interval).toLocaleString() + ' · 覆盖率 ' + sampleResult.coverage + '%'),
               (sampleResult.samples || []).map(function (item) {
-                return h('div', { key: 'sample-' + item.index, style: { display: 'grid', gridTemplateColumns: '40px 100px 80px 1fr 120px', gap: '8px', fontSize: '12px', padding: '4px 0', borderBottom: '1px solid ' + COLORS.line } },
-                  h('span', null, '#' + item.index), h('span', null, item.date), h('span', null, item.voucher),
-                  h('span', { style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, item.summary + (item.name ? ' · ' + item.name : '')),
-                  h('span', { style: { textAlign: 'right' } }, Number(item.amount).toLocaleString()))
+                return h('div', { key: 'sample-' + item.index, className: 'ad-row' },
+                  h('div', { style: { minWidth: 0 } },
+                    h('div', { className: 'ad-row-title' }, '#' + item.index + ' ' + (item.summary || item.voucher || '')),
+                    h('div', { className: 'ad-row-meta' }, [item.date, item.voucher, item.name].filter(Boolean).join(' · '))),
+                  h('span', { className: 'ad-row-title' }, Number(item.amount).toLocaleString()))
               })) : (sampleResult && !sampleResult.available ? h('div', { style: { fontSize: '12px', color: '#b45309' } }, sampleResult.message || '抽样不可用') : null)),
-          h('div', { style: { marginTop: '12px', padding: '14px', borderRadius: '12px', border: '1px solid ' + COLORS.line } },
-            h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' } },
-              h('div', { style: { fontSize: '13px', fontWeight: 600 } }, '截止测试与存货监盘'),
-              readOnly ? null : h('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' } },
-                h('button', { onClick: exportCutoff, style: { padding: '7px 12px', borderRadius: '8px', border: '1px solid ' + COLORS.accent, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '生成截止测试底稿'),
-                h('button', { onClick: exportInventoryCount, style: { padding: '7px 12px', borderRadius: '8px', border: '1px solid ' + COLORS.accent, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '生成存货监盘表'))),
+          h('div', { className: 'ad-card' },
+            h('div', { className: 'ad-head', style: { marginBottom: '8px' } },
+              h('div', { className: 'ad-row-title' }, '截止测试与存货监盘'),
+              readOnly ? null : h('details', { className: 'ad-more', style: { margin: 0 } },
+                h('summary', null, '导出'),
+                h('div', { className: 'ad-actions' },
+                  h('button', { className: 'ad-btn', onClick: exportCutoff }, '截止测试底稿'),
+                  h('button', { className: 'ad-btn', onClick: exportInventoryCount }, '存货监盘表')))),
             readOnly ? null : h('div', { style: { display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '6px' } },
               h('span', { style: { fontSize: '12px', color: COLORS.muted } }, '截止日'),
               h('input', { value: cutoffAsOf, onChange: function (e) { setCutoffAsOf(e.target.value) }, placeholder: 'YYYY-MM-DD', style: { width: '110px', padding: '5px 8px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }),
               h('span', { style: { fontSize: '12px', color: COLORS.muted } }, '前后'),
               h('input', { value: cutoffDays, onChange: function (e) { setCutoffDays(e.target.value) }, style: { width: '52px', padding: '5px 8px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }),
               h('span', { style: { fontSize: '12px', color: COLORS.muted } }, '天'),
-              h('button', { onClick: runCutoff, style: { padding: '7px 12px', borderRadius: '8px', border: '1px solid ' + COLORS.accent, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '执行截止测试')),
+              h('button', { className: 'ad-btn primary', onClick: runCutoff }, '执行截止测试')),
             cutoffResult && cutoffResult.available ? h('div', { style: { fontSize: '12px', color: COLORS.muted } },
               '截止日 ' + cutoffResult.asof + '：日前 ' + cutoffResult.before_count + ' 笔 / 日后 ' + cutoffResult.after_count + ' 笔'
               + (cutoffResult.before_count + cutoffResult.after_count === 0 ? '（无临近凭证，调整截止日或天数）' : ''))
@@ -673,11 +753,14 @@ window.__ModuleLoader__.load({
             (props.inventoryCounts || []).length ? h('div', { style: { marginTop: '8px', paddingTop: '8px', borderTop: '1px dashed ' + COLORS.line } },
               h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' } },
                 h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '存货监盘录入（' + props.inventoryCounts.length + '）'),
-                readOnly ? null : h('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' } },
-                  h('button', { onClick: function () { if (props.onSaveInventoryCounts) props.onSaveInventoryCounts() }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '保存录入'),
-                  h('button', { onClick: function () { if (props.onExportInventorySummary) props.onExportInventorySummary() }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '导出汇总 Excel'),
-                  h('button', { onClick: function () { if (props.onExportInventoryExceptions) props.onExportInventoryExceptions() }, style: { border: 0, background: 'transparent', color: '#b45309', fontSize: '12px', cursor: 'pointer' } }, '差异事项清单'),
-                  h('button', { onClick: function () { if (props.onConfirmInventory) props.onConfirmInventory() }, style: { border: 0, background: 'transparent', color: '#16a34a', fontSize: '12px', cursor: 'pointer' } }, '确认监盘'))),
+                readOnly ? null : h('div', { className: 'ad-actions' },
+                  h('button', { className: 'ad-btn primary', onClick: function () { if (props.onSaveInventoryCounts) props.onSaveInventoryCounts() } }, '保存录入'),
+                  h('details', { className: 'ad-more', style: { margin: 0 } },
+                    h('summary', null, '更多'),
+                    h('div', { className: 'ad-actions' },
+                      h('button', { className: 'ad-btn', onClick: function () { if (props.onExportInventorySummary) props.onExportInventorySummary() } }, '导出汇总'),
+                      h('button', { className: 'ad-btn quiet', onClick: function () { if (props.onExportInventoryExceptions) props.onExportInventoryExceptions() } }, '差异清单'),
+                      h('button', { className: 'ad-btn', onClick: function () { if (props.onConfirmInventory) props.onConfirmInventory() } }, '确认监盘'))))),
               h('div', { style: { display: 'grid', gridTemplateColumns: '60px 1fr 90px 70px 70px 70px 1fr 60px', gap: '6px', fontSize: '11px', color: COLORS.muted, padding: '3px 0' } },
                 h('span', null, '编码'), h('span', null, '名称'), h('span', null, '账面金额'), h('span', null, '账面数量'), h('span', null, '实盘数量'), h('span', null, '差异'), h('span', null, '备注'), h('span', null, '状态')),
               (props.inventoryCounts || []).map(function (row) {
@@ -710,12 +793,12 @@ window.__ModuleLoader__.load({
             const confirmation = analysis.confirmation || {}
             const aging = analysis.aging || {}
             if (!confirmation.available && !aging.available) return null
-            return h('div', { style: { marginTop: '12px', padding: '14px', borderRadius: '12px', border: '1px solid ' + COLORS.line } },
-              h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' } },
-                h('div', { style: { fontSize: '13px', fontWeight: 600 } }, '函证与账龄'),
-                readOnly ? null : h('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' } },
-                  confirmation.available ? h('button', { onClick: exportConfirmation, style: { padding: '7px 12px', borderRadius: '8px', border: '1px solid ' + COLORS.accent, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '生成函证清单（Word）') : null,
-                  aging.available ? h('button', { onClick: exportAging, style: { padding: '7px 12px', borderRadius: '8px', border: '1px solid ' + COLORS.accent, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '生成账龄分析（Word）') : null)),
+            return h('div', { className: 'ad-card' },
+              h('div', { className: 'ad-head', style: { marginBottom: '8px' } },
+                h('div', { className: 'ad-row-title' }, '函证与账龄'),
+                readOnly ? null : h('div', { className: 'ad-actions' },
+                  confirmation.available ? h('button', { className: 'ad-btn', onClick: exportConfirmation }, '函证清单') : null,
+                  aging.available ? h('button', { className: 'ad-btn quiet', onClick: exportAging }, '账龄分析') : null)),
               h('div', { style: { display: 'flex', gap: '10px', flexWrap: 'wrap' } },
                 h('div', { style: { flex: '1 1 260px', minWidth: '260px', fontSize: '12px' } },
                   h('div', { style: { color: COLORS.muted, marginBottom: '4px' } }, '函证清单'),
@@ -736,23 +819,20 @@ window.__ModuleLoader__.load({
                       }))
                     : h('div', { style: { color: '#b45309' } }, aging.message || '不可用'))),
               h('div', { style: { marginTop: '8px', paddingTop: '8px', borderTop: '1px dashed ' + COLORS.line } },
-                h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' } },
-                  h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '函证回函跟踪（' + (props.confirmations || []).length + '）'),
-                  readOnly ? null : h('div', { style: { display: 'flex', gap: '10px' } },
-                    h('button', { onClick: function () { if (props.onExportConfirmationDifferences) props.onExportConfirmationDifferences() },
-                      style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '差异调节表（Word）'),
-                    h('button', { onClick: function () { if (props.onSyncConfirmations) props.onSyncConfirmations() },
-                      style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '同步台账'))),
+                h('div', { className: 'ad-head', style: { marginBottom: '8px' } },
+                  h('div', { className: 'ad-row-title' }, '回函跟踪'),
+                  readOnly ? null : h('div', { className: 'ad-actions' },
+                    h('button', { className: 'ad-btn primary', onClick: function () { if (props.onSyncConfirmations) props.onSyncConfirmations() } }, '同步台账'),
+                    h('button', { className: 'ad-btn quiet', onClick: function () { if (props.onExportConfirmationDifferences) props.onExportConfirmationDifferences() } }, '差异调节表'))),
                 (props.confirmations || []).length
                   ? (props.confirmations || []).map(function (item) {
                       const replied = Math.abs(Number(item.replied_amount || 0)) > 0 || item.status === '已回函'
-                      return h('div', { key: 'conf-' + item.id, style: { padding: '3px 0', borderBottom: '1px solid ' + COLORS.line } },
-                        h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px' } },
-                          h('span', null, item.code + ' ' + item.name + ' · ' + Number(item.balance).toLocaleString()
-                            + (replied ? ' · 回函 ' + Number(item.replied_amount).toLocaleString() + ' · 差异 ' + Number(item.difference).toLocaleString() : '')),
-                          h('div', { style: { display: 'flex', gap: '8px', alignItems: 'center' } },
-                            (!readOnly && item.status !== '已回函') ? h('button', { onClick: function () { setReplyItem(replyItem === item.id ? null : item.id); setReplyAmount(String(item.balance)); setReplyNote('') },
-                              style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '11px', cursor: 'pointer' } }, '登记回函') : null,
+                      return h('div', { key: 'conf-' + item.id, className: 'ad-row', style: { alignItems: 'flex-start' } },
+                        h('div', { style: { minWidth: 0, flex: 1 } },
+                          h('div', { className: 'ad-row-title' }, item.code + ' ' + item.name),
+                          h('div', { className: 'ad-row-meta' }, '账面 ' + Number(item.balance).toLocaleString() + (replied ? ' · 回函 ' + Number(item.replied_amount).toLocaleString() + ' · 差异 ' + Number(item.difference).toLocaleString() : '')),
+                          h('div', { className: 'ad-actions', style: { marginTop: '6px' } },
+                            (!readOnly && item.status !== '已回函') ? h('button', { className: 'ad-btn quiet', onClick: function () { setReplyItem(replyItem === item.id ? null : item.id); setReplyAmount(String(item.balance)); setReplyNote('') } }, '登记回函') : null,
                             item.attachment_name ? h('button', { onClick: function () { if (props.onPreviewConfirmationAttachment) props.onPreviewConfirmationAttachment(item) },
                               style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '11px', cursor: 'pointer' } }, '查看扫描件') : null,
                             readOnly ? null : h('label', { style: { color: COLORS.muted, fontSize: '11px', cursor: 'pointer' } },
@@ -763,7 +843,7 @@ window.__ModuleLoader__.load({
                           h('input', { value: replyAmount, onChange: function (e) { setReplyAmount(e.target.value) }, placeholder: '回函金额', style: { width: '110px', padding: '4px 7px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }),
                           h('input', { value: replyNote, onChange: function (e) { setReplyNote(e.target.value) }, placeholder: '差异说明', style: { flex: 1, minWidth: '80px', padding: '4px 7px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }),
                           h('button', { onClick: function () { if (props.onReplyConfirmation) props.onReplyConfirmation(item.id, Number(replyAmount) || 0, replyNote); setReplyItem(null) },
-                            style: { padding: '4px 10px', borderRadius: '6px', border: 0, background: COLORS.accent, color: '#fff', fontSize: '11px', cursor: 'pointer' } }, '保存')) : null)
+                            style: { padding: '4px 10px', borderRadius: '6px', border: 0, background: COLORS.accent, color: 'var(--dsw-alias-label-primary-foreground)', fontSize: '11px', cursor: 'pointer' } }, '保存')) : null)
                     })
                   : h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '尚未同步，点击「同步台账」生成')))
           })(),
@@ -777,17 +857,10 @@ window.__ModuleLoader__.load({
           h('div', { style: { marginTop: '12px', padding: '14px', borderRadius: '12px', border: '1px solid ' + COLORS.line } },
             h('div', { style: { fontSize: '13px', fontWeight: 600, marginBottom: '6px' } }, '项目数据导入'),
             h('div', { style: { fontSize: '11px', color: COLORS.muted, marginBottom: '8px' } }, '导入科目余额表与序时账后，可执行试算平衡、勾稽与抽样程序（支持 .xlsx / .xls / .csv）。'),
-            readOnly ? h('div', { style: { fontSize: '12px', color: '#b45309' } }, '项目已归档，不可导入') : h('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap' } },
-              h('label', { style: { padding: '7px 12px', borderRadius: '8px', border: '1px solid ' + COLORS.accent, color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } },
-                '上传科目余额表', h('input', { type: 'file', accept: '.xlsx,.xls,.csv', style: { display: 'none' }, onChange: function (e) { const f = e.target.files && e.target.files[0]; if (f && props.onImportData) props.onImportData('tb', f); e.target.value = '' } })),
-              h('label', { style: { padding: '7px 12px', borderRadius: '8px', border: '1px solid ' + COLORS.accent, color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } },
-                '上传序时账/明细账', h('input', { type: 'file', accept: '.xlsx,.xls,.csv', style: { display: 'none' }, onChange: function (e) { const f = e.target.files && e.target.files[0]; if (f && props.onImportData) props.onImportData('journal', f); e.target.value = '' } })),
-              h('label', { style: { padding: '7px 12px', borderRadius: '8px', border: '1px solid ' + COLORS.accent, color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } },
-                '上传财务报表（xlsx）', h('input', { type: 'file', accept: '.xlsx', style: { display: 'none' }, onChange: function (e) { const f = e.target.files && e.target.files[0]; if (f && props.onImportFinancialStatements) props.onImportFinancialStatements(f); e.target.value = '' } })),
-              h('label', { style: { padding: '7px 12px', borderRadius: '8px', border: '1px solid ' + COLORS.line, color: COLORS.muted, fontSize: '12px', cursor: 'pointer' } },
-                '校验科目余额表', h('input', { type: 'file', accept: '.xlsx,.xls,.csv', style: { display: 'none' }, onChange: function (e) { const f = e.target.files && e.target.files[0]; if (f && props.onValidateImportFile) props.onValidateImportFile('tb', f); e.target.value = '' } })),
-              h('label', { style: { padding: '7px 12px', borderRadius: '8px', border: '1px solid ' + COLORS.line, color: COLORS.muted, fontSize: '12px', cursor: 'pointer' } },
-                '校验序时账', h('input', { type: 'file', accept: '.xlsx,.xls,.csv', style: { display: 'none' }, onChange: function (e) { const f = e.target.files && e.target.files[0]; if (f && props.onValidateImportFile) props.onValidateImportFile('journal', f); e.target.value = '' } }))),
+            readOnly ? h('div', { className: 'ad-row-meta' }, '项目已归档，不可导入') : h('div', { className: 'ad-form' },
+              h('label', { className: 'ad-field' }, '科目余额表', h('input', { className: 'ad-input', type: 'file', accept: '.xlsx,.xls,.csv', onChange: function (e) { const f = e.target.files && e.target.files[0]; if (f && props.onImportData) props.onImportData('tb', f); e.target.value = '' } })),
+              h('label', { className: 'ad-field' }, '序时账', h('input', { className: 'ad-input', type: 'file', accept: '.xlsx,.xls,.csv', onChange: function (e) { const f = e.target.files && e.target.files[0]; if (f && props.onImportData) props.onImportData('journal', f); e.target.value = '' } })),
+              h('label', { className: 'ad-field' }, '财务报表', h('input', { className: 'ad-input', type: 'file', accept: '.xlsx', onChange: function (e) { const f = e.target.files && e.target.files[0]; if (f && props.onImportFinancialStatements) props.onImportFinancialStatements(f); e.target.value = '' } }))),
             h('div', { style: { display: 'flex', gap: '10px', marginTop: '6px', fontSize: '11px' } },
               h('span', { style: { color: COLORS.muted } }, '标准模板：'),
               h('button', { onClick: function () { if (props.onDownloadImportTemplate) props.onDownloadImportTemplate('tb') }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '11px', cursor: 'pointer' } }, '下载科目余额表模板'),
@@ -801,7 +874,7 @@ window.__ModuleLoader__.load({
               (props.multiSheets || []).length ? h('select', { value: props.multiSheetIndex, onChange: function (e) { if (props.onSetMultiSheetIndex) props.onSetMultiSheetIndex(e.target.value) }, style: { padding: '4px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px' } },
                 props.multiSheets.map(function (name, index) { return h('option', { key: name + index, value: String(index) }, name) })) : null,
               (props.multiSheets || []).length ? h('button', { onClick: function () { if (props.onSubmitMultiSheet) props.onSubmitMultiSheet('validate') }, style: { padding: '5px 10px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px', cursor: 'pointer' } }, '校验所选') : null,
-              (props.multiSheets || []).length ? h('button', { onClick: function () { if (props.onSubmitMultiSheet) props.onSubmitMultiSheet('import') }, style: { padding: '5px 10px', borderRadius: '7px', border: 0, background: COLORS.accent, color: '#fff', fontSize: '11px', cursor: 'pointer' } }, '导入所选') : null),
+              (props.multiSheets || []).length ? h('button', { onClick: function () { if (props.onSubmitMultiSheet) props.onSubmitMultiSheet('import') }, style: { padding: '5px 10px', borderRadius: '7px', border: 0, background: COLORS.accent, color: 'var(--dsw-alias-label-primary-foreground)', fontSize: '11px', cursor: 'pointer' } }, '导入所选') : null),
             props.importMessage ? h('div', { style: { display: 'flex', gap: '8px', alignItems: 'center', marginTop: '8px', flexWrap: 'wrap' } },
               h('div', { style: { fontSize: '12px', color: props.importMessage.indexOf('失败') >= 0 ? '#b91c1c' : '#16a34a' } }, props.importMessage),
               (props.importMessage.indexOf('勾稽提示') >= 0 && !readOnly) ? h('button', { onClick: function () { if (props.onGenerateTrialBalance) props.onGenerateTrialBalance() },
@@ -835,29 +908,27 @@ window.__ModuleLoader__.load({
                     title: '核对数字勾稽/公式/账面差异',
                     style: { padding: '2px 6px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '10px', cursor: 'pointer' } }, '核对'))
               })
-              return h('div', { key: item.id, style: { padding: '8px 0', borderBottom: '1px solid ' + COLORS.line } },
-                h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
-                  h('div', null,
-                    h('span', { style: { fontSize: '13px' } }, item.name),
-                    item.note ? h('span', { style: { fontSize: '11px', color: COLORS.muted, marginLeft: '8px' } }, item.note) : null),
-                  h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px' } },
-                    readOnly ? null : h('label', { style: { fontSize: '11px', color: COLORS.accent, cursor: 'pointer' } }, '上传附件',
+              return h('div', { key: item.id, className: 'ad-row', style: { alignItems: 'flex-start' } },
+                h('div', { style: { minWidth: 0, flex: 1 } },
+                  h('div', { className: 'ad-row-title' }, item.name),
+                  item.note ? h('div', { className: 'ad-row-meta' }, item.note) : null,
+                  attachments.length ? h('div', { style: { marginTop: '6px' } }, attachments) : null),
+                h('div', { className: 'ad-actions' },
+                    readOnly ? null : h('label', { className: 'ad-btn quiet' }, '上传',
                       h('input', { type: 'file', style: { display: 'none' },
                         onChange: function (event) {
                           const file = event.target.files && event.target.files[0]
                           if (file && props.onUploadAttachment) props.onUploadAttachment(item, file)
                           event.target.value = ''
                         } })),
-                    readOnly ? null : h('button', { onClick: function () { if (props.onDeletePbc) props.onDeletePbc(item) }, 'data-pbc-delete': String(item.id),
-                      style: { border: 0, background: 'transparent', color: COLORS.muted, fontSize: '11px', cursor: 'pointer' } }, '删除'),
+                    readOnly ? null : h('button', { className: 'ad-btn quiet', onClick: function () { if (props.onDeletePbc) props.onDeletePbc(item) }, 'data-pbc-delete': String(item.id) }, '删除'),
                     h('span', {
                       onClick: function () { if (!readOnly && props.onCyclePbc) props.onCyclePbc(item) },
                       title: '点击切换：未交 → 待补 → 已交',
                       'data-pbc-id': String(item.id),
                       style: { cursor: 'pointer' },
-                    }, h(Badge, { tone: toneOf(item.status) }, item.status)))),
-                attachments.length ? h('div', null, attachments) : null)
-            }) : [h('div', { key: 'empty', style: { padding: '14px', fontSize: '12px', color: COLORS.muted } }, '暂无资料清单，先新增应收资料')])
+                    }, h(Badge, { tone: toneOf(item.status) }, item.status))))
+            }) : [h('div', { key: 'empty', className: 'ad-row-meta' }, '暂无资料清单，先新增应收资料')])
         const checkPanel = props.clientCheckMsg ? h('div', { style: { marginTop: '10px', padding: '10px', borderRadius: '8px', border: '1px solid ' + COLORS.line, fontSize: '12px' } },
           h('div', { style: { fontWeight: 600, marginBottom: '4px' } }, props.clientCheckMsg),
           props.clientCheck ? h('button', { onClick: function () { if (props.onExportClientCheck) props.onExportClientCheck() },
@@ -871,15 +942,15 @@ window.__ModuleLoader__.load({
                 h('button', { onClick: function () { if (props.onAddMisstatement) props.onAddMisstatement(f) },
                   style: { marginLeft: '8px', padding: '1px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '10px', cursor: 'pointer' } }, '记入未更正'))
             })) : null) : null
-        const addForm = h('div', { style: { display: 'flex', gap: '6px', marginTop: '10px' } },
-          h('input', { value: props.newPbcName || '', onChange: function (event) { if (props.onPbcNameChange) props.onPbcNameChange(event.target.value) },
-            placeholder: '新增资料项名称（如：银行开户许可证）',
-            style: { flex: 1, padding: '7px 9px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }),
-          readOnly ? null : h('button', { onClick: function () { if (props.onAddPbc) props.onAddPbc(props.newPbcName || '') },
-            style: { padding: '7px 12px', borderRadius: '7px', border: 0, background: COLORS.accent, color: '#fff', fontSize: '12px', cursor: 'pointer' } }, '+ 新增资料项'))
-        return h('div', null,
-          h(Section, null, h('div', { style: { fontSize: '13px' } }, '应收资料清单（PBC）'), h('div', { style: { fontSize: '12px', color: COLORS.muted, marginTop: '2px' } }, '上传底表、点击状态切换；所有变更写入操作留痕')),
-          h('div', { style: { padding: '6px 14px' } }, rows, checkPanel, addForm), eventsBlock('pbc'))
+        const addForm = h('div', { className: 'ad-form', style: { marginTop: '12px' } },
+          h('label', { className: 'ad-field' }, '新增资料', h('input', { className: 'ad-input', value: props.newPbcName || '', onChange: function (event) { if (props.onPbcNameChange) props.onPbcNameChange(event.target.value) }, placeholder: '如：银行开户许可证' })),
+          readOnly ? null : h('div', { className: 'ad-form-actions' }, h('button', { className: 'ad-btn primary', onClick: function () { if (props.onAddPbc) props.onAddPbc(props.newPbcName || '') } }, '新增')))
+        return h('div', { className: 'ad-zone-page' },
+          h('div', { className: 'ad-head' },
+            h('div', null,
+              h('h1', { className: 'ad-title' }, '资料清单'),
+              h('div', { className: 'ad-sub' }, '点状态切换未交、待补、已交。上传和删除写在行上，不另开一排按钮。'))),
+          rows, checkPanel, addForm, eventsBlock('pbc'))
       }
       if (props.zone === '审计底稿') {
         const toneOfWp = function (status) { return status === '已完成' || status === '已执行' || status === '已预填' || status === '已生成' ? 'ok' : status === '进行中' ? 'warn' : status === '不适用' ? 'muted' : 'bad' }
@@ -924,8 +995,13 @@ window.__ModuleLoader__.load({
               h('button', { onClick: function () { if (props.onDownloadWorkpaper) props.onDownloadWorkpaper(item) },
                 style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '下载')))
         })
-        return h('div', null,
-          h(Section, null, h('div', { style: { fontSize: '13px' } }, '审计底稿（审计员产出）'), h('div', { style: { fontSize: '12px', color: COLORS.muted, marginTop: '2px' } }, '按事务所模板与索引号生成，点击状态可切换执行状态')),
+        return h('div', { className: 'ad-zone-page' },
+          h('div', { className: 'ad-head' },
+            h('div', null,
+              h('h1', { className: 'ad-title' }, '底稿'),
+              h('div', { className: 'ad-sub' }, '按模板生成。点击状态只改执行进度，不代表已复核。')),
+            h('button', { className: 'ad-btn primary', disabled: props.generating || readOnly, onClick: function () { if (props.onGenerateAll) props.onGenerateAll() } }, props.generating ? '生成中…' : '生成常用底稿')),
+          h(EngineFillsPanel, { projectId: props.project ? props.project.id : '' }),
           h('div', { style: { padding: '8px 14px 0', display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center', fontSize: '11px' } },
             h('span', { style: { color: COLORS.muted } }, '底稿统计：共 ' + generated.length + ' 份 · 台账 ' + (items ? items.length : 0) + ' 项'),
             h('input', { value: props.wpSearch || '', placeholder: '搜索底稿名称/索引/说明', onChange: function (e) { if (props.onSetWpSearch) props.onSetWpSearch(e.target.value) },
@@ -943,17 +1019,16 @@ window.__ModuleLoader__.load({
             generated.length ? h('span', { title: '点击预览最新底稿', onClick: function () { if (props.onPreviewWorkpaper) props.onPreviewWorkpaper(generated[0]) },
               style: { color: COLORS.accent, cursor: 'pointer', textDecoration: 'underline' } }, '最新：' + generated[0].created_at) : null),
           h('div', { style: { padding: '6px 14px' } }, rows),
-          h('div', { style: { padding: '10px 14px', borderTop: '1px solid ' + COLORS.line } },
-            h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '8px' } },
+          h('details', { className: 'ad-more' },
+            h('summary', null, '按类生成、打包与校验'),
+            h('div', { className: 'ad-actions', style: { marginBottom: '8px' } },
               h('select', { value: props.reviewerName || '待复核', onChange: function (e) { if (props.onReviewerNameChange) props.onReviewerNameChange(e.target.value) },
                 style: { padding: '7px 9px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } },
                 h('option', { value: '待复核' }, '复核人：待复核'),
                 (props.members || []).map(function (m) { return h('option', { key: m.id, value: m.name }, '复核人：' + m.name) })),
               h('input', { type: 'date', value: props.generatedDate || '', onChange: function (e) { if (props.onGeneratedDateChange) props.onGeneratedDateChange(e.target.value) },
                 style: { padding: '6px 8px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }),
-              h('button', { onClick: function () { if (props.onGenerateAll) props.onGenerateAll() }, disabled: props.generating || readOnly,
-                style: { padding: '8px 14px', borderRadius: '8px', border: 0, background: '#16a34a', color: '#fff', fontSize: '12px', cursor: 'pointer' } },
-                props.generating ? '生成中…' : '一键生成常用底稿（4 类）'),
+              h('button', { className: 'ad-btn', disabled: props.generating || readOnly, onClick: function () { if (props.onGenerateLocal) props.onGenerateLocal() } }, '本机引擎生成'),
               ['tb', 'fs', 'voucher'].map(function (k) {
                 const label = k === 'tb' ? '余额表' : k === 'fs' ? '报表' : '凭证'
                 const list = props.localAtts || []
@@ -962,28 +1037,17 @@ window.__ModuleLoader__.load({
                   style: { padding: '6px 8px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px', maxWidth: '160px' } },
                   h('option', { value: '' }, label + '：自动'), list.map(function (a) { return h('option', { key: k + a.id, value: a.id }, a.filename) }))
               }),
-              h('button', { onClick: function () { if (props.onGenerateLocal) props.onGenerateLocal() }, disabled: props.generating || readOnly,
-                style: { padding: '8px 14px', borderRadius: '8px', border: 0, background: '#7c3aed', color: '#fff', fontSize: '12px', cursor: 'pointer' } },
-                props.generating ? '生成中…' : '本机引擎生成（全量勾稽）'),
-              h('button', { onClick: function () { if (props.onExportWorkpapers) props.onExportWorkpapers() },
-                style: { padding: '8px 14px', borderRadius: '8px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '打包下载全部底稿（ZIP）'),
-              h('button', { onClick: function () { if (props.onExportWorkpaperList) props.onExportWorkpaperList() }, style: { padding: '8px 14px', borderRadius: '8px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '导出底稿台账（CSV）'),
-              h('label', { style: { padding: '8px 14px', borderRadius: '8px', border: '1px solid ' + COLORS.line, color: COLORS.muted, fontSize: '12px', cursor: 'pointer' } },
-                '校验底稿包（ZIP）', h('input', { type: 'file', accept: '.zip', style: { display: 'none' }, onChange: function (e) { const f = e.target.files && e.target.files[0]; if (f && props.onVerifyWorkpapersZip) props.onVerifyWorkpapersZip(f); e.target.value = '' } })),
+              h('button', { className: 'ad-btn', onClick: function () { if (props.onExportWorkpapers) props.onExportWorkpapers() } }, '打包下载'),
+              h('button', { className: 'ad-btn quiet', onClick: function () { if (props.onExportWorkpaperList) props.onExportWorkpaperList() } }, '导出台账'),
+              h('label', { className: 'ad-btn' }, '校验底稿包', h('input', { type: 'file', accept: '.zip', style: { display: 'none' }, onChange: function (e) { const f = e.target.files && e.target.files[0]; if (f && props.onVerifyWorkpapersZip) props.onVerifyWorkpapersZip(f); e.target.value = '' } })),
               props.wpsVerifyMessage ? h('span', { style: { fontSize: '11px', color: props.wpsVerifyMessage.indexOf('通过') >= 0 && props.wpsVerifyMessage.indexOf('未') < 0 ? '#16a34a' : '#b45309' } }, props.wpsVerifyMessage) : null,
-              h('button', { onClick: function () { if (props.onGenerateWorkpaper) props.onGenerateWorkpaper('currency') }, disabled: props.generating || readOnly,
-                style: { padding: '8px 14px', borderRadius: '8px', border: 0, background: COLORS.accent, color: '#fff', fontSize: '12px', cursor: 'pointer' } },
-                props.generating ? '生成中…' : '生成货币资金底稿（ZA）'),
-              h('button', { onClick: function () { if (props.onGenerateWorkpaper) props.onGenerateWorkpaper('receivable') }, disabled: props.generating || readOnly,
-                style: { padding: '8px 14px', borderRadius: '8px', border: '1px solid ' + COLORS.accent, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } },
-                props.generating ? '生成中…' : '生成应收账款底稿（ZE）'),
-              h('button', { onClick: function () { if (props.onGenerateWorkpaper) props.onGenerateWorkpaper('inventory') }, disabled: props.generating || readOnly,
-                style: { padding: '8px 14px', borderRadius: '8px', border: '1px solid ' + COLORS.accent, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } },
-                props.generating ? '生成中…' : '生成存货底稿（ZJ）'),
-              h('button', { onClick: function () { if (props.onGenerateWorkpaper) props.onGenerateWorkpaper('revenue') }, disabled: props.generating || readOnly,
-                style: { padding: '8px 14px', borderRadius: '8px', border: '1px solid ' + COLORS.accent, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } },
-                props.generating ? '生成中…' : '生成营业收入成本底稿（SA）'),
-              props.generateMessage ? h('span', { style: { fontSize: '11px', color: COLORS.muted } }, props.generateMessage) : null),
+              h('select', { className: 'ad-input', style: { width: 'auto' }, value: wpKind, onChange: function (e) { setWpKind(e.target.value) } },
+                h('option', { value: 'currency' }, '货币资金 ZA'),
+                h('option', { value: 'receivable' }, '应收账款 ZE'),
+                h('option', { value: 'inventory' }, '存货 ZJ'),
+                h('option', { value: 'revenue' }, '营业收入成本 SA')),
+              h('button', { className: 'ad-btn', disabled: props.generating || readOnly, onClick: function () { if (props.onGenerateWorkpaper) props.onGenerateWorkpaper(wpKind) } }, '生成所选'),
+              props.generateMessage ? h('span', { className: 'ad-row-meta' }, props.generateMessage) : null),
             generated.length ? h('div', null,
               h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px', margin: '6px 0' } },
                 h('div', { style: { fontSize: '12px', fontWeight: 600 } }, '已生成底稿（' + filteredGenerated.length + (props.generatedKind && props.generatedKind !== 'all' ? ' / ' + generated.length : '') + '）'),
@@ -991,7 +1055,7 @@ window.__ModuleLoader__.load({
                   style: { padding: '5px 8px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px' } },
                   h('option', { value: 'all' }, '全部类型'),
                   kindOptions.map(function (kind) { return h('option', { key: kind, value: kind }, KIND_LABELS[kind] || kind) }))),
-              generatedRows) : h('div', { style: { fontSize: '11px', color: COLORS.muted } }, '还没有生成底稿')),
+              generatedRows) : h('div', { className: 'ad-row-meta' }, '还没有生成底稿')),
           eventsBlock('workpaper'))
       }
       if (props.zone === '审计程序') {
@@ -1033,16 +1097,18 @@ window.__ModuleLoader__.load({
           }, options.map(function (name) { return h('option', { key: 'owner-' + row.id + '-' + (name || 'none'), value: name }, name || '未指派') }))
         }
         const btnStyle = { padding: '6px 10px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11.5px', cursor: 'pointer', whiteSpace: 'nowrap' }
-        return h('div', { style: { padding: '18px', maxWidth: '960px', height: '100%', overflow: 'auto', boxSizing: 'border-box' } },
-          h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', flexWrap: 'wrap' } },
-            h('div', { style: { minWidth: '240px' } },
-              h('div', { style: { fontSize: '15px', fontWeight: 600, marginBottom: '2px' } }, '审计程序清单'),
-              h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '业务类型：' + (((props.project || {}).business_type) || '年报审计') + ' · 共 ' + rows.length + ' 项')),
-            h('div', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' } },
-              h('button', { onClick: function () { if (props.onExportPrograms) props.onExportPrograms() }, style: btnStyle }, '导出 Word'),
-              h('button', { onClick: function () { if (props.onExportProgramsXlsx) props.onExportProgramsXlsx() }, style: btnStyle }, '导出 Excel'),
-              readOnly ? null : h('button', { onClick: function () { if (props.onCompletePrograms) props.onCompletePrograms() }, style: Object.assign({}, btnStyle, { border: '1px solid ' + COLORS.accent, color: COLORS.accent }) }, '补全程序清单'),
-              readOnly ? null : h('button', { onClick: function () { if (props.onSavePrograms) props.onSavePrograms() }, style: Object.assign({}, btnStyle, { border: 0, background: COLORS.accent, color: '#fff' }) }, '保存'))),
+        return h('div', { className: 'ad-zone-page' },
+          h('div', { className: 'ad-head' },
+            h('div', null,
+              h('h1', { className: 'ad-title' }, '审计程序'),
+              h('div', { className: 'ad-sub' }, (((props.project || {}).business_type) || '年报审计') + ' · ' + rows.length + ' 项。改完点保存。')),
+            readOnly ? null : h('button', { className: 'ad-btn primary', onClick: function () { if (props.onSavePrograms) props.onSavePrograms() } }, '保存')),
+          h('details', { className: 'ad-more' },
+            h('summary', null, '导出与补全'),
+            h('div', { className: 'ad-actions' },
+              h('button', { className: 'ad-btn', onClick: function () { if (props.onExportPrograms) props.onExportPrograms() } }, '导出 Word'),
+              h('button', { className: 'ad-btn', onClick: function () { if (props.onExportProgramsXlsx) props.onExportProgramsXlsx() } }, '导出 Excel'),
+              readOnly ? null : h('button', { className: 'ad-btn', onClick: function () { if (props.onCompletePrograms) props.onCompletePrograms() } }, '补全程序清单'))),
           h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', margin: '8px 0 2px', fontSize: '11px', color: COLORS.muted } },
             h('span', null, '数据来源：'),
             ['账载', '外部', '现场', '程序'].map(function (src) {
@@ -1112,7 +1178,7 @@ window.__ModuleLoader__.load({
             '会话与当前公司/项目关联；列表只显示本项目的对话，点会话可直接回到历史。'),
           h('button', {
             onClick: function () { if (props.onNewSession) props.onNewSession(props.company, props.project) },
-            style: { marginBottom: '12px', padding: '9px 16px', borderRadius: '8px', border: 0, background: COLORS.accent, color: '#fff', fontSize: '13px', cursor: 'pointer' },
+            style: { marginBottom: '12px', padding: '9px 16px', borderRadius: '8px', border: 0, background: COLORS.accent, color: 'var(--dsw-alias-label-primary-foreground)', fontSize: '13px', cursor: 'pointer' },
           }, '+ 新建项目对话'),
           h('div', null, sessionRows))
       }
@@ -1136,7 +1202,7 @@ window.__ModuleLoader__.load({
                     approverMembers.map(function (m) { return h('option', { key: m.id, value: m.username }, '审批人：' + m.name) })))
                 }
                 actions.push(h('button', { key: 'submit', onClick: function () { if (props.onSubmitApproval) props.onSubmitApproval(item, approvers[item.id] || (approverMembers[0] && approverMembers[0].username)) },
-                  style: { marginTop: '8px', padding: '6px 12px', borderRadius: '7px', border: 0, background: COLORS.accent, color: '#fff', fontSize: '12px', cursor: 'pointer' } }, '提交审批'))
+                  style: { marginTop: '8px', padding: '6px 12px', borderRadius: '7px', border: 0, background: COLORS.accent, color: 'var(--dsw-alias-label-primary-foreground)', fontSize: '12px', cursor: 'pointer' } }, '提交审批'))
               }
               const isAssigned = !item.assigned_username || item.assigned_username === user.username || user.role === 'kb-admin' || user.role === 'admin'
               if (item.status === '待审批' && !canApprove) {
@@ -1161,28 +1227,24 @@ window.__ModuleLoader__.load({
                 item.opinion ? '意见：' + item.opinion : '',
                 item.decided_at || item.submitted_at || '',
               ].filter(Boolean).join(' · ')
-              return h('div', { key: item.id, style: { padding: '10px 0', borderBottom: '1px solid ' + COLORS.line } },
-                h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
-                  h('div', null,
-                    h('span', { style: { fontSize: '13px' } }, item.title),
-                    h('span', { style: { fontSize: '11px', color: COLORS.muted, marginLeft: '8px' } }, item.kind === 'engagement' ? '立项' : item.kind === 'review' ? '成果复核' : item.kind)),
-                  h(Badge, { tone: toneOf(item.status) }, item.status)),
-                meta ? h('div', { style: { fontSize: '11px', color: COLORS.muted, marginTop: '4px' } }, meta) : null,
-                item.overdue_days ? h('div', { style: { marginTop: '4px' } }, h(Badge, { tone: item.overdue_days > 7 ? 'bad' : 'warn' }, '超期 ' + item.overdue_days + ' 天')) : null,
-                actions.length ? h('div', null, actions) : null)
+              return h('div', { key: item.id, className: 'ad-row', style: { alignItems: 'flex-start' } },
+                h('div', { style: { minWidth: 0, flex: 1 } },
+                  h('div', { className: 'ad-row-title' }, item.title),
+                  h('div', { className: 'ad-row-meta' }, (item.kind === 'engagement' ? '立项' : item.kind === 'review' ? '成果复核' : item.kind) + (meta ? ' · ' + meta : '')),
+                  item.overdue_days ? h('div', { style: { marginTop: '4px' } }, h(Badge, { tone: item.overdue_days > 7 ? 'bad' : 'warn' }, '超期 ' + item.overdue_days + ' 天')) : null,
+                  actions.length ? h('div', { className: 'ad-actions', style: { marginTop: '8px' } }, actions) : null),
+                h(Badge, { tone: toneOf(item.status) }, item.status))
+
             }) : [h('div', { key: 'empty', style: { padding: '14px', fontSize: '12px', color: COLORS.muted } }, '暂无审批事项')])
-        const identityBar = h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', fontSize: '12px' } },
-          h('span', { style: { color: COLORS.muted } }, '当前身份：'),
-          h('span', { style: { fontWeight: 600 } }, user.name + '（' + user.role + '）'),
-          h('span', { style: { color: canApprove ? '#16a34a' : '#b45309' } }, canApprove ? '可审批' : '只读/提交'),
-          h('button', { onClick: function () { if (props.onExportApprovals) props.onExportApprovals() }, style: { marginLeft: 'auto', padding: '5px 10px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '导出 CSV'),
-          h('select', { value: statusFilter, onChange: function (e) { if (props.onSetApprovalFilter) props.onSetApprovalFilter(e.target.value) },
-            style: { marginLeft: 'auto', padding: '5px 8px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } },
+        const identityBar = h('div', { className: 'ad-toolbar', style: { marginBottom: '12px' } },
+          h('span', { className: 'ad-pill ' + (canApprove ? 'ok' : 'warn') }, user.name + ' · ' + (canApprove ? '可审批' : '只读/提交')),
+          h('select', { className: 'ad-input', style: { width: 'auto' }, value: statusFilter, onChange: function (e) { if (props.onSetApprovalFilter) props.onSetApprovalFilter(e.target.value) } },
             h('option', { value: 'all' }, '全部状态（' + (items ? items.length : 0) + '）'),
             h('option', { value: '待提交' }, '待提交'),
             h('option', { value: '待审批' }, '待审批'),
             h('option', { value: '已通过' }, '已通过'),
-            h('option', { value: '已驳回' }, '已驳回')))
+            h('option', { value: '已驳回' }, '已驳回')),
+          h('button', { className: 'ad-btn', onClick: function () { if (props.onExportApprovals) props.onExportApprovals() } }, '导出'))
         const memberList = props.members || []
         if (readOnly) {
           return h('div', { style: { padding: '20px', maxWidth: '720px' } },
@@ -1206,15 +1268,15 @@ window.__ModuleLoader__.load({
             h('input', { value: props.newMemberName || '', onChange: function (e) { if (props.onNewMemberNameChange) props.onNewMemberNameChange(e.target.value) }, placeholder: '用户名（如 partner）',
               style: { width: '160px', padding: '6px 8px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }),
             h('button', { onClick: function () { if (props.onAddMember) props.onAddMember(props.newMemberName || '') },
-              style: { padding: '6px 10px', borderRadius: '7px', border: 0, background: COLORS.accent, color: '#fff', fontSize: '12px', cursor: 'pointer' } }, '+ 添加成员')))
-        return h('div', { style: { padding: '20px', maxWidth: '720px' } },
-          h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' } },
-            h('div', { style: { fontSize: '14px' } }, '审批状态'),
-            canApprove ? h('button', { onClick: function () { if (props.onEscalateApprovals) props.onEscalateApprovals() },
-              style: { padding: '6px 10px', borderRadius: '7px', border: '1px solid #b45309', background: 'transparent', color: '#b45309', fontSize: '12px', cursor: 'pointer' } }, '超期升级提醒') : null),
-          props.escalateMessage ? h('div', { style: { fontSize: '12px', color: '#b45309', marginBottom: '8px' } }, props.escalateMessage) : null,
+              style: { padding: '6px 10px', borderRadius: '7px', border: 0, background: COLORS.accent, color: 'var(--dsw-alias-label-primary-foreground)', fontSize: '12px', cursor: 'pointer' } }, '+ 添加成员')))
+        return h('div', { className: 'ad-zone-page' },
+          h('div', { className: 'ad-head' },
+            h('div', null,
+              h('h1', { className: 'ad-title' }, '审批'),
+              h('div', { className: 'ad-sub' }, '提交后等指派人通过或驳回。超期提醒不代替审批。')),
+            canApprove ? h('button', { className: 'ad-btn', onClick: function () { if (props.onEscalateApprovals) props.onEscalateApprovals() } }, '超期提醒') : null),
+          props.escalateMessage ? h('div', { className: 'ad-note' }, props.escalateMessage) : null,
           membersBlock,
-          h('div', { style: { fontSize: '12px', color: COLORS.muted, marginBottom: '6px' } }, '立项审批与成果复核：提交 → 待审批 → 通过/驳回，操作全程留痕。'),
           identityBar,
           h('div', null, rows), eventsBlock('approval'))
       }
@@ -1228,30 +1290,33 @@ window.__ModuleLoader__.load({
           return h('button', { onClick: onClick, disabled: disabled,
             style: { padding: '8px 14px', borderRadius: '8px', border: '1px solid ' + COLORS.accent, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, label)
         }
-        return h('div', { style: { padding: '20px', maxWidth: '960px', height: '100%', overflow: 'auto', boxSizing: 'border-box' } },
-          h('div', { style: { fontSize: '14px', fontWeight: 600, marginBottom: '4px' } }, '审计报告'),
-          h('div', { style: { fontSize: '12px', color: COLORS.muted, marginBottom: '12px' } }, '基于项目数据与底稿检查结果生成：检查清单 / 审计意见 / 报告初稿（AI 初稿，需人工复核）'),
-          h('div', { style: { marginBottom: '12px', padding: '10px 12px', borderRadius: '10px', border: '1px solid ' + COLORS.line, fontSize: '12px' } },
-            h('div', { style: { fontWeight: 600, marginBottom: '6px' } }, '报告要素'),
-            h('div', { style: { display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '6px' } },
-              h('span', { style: { color: COLORS.muted } }, '审计意见类型'),
-              h('select', { value: (props.reportElements || {}).opinion_type || '', onChange: function (e) { if (props.onSaveReportElements) props.onSaveReportElements({ opinion_type: e.target.value, emphasis: (props.reportElements || {}).emphasis || '', other_matters: (props.reportElements || {}).other_matters || '' }) },
-                style: { padding: '5px 8px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } },
+        return h('div', { className: 'ad-zone-page' },
+          h('div', { className: 'ad-head' },
+            h('div', null,
+              h('h1', { className: 'ad-title' }, '报告'),
+              h('div', { className: 'ad-sub' }, '初稿来自项目数据。出具前必须人工复核，系统不代下审计结论。')),
+            h('button', { className: 'ad-btn primary', disabled: readOnly || props.reportLoading, onClick: function () { if (props.onGenerateDraft) props.onGenerateDraft() } }, props.reportLoading ? '生成中…' : '生成报告初稿')),
+          h(ReportOverviewPanel, { projectId: props.project ? props.project.id : '' }),
+          h(ReportSealPanel, { projectId: props.project ? props.project.id : '' }),
+          h(KamPanel, { projectId: props.project ? props.project.id : '' }),
+          h(EvidencePanel, { projectId: props.project ? props.project.id : '' }),
+          h('div', { className: 'ad-form' },
+            h('div', { className: 'ad-row-title', style: { gridColumn: '1 / -1' } }, '报告要素'),
+            h('label', { className: 'ad-field' }, '审计意见类型',
+              h('select', { className: 'ad-input', value: (props.reportElements || {}).opinion_type || '', onChange: function (e) { if (props.onSaveReportElements) props.onSaveReportElements({ opinion_type: e.target.value, emphasis: (props.reportElements || {}).emphasis || '', other_matters: (props.reportElements || {}).other_matters || '' }) } },
                 h('option', { value: '' }, '未选择'),
                 h('option', { value: '标准无保留意见' }, '标准无保留意见'),
                 h('option', { value: '带强调事项段的无保留意见' }, '带强调事项段的无保留意见'),
                 h('option', { value: '保留意见' }, '保留意见'),
                 h('option', { value: '否定意见' }, '否定意见'),
-                h('option', { value: '无法表示意见' }, '无法表示意见')),
-              props.reportElementsMsg ? h('span', { style: { color: '#16a34a' } }, props.reportElementsMsg) : null),
-            h('div', { style: { marginBottom: '4px', color: COLORS.muted } }, '强调事项段'),
-            h('textarea', { value: (props.reportElements || {}).emphasis || '', rows: 2, onChange: function (e) { setTmpElements({ emphasis: e.target.value }) },
-              style: { width: '100%', marginBottom: '6px', padding: '6px 8px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }),
-            h('div', { style: { marginBottom: '4px', color: COLORS.muted } }, '其他事项段'),
-            h('textarea', { value: (props.reportElements || {}).other_matters || '', rows: 2, onChange: function (e) { setTmpElements({ other_matters: e.target.value }) },
-              style: { width: '100%', marginBottom: '6px', padding: '6px 8px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }),
-            h('button', { onClick: function () { if (props.onSaveReportElements) props.onSaveReportElements(Object.assign({}, props.reportElements || {}, tmpElements)) },
-              style: { padding: '5px 12px', borderRadius: '7px', border: 0, background: COLORS.accent, color: '#fff', fontSize: '11px', cursor: 'pointer' } }, '保存报告要素')),
+                h('option', { value: '无法表示意见' }, '无法表示意见'))),
+            h('label', { className: 'ad-field' }, '强调事项段',
+              h('textarea', { className: 'ad-input', value: (tmpElements.emphasis !== undefined ? tmpElements.emphasis : (props.reportElements || {}).emphasis) || '', rows: 2, onChange: function (e) { setTmpElements(function (p) { return Object.assign({}, p, { emphasis: e.target.value }) }) } })),
+            h('label', { className: 'ad-field' }, '其他事项段',
+              h('textarea', { className: 'ad-input', value: (tmpElements.other_matters !== undefined ? tmpElements.other_matters : (props.reportElements || {}).other_matters) || '', rows: 2, onChange: function (e) { setTmpElements(function (p) { return Object.assign({}, p, { other_matters: e.target.value }) }) } })),
+            h('div', { className: 'ad-form-actions' },
+              h('button', { className: 'ad-btn primary', onClick: function () { if (props.onSaveReportElements) props.onSaveReportElements(Object.assign({}, props.reportElements || {}, tmpElements)) } }, '保存'),
+              props.reportElementsMsg ? h('span', { className: 'ad-row-meta' }, props.reportElementsMsg) : null)),
           props.completeness && !props.completeness.ready ? h('div', { style: { marginBottom: '10px', fontSize: '12px', color: '#b45309' } }, '⚠ 报告完整性未完成（' + props.completeness.ok_count + '/' + props.completeness.count + '）：建议先处理未完成项再定稿/出具。') : null,
           props.completeness ? h('div', { style: { marginBottom: '12px', padding: '10px 12px', borderRadius: '10px', border: '1px solid ' + (props.completeness.ready ? '#16a34a' : COLORS.line), fontSize: '12px' } },
             h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' } },
@@ -1263,22 +1328,13 @@ window.__ModuleLoader__.load({
                 h('span', null, item.detail))
             })) : null,
           report.message ? h('div', { style: { fontSize: '12px', color: '#b45309', marginBottom: '10px' } }, report.message) : null,
-          h('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '16px' } },
-            button('生成检查清单', function () { if (props.onLoadChecklist) props.onLoadChecklist() }),
-            button('生成审计意见', function () { if (props.onLoadOpinion) props.onLoadOpinion() }),
-            h('button', { onClick: function () { if (props.onGenerateDraft) props.onGenerateDraft() }, disabled: readOnly || props.reportLoading,
-              style: { padding: '8px 14px', borderRadius: '8px', border: 0, background: readOnly ? 'rgba(127,127,127,0.3)' : COLORS.accent, color: '#fff', fontSize: '12px', cursor: 'pointer' } },
-              props.reportLoading ? '生成中…' : '生成报告初稿（Markdown）'),
-            draft ? h('button', { onClick: function () { if (props.onDownloadDraft) props.onDownloadDraft() },
-              style: { padding: '8px 14px', borderRadius: '8px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '下载初稿 Markdown') : null,
-            draft ? h('button', { onClick: function () { if (props.onExportDocx) props.onExportDocx(draft.version_id) },
-              style: { padding: '8px 14px', borderRadius: '8px', border: 0, background: '#2f7cf6', color: '#fff', fontSize: '12px', cursor: 'pointer' } }, '导出 Word（.docx）') : null,
-            draft ? h('button', { onClick: function () { if (props.onExportPdf) props.onExportPdf(draft.version_id) },
-              style: { padding: '8px 14px', borderRadius: '8px', border: 0, background: '#b91c1c', color: '#fff', fontSize: '12px', cursor: 'pointer' } }, '导出 PDF') : null,
-            h('button', { onClick: function () { if (props.onGenerateLetter) props.onGenerateLetter() },
-              style: { padding: '8px 14px', borderRadius: '8px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '生成管理层声明书'),
-            h('button', { onClick: function () { if (props.onLoadVersions) props.onLoadVersions() },
-              style: { padding: '8px 14px', borderRadius: '8px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '历史版本')),
+          h('div', { className: 'ad-actions', style: { marginBottom: '16px' } },
+            h('button', { className: 'ad-btn', onClick: function () { if (props.onLoadChecklist) props.onLoadChecklist() } }, '检查清单'),
+            h('button', { className: 'ad-btn', onClick: function () { if (props.onLoadOpinion) props.onLoadOpinion() } }, '审计意见'),
+            draft ? h('button', { className: 'ad-btn', onClick: function () { if (props.onExportDocx) props.onExportDocx(draft.version_id) } }, '导出 Word') : null,
+            draft ? h('button', { className: 'ad-btn', onClick: function () { if (props.onExportPdf) props.onExportPdf(draft.version_id) } }, '导出 PDF') : null,
+            h('button', { className: 'ad-btn', onClick: function () { if (props.onGenerateLetter) props.onGenerateLetter() } }, '管理层声明书'),
+            h('button', { className: 'ad-btn quiet', onClick: function () { if (props.onLoadVersions) props.onLoadVersions() } }, '历史版本')),
           checklist.length ? h('div', { style: { marginBottom: '16px' } },
             h('div', { style: { fontSize: '13px', fontWeight: 600, marginBottom: '6px' } }, '报告检查清单（' + checklist.length + '）'),
             checklist.map(function (item, index) {
@@ -1489,6 +1545,8 @@ window.__ModuleLoader__.load({
       const newClientState = React.useState(''); const newClient = newClientState[0]; const setNewClient = newClientState[1]
       const newNameState = React.useState(''); const newName = newNameState[0]; const setNewName = newNameState[1]
       const newPeriodState = React.useState(''); const newPeriod = newPeriodState[0]; const setNewPeriod = newPeriodState[1]
+      const contractIdState = React.useState(''); const contractId = contractIdState[0]; const setContractId = contractIdState[1]
+      const contractsState = React.useState([]); const contracts = contractsState[0]; const setContracts = contractsState[1]
       const businessTypeState = React.useState('年报审计'); const businessType = businessTypeState[0]; const setBusinessType = businessTypeState[1]
       const creatingState = React.useState(false); const creating = creatingState[0]; const setCreating = creatingState[1]
       const renameOpenState = React.useState(false); const renameOpen = renameOpenState[0]; const setRenameOpen = renameOpenState[1]
@@ -2188,12 +2246,14 @@ window.__ModuleLoader__.load({
         return chain.then(function () { return messages })
       }
       function createProject() {
-        if (!newClient.trim() || !newName.trim() || creating) return
+        if (creating) return
+        if (!contractId) { setCreateError('请先选择合同（没有合同不能立项）'); return }
+        if (!newName.trim()) { setCreateError('项目名称必填'); return }
         const targetClient = newClient.trim()
         const targetName = newName.trim()
         const files = { fs: newFsFile, tb: newTbFile, journal: newJournalFile }
         setCreating(true); setCreateError('')
-        api('/audit/projects/create', null, { method: 'POST', body: { client: targetClient, name: targetName, period: newPeriod.trim(), business_type: businessType } })
+        api('/audit/projects/create', null, { method: 'POST', body: { client: targetClient, name: targetName, period: newPeriod.trim(), business_type: businessType, contract_id: contractId } })
           .then(function () { return api('/audit/projects') })
           .then(function (d) {
             setData({ loading: false, companies: d.companies || [], error: '' })
@@ -2812,7 +2872,7 @@ window.__ModuleLoader__.load({
         return function () { document.removeEventListener('keydown', onKeyDown) }
       }, [preview])
 
-      if (loading) return h(Empty, null, '正在加载客户与项目…')
+      if (loading) return h(Empty, null, '正在加载项目…')
       if (error) return h(Empty, null, '加载失败：' + error + '（检查 mini4pro:8030 与 token）')
 
       const current = companies.filter(function (c) { return c.name === activeCompany })[0]
@@ -2902,24 +2962,26 @@ window.__ModuleLoader__.load({
         onNewSession: newProjectSession, onOpenSession: openProjectSession,
       }
 
-      return h('div', { style: { display: 'flex', height: '100%', minHeight: 0, color: COLORS.text } },
-        h('div', { style: { width: '280px', borderRight: '1px solid ' + COLORS.line, overflow: 'auto', flexShrink: 0 } },
-          h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 14px 8px' } },
-            h('div', { style: { fontSize: '14px', fontWeight: 600 } }, '客户与项目'),
-            h('button', { onClick: function () { setShowCreate(!showCreate); setCreateError('') },
-              style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '+ 新建项目')),
+      return h('div', { className: 'ad-split' },
+        h('div', { className: 'ad-rail' },
+          h('div', { className: 'ad-rail-h' },
+            h('div', null, '项目'),
+            h('button', { className: 'ad-btn quiet', onClick: function () { setShowCreate(!showCreate); setCreateError(''); api('/audit/contracts').then(function (d) { setContracts(d.items || []) }).catch(function () {}) } }, '+ 新建')),
           h('div', { style: { padding: '0 12px 8px', display: 'flex', gap: '6px' } },
             h('input', { value: search, onChange: function (e) { setSearch(e.target.value) }, placeholder: '搜索客户/项目…', style: inputStyle }),
             h('select', { value: statusFilter, onChange: function (e) { setStatusFilter(e.target.value) }, style: Object.assign({}, inputStyle, { width: '86px', flexShrink: 0 }) },
               h('option', { value: '' }, '全部'),
               h('option', { value: '进行中' }, '进行中'),
               h('option', { value: '已归档' }, '已归档'))),
-          showCreate ? h('div', { style: { padding: '4px 12px 10px', display: 'flex', flexDirection: 'column', gap: '6px' } },
-            h('input', { value: newClient, onChange: function (e) { setNewClient(e.target.value) }, placeholder: '被审计单位全称', style: inputStyle }),
-            h('input', { value: newName, onChange: function (e) { setNewName(e.target.value) }, placeholder: '项目名称（如 2026年度审计）', style: inputStyle }),
-            h('input', { value: newPeriod, onChange: function (e) { setNewPeriod(e.target.value) }, placeholder: '会计期间（如 2026）', style: inputStyle }),
-            h('select', { value: businessType, onChange: function (e) { setBusinessType(e.target.value) }, style: inputStyle },
-              ['年报审计', '专项审计', '内控审计'].map(function (name) { return h('option', { key: name, value: name }, '业务类型：' + name) })),
+          showCreate ? h('div', { className: 'ad-form', style: { margin: '4px 8px 10px', gridTemplateColumns: '1fr' } },
+            h('label', { className: 'ad-field' }, '合同', h('select', { className: 'ad-input', value: contractId, onChange: function (e) { const v = e.target.value; setContractId(v); const ct = (contracts || []).filter(function (x) { return String(x.id) === String(v) })[0]; if (ct && ct.client_name) setNewClient(ct.client_name) } },
+              h('option', { value: '' }, '必选'),
+              (contracts || []).map(function (c) { return h('option', { key: 'ct-' + c.id, value: String(c.id) }, c.client_name + (c.project_name ? ' · ' + c.project_name : '') + ' · ' + c.status) }))),
+            h('label', { className: 'ad-field' }, '被审计单位', h('input', { className: 'ad-input', value: newClient, onChange: function (e) { setNewClient(e.target.value) } })),
+            h('label', { className: 'ad-field' }, '项目名称', h('input', { className: 'ad-input', value: newName, onChange: function (e) { setNewName(e.target.value) }, placeholder: '如 2026年度审计' })),
+            h('label', { className: 'ad-field' }, '期间', h('input', { className: 'ad-input', value: newPeriod, onChange: function (e) { setNewPeriod(e.target.value) }, placeholder: '如 2026' })),
+            h('label', { className: 'ad-field' }, '业务类型', h('select', { className: 'ad-input', value: businessType, onChange: function (e) { setBusinessType(e.target.value) } },
+              ['年报审计', '专项审计', '内控审计'].map(function (name) { return h('option', { key: name, value: name }, name) }))),
             h('div', { style: { fontSize: '11px', color: COLORS.muted } }, '可选：创建后立即导入（也可稍后上传）'),
             h('label', { style: { padding: '5px 8px', borderRadius: '6px', border: '1px dashed ' + COLORS.line, color: COLORS.muted, fontSize: '11px', cursor: 'pointer' } },
               newFsFile ? ('财务报表：' + newFsFile.name) : '＋ 财务报表（xlsx）',
@@ -2931,11 +2993,9 @@ window.__ModuleLoader__.load({
               newJournalFile ? ('序时账：' + newJournalFile.name) : '＋ 序时账',
               h('input', { type: 'file', accept: '.xlsx,.xls,.csv', style: { display: 'none' }, onChange: function (e) { setNewJournalFile(e.target.files && e.target.files[0] || null); e.target.value = '' } })),
             createError ? h('div', { style: { fontSize: '11px', color: '#b91c1c' } }, createError) : null,
-            h('div', { style: { display: 'flex', gap: '6px' } },
-              h('button', { onClick: createProject, disabled: creating,
-                style: { flex: 1, padding: '6px 10px', borderRadius: '7px', border: 0, background: COLORS.accent, color: '#fff', fontSize: '12px', cursor: 'pointer' } }, creating ? '创建中…' : '创建项目'),
-              h('button', { onClick: function () { setShowCreate(false); setCreateError('') },
-                style: { padding: '6px 10px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '取消'))) : null,
+            h('div', { className: 'ad-form-actions' },
+              h('button', { className: 'ad-btn primary', onClick: createProject, disabled: creating }, creating ? '创建中…' : '创建'),
+              h('button', { className: 'ad-btn', onClick: function () { setShowCreate(false); setCreateError('') } }, '取消'))) : null,
           (pinnedProjects || []).length ? h('div', { style: { padding: '0 10px 8px' } },
             h('div', { style: { fontSize: '11px', color: COLORS.muted, marginBottom: '4px' } }, '已固定'),
             pinnedProjects.map(function (item) {
@@ -2949,45 +3009,28 @@ window.__ModuleLoader__.load({
                   (function () { const meta = projectMeta(item); return meta ? h('span', { style: { fontSize: '10px', color: COLORS.muted } }, (meta.status || '-') + (meta.period ? ' · ' + meta.period : '')) : null })()),
                 h('button', { onClick: function (e) { e.stopPropagation(); togglePinProject(item) }, style: { border: 0, background: 'transparent', color: COLORS.muted, cursor: 'pointer', fontSize: '11px', flexShrink: 0 } }, '取消固定'))
             })) : null,
-          (recentProjects || []).filter(function (item) { return !(pinnedProjects || []).some(function (p) { return p.project === item.project }) }).length ? h('div', { style: { padding: '0 10px 8px' } },
-            h('div', { style: { fontSize: '11px', color: COLORS.muted, marginBottom: '4px' } }, '最近访问'),
-            recentProjects.filter(function (item) { return !(pinnedProjects || []).some(function (p) { return p.project === item.project }) }).slice(0, 3).map(function (item) {
-              const isPinned = (pinnedProjects || []).some(function (p) { return p.project === item.project })
-              return h('div', { key: 'recent-' + item.project, onClick: function () { setActiveCompany(item.company); setActiveProject(item.project) },
-                style: { padding: '5px 8px', borderRadius: '7px', cursor: 'pointer', fontSize: '12px', display: 'flex', justifyContent: 'space-between', gap: '8px', alignItems: 'center', color: item.project === activeProject ? COLORS.accent : 'inherit' } },
-                h('span', { style: { display: 'flex', flexDirection: 'column', minWidth: 0 } },
-                  h('span', { style: { display: 'flex', gap: '4px', alignItems: 'center', minWidth: 0 } },
-                    h('span', { style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, item.project),
-                    (pendingCounts || {})[item.project] ? h('button', { title: '查看待审批', onClick: function (e) { e.stopPropagation(); setActiveCompany(item.company); setActiveProject(item.project); setZone('审批状态') },
-                      style: { border: 0, borderRadius: '8px', background: 'rgba(180,83,9,0.12)', color: '#b45309', fontSize: '10px', padding: '1px 6px', cursor: 'pointer', flexShrink: 0 } }, pendingCounts[item.project] + ' 待审') : null),
-                  (function () { const meta = projectMeta(item); return meta ? h('span', { style: { fontSize: '10px', color: COLORS.muted } }, (meta.status || '-') + (meta.period ? ' · ' + meta.period : '')) : null })()),
-                h('span', { style: { display: 'flex', gap: '6px', flexShrink: 0 } },
-                  h('button', { onClick: function (e) { e.stopPropagation(); togglePinProject(item) }, style: { border: 0, background: 'transparent', color: isPinned ? COLORS.accent : COLORS.muted, cursor: 'pointer', fontSize: '11px' } }, isPinned ? '★' : '☆'),
-                  h('button', { onClick: function (e) { e.stopPropagation(); removeRecentProject(item.project) }, style: { border: 0, background: 'transparent', color: COLORS.muted, cursor: 'pointer', fontSize: '11px' } }, '×')))
-            })) : null,
           h('div', { style: { padding: '0 8px 12px' } }, visibleCompanies.length ? visibleCompanies.map(function (c) {
             const active = c.name === activeCompany
-            return h('div', { key: c.name, onClick: function () { setActiveCompany(c.name); setActiveProject(null) },
-              style: { padding: '9px 10px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', marginBottom: '2px',
-                background: active ? COLORS.accent + '1a' : 'transparent', color: active ? COLORS.accent : COLORS.text } },
-              h('div', null, c.name), h('div', { style: { fontSize: '11px', color: COLORS.muted, marginTop: '2px' } }, c.projects.length + ' 个项目'))
+            return h('div', { key: c.name, className: 'ad-nav' + (active ? ' on' : ''), onClick: function () { setActiveCompany(c.name); setActiveProject(null) } },
+              h('div', null, c.name), h('div', { className: 'ad-row-meta' }, c.projects.length + ' 个项目'))
           }) : h('div', { style: { padding: '10px', fontSize: '12px', color: COLORS.muted } }, '没有匹配的客户'))),
-        h('div', { style: { width: '260px', borderRight: '1px solid ' + COLORS.line, overflow: 'auto', flexShrink: 0 } },
-          h('div', { style: { padding: '14px 14px 8px', fontSize: '13px', fontWeight: 600 } }, activeCompany ? '年度项目' : '选择左侧公司'),
+        h('div', { className: 'ad-rail', style: { width: '260px' } },
+          h('div', { className: 'ad-rail-h' }, activeCompany ? '年度项目' : '选择客户'),
           h('div', { style: { padding: '0 8px 12px' } }, visibleProjects.length ? visibleProjects.map(function (p) {
             const active = p.id === activeProject
-            return h('div', { key: p.id, onClick: function () { setActiveProject(p.id) },
-              style: { padding: '9px 10px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', marginBottom: '2px',
-                background: active ? COLORS.accent + '1a' : 'transparent', color: active ? COLORS.accent : COLORS.text } },
-              h('div', null, p.name), h('div', { style: { fontSize: '11px', color: COLORS.muted, marginTop: '2px' } }, p.period + ' · ' + p.status + (p.business_type ? ' · ' + p.business_type : '')))
+            return h('div', { key: p.id, className: 'ad-nav' + (active ? ' on' : ''), onClick: function () { setActiveProject(p.id) } },
+              h('div', null, p.name), h('div', { className: 'ad-row-meta' }, p.period + ' · ' + p.status + (p.business_type ? ' · ' + p.business_type : '')))
           }) : h('div', { style: { padding: '10px', fontSize: '12px', color: COLORS.muted } }, '没有匹配的项目'))),
         h('div', { style: { flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' } },
-          h('div', { style: { display: 'flex', gap: '2px', padding: '10px 14px 0', borderBottom: '1px solid ' + COLORS.line, flexShrink: 0, flexWrap: 'wrap' } },
-            ['概览', '风险评估', '资料清单', '审计底稿', '审计程序', '项目对话', '审批状态', '报告'].map(function (name) {
-              const active = zone === name
-              return h('button', { key: name, 'data-zone': name, onClick: function () { setZone(name) },
-                style: { border: 0, background: 'transparent', padding: '8px 12px', fontSize: '13px', cursor: 'pointer',
-                  color: active ? COLORS.accent : COLORS.muted, borderBottom: '2px solid ' + (active ? COLORS.accent : 'transparent') } }, name)
+          h('div', { className: 'ad-zones' },
+            activeProject ? h('button', { className: 'ad-btn quiet', style: { alignSelf: 'flex-end', flexShrink: 0, marginRight: '10px', marginBottom: '4px', minHeight: '30px' }, onClick: function () { setActiveProject(null) } }, '← 项目列表') : null,
+            [{ label: '执行', items: ['概览', '风险评估', '资料清单', '审计底稿', '审计程序'] }, { label: '交付', items: ['审批状态', '报告', '项目对话'] }].map(function (group) {
+              return h('div', { key: group.label, className: 'ad-zone-group' },
+                h('span', { className: 'ad-zone-label' }, group.label),
+                group.items.map(function (name) {
+                  const active = zone === name
+                  return h('button', { key: name, 'data-zone': name, className: 'ad-tab' + (active ? ' on' : ''), onClick: function () { setZone(name) } }, name)
+                }))
             })),
           readOnly
             ? h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 14px', background: 'rgba(180,83,9,0.10)', color: '#b45309', fontSize: '12px', borderBottom: '1px solid ' + COLORS.line } },
@@ -3053,6 +3096,7 @@ window.__ModuleLoader__.load({
       }
       function openDoc(ref) {
         const path = String(ref).split(' › ')[0]
+        setError('')
         api('/kb/doc', { doc: path }).then(function (d) { setDoc(d) }).catch(function (e) { setError(String(e)) })
       }
 
@@ -3061,20 +3105,17 @@ window.__ModuleLoader__.load({
       const catCodes = Object.keys(CAT).filter(function (c) { return counts[c] })
       const visibleDocs = hits === null ? docs.filter(function (d) { return !code || d.code === code }).slice(0, 200) : []
       const catItems = [{ code: '', label: '全部文档（' + docs.length + '）' }].concat(catCodes.map(function (c) { return { code: c, label: CAT[c] + '（' + counts[c] + '）' } }))
-      const left = h('div', { style: { width: '210px', borderRight: '1px solid ' + COLORS.line, overflow: 'auto', flexShrink: 0 } },
-        h('div', { style: { padding: '14px 14px 8px', fontSize: '14px', fontWeight: 600 } }, '知识库'),
+      const left = h('div', { className: 'ad-rail', style: { width: '220px' } },
+        h('div', { className: 'ad-rail-h' }, '知识库'),
         h('div', { style: { padding: '0 8px 12px' } }, catItems.map(function (item) {
           const active = code === item.code
-          return h('div', { key: item.code || 'all', onClick: function () { setCode(item.code); setHits(null) },
-            style: { padding: '8px 10px', borderRadius: '8px', cursor: 'pointer', fontSize: '12.5px', marginTop: '2px',
-              background: active ? COLORS.accent + '1a' : 'transparent', color: active ? COLORS.accent : COLORS.text } }, item.label)
+          return h('div', { key: item.code || 'all', className: 'ad-nav' + (active ? ' on' : ''), onClick: function () { setCode(item.code); setHits(null) } }, item.label)
         })))
       const searchBox = h('div', { style: { padding: '12px', borderBottom: '1px solid ' + COLORS.line } },
         h('div', { style: { display: 'flex', gap: '6px' } },
-          h('input', { value: q, onChange: function (e) { setQ(e.target.value) },
-            onKeyDown: function (e) { if (e.key === 'Enter') runSearch() }, placeholder: '检索准则/法规/模板…',
-            style: { flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: '8px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '13px' } }),
-          h('button', { onClick: runSearch, disabled: searching, style: { padding: '8px 12px', borderRadius: '8px', border: 0, background: COLORS.accent, color: '#fff', fontSize: '13px', cursor: 'pointer' } }, searching ? '检索中' : '检索')),
+          h('input', { className: 'ad-input', value: q, onChange: function (e) { setQ(e.target.value) },
+            onKeyDown: function (e) { if (e.key === 'Enter') runSearch() }, placeholder: '检索准则、法规或模板' }),
+          h('button', { className: 'ad-btn primary', onClick: runSearch, disabled: searching }, searching ? '检索中' : '检索')),
         error ? h('div', { style: { fontSize: '12px', color: '#b91c1c', marginTop: '8px' } }, error) : null)
       const statusBox = isKbAdmin && kbStatus ? h('div', { style: { padding: '8px 12px', borderBottom: '1px solid ' + COLORS.line, fontSize: '11px', color: COLORS.muted } },
         h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
@@ -3116,10 +3157,10 @@ window.__ModuleLoader__.load({
       let listItems = []
       if (hits === null) {
         listItems = visibleDocs.map(function (d, i) {
-          return h('div', { key: d.code + ':' + (d.filename || d.title) + ':' + i, onClick: function () { openDoc(d.filename) },
-            style: { padding: '9px 10px', borderRadius: '8px', cursor: 'pointer', marginTop: '2px' } },
-            h('div', { style: { fontSize: '13px' } }, d.title || d.filename),
-            h('div', { style: { fontSize: '11px', color: COLORS.muted, marginTop: '2px' } }, (CAT[d.code] || d.code) + (d.docno ? ' · ' + d.docno : '')))
+          return h('div', { key: d.code + ':' + (d.filename || d.title) + ':' + i, className: 'ad-row', onClick: function () { openDoc(d.filename) }, style: { cursor: 'pointer' } },
+            h('div', null,
+              h('div', { className: 'ad-row-title' }, d.title || d.filename),
+              h('div', { className: 'ad-row-meta' }, (CAT[d.code] || d.code) + (d.docno ? ' · ' + d.docno : ''))))
         })
         if (!listItems.length) listItems = [h(Empty, { key: 'empty' }, '暂无文档')]
       } else if (!hits.length) {
@@ -3128,10 +3169,11 @@ window.__ModuleLoader__.load({
         listItems = hits.map(function (hit, i) {
           const title = hit.doc && hit.doc.title ? hit.doc.title : hit.ref
           const meta = (hit.doc && hit.doc.code ? (CAT[hit.doc.code] || hit.doc.code) : '') + ' · ' + (hit.section || '')
-          return h('div', { key: 'hit-' + i, onClick: function () { openDoc(hit.ref) }, style: { padding: '9px 10px', borderRadius: '8px', cursor: 'pointer', marginTop: '2px' } },
-            h('div', { style: { fontSize: '13px' } }, title),
-            h('div', { style: { fontSize: '11px', color: COLORS.muted, marginTop: '2px' } }, meta),
-            h('div', { style: { fontSize: '12px', color: COLORS.muted, marginTop: '4px', lineHeight: 1.6, maxHeight: '3.2em', overflow: 'hidden' } }, hit.text))
+          return h('div', { key: 'hit-' + i, className: 'ad-row', onClick: function () { openDoc(hit.ref) }, style: { cursor: 'pointer', alignItems: 'flex-start' } },
+            h('div', null,
+              h('div', { className: 'ad-row-title' }, title),
+              h('div', { className: 'ad-row-meta' }, meta),
+              h('div', { className: 'ad-row-meta', style: { marginTop: '6px', lineHeight: 1.6, maxHeight: '3.2em', overflow: 'hidden' } }, hit.text)))
         })
       }
       const middle = h('div', { style: { width: '320px', borderRight: '1px solid ' + COLORS.line, display: 'flex', flexDirection: 'column', minHeight: 0, maxHeight: '100%', flexShrink: 0 } },
@@ -3146,17 +3188,17 @@ window.__ModuleLoader__.load({
           doc.meta && doc.meta.effective ? '生效 ' + doc.meta.effective : '',
         ].filter(Boolean).join(' · ')
         const chunks = (doc.chunks || []).map(function (c, i) {
-          return h('div', { key: 'chunk-' + i, style: { marginBottom: '14px' } },
-            h('div', { style: { fontSize: '11px', color: COLORS.muted, marginBottom: '3px' } }, c.section || ''),
-            h('div', { style: { fontSize: '13px', lineHeight: 1.85, whiteSpace: 'pre-wrap' } }, c.text))
+          return h('div', { key: 'chunk-' + i, className: 'ad-chunk' },
+            h('div', { className: 'ad-chunk-h' }, c.section || '正文'),
+            h('div', { style: { fontSize: '14px', lineHeight: 1.75, whiteSpace: 'pre-wrap' } }, c.text))
         })
-        right = h('div', null,
-          h('div', { style: { fontSize: '16px', fontWeight: 600, marginBottom: '4px' } }, (doc.meta && doc.meta.title) || doc.doc),
-          h('div', { style: { fontSize: '12px', color: COLORS.muted, marginBottom: '14px' } }, metaLine),
+        right = h('div', { className: 'ad-doc' },
+          h('h1', { className: 'ad-doc-title' }, (doc.meta && doc.meta.title) || doc.doc),
+          h('div', { className: 'ad-sub', style: { marginBottom: '22px' } }, metaLine),
           chunks)
       }
-      const rightPane = h('div', { style: { flex: 1, minWidth: 0, overflow: 'auto', padding: '18px 22px' } }, right)
-      return h('div', { style: { display: 'flex', height: '100%', minHeight: 0, color: COLORS.text } }, left, middle, rightPane)
+      const rightPane = h('div', { style: { flex: 1, minWidth: 0, overflow: 'auto' } }, right)
+      return h('div', { className: 'ad-split' }, left, middle, rightPane)
     }
 
     // ---------- 操作留痕 ----------
@@ -3240,30 +3282,17 @@ window.__ModuleLoader__.load({
         load()
       }, [])
 
-      const filterBar = h('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap', padding: '12px 16px', borderBottom: '1px solid ' + COLORS.line } },
-        h('select', { value: project, onChange: function (e) { setProject(e.target.value) },
-          style: { padding: '7px 9px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } },
-          h('option', { value: '' }, '全部项目'),
-          projects.map(function (p) { return h('option', { key: p.id, value: p.id }, p.client + ' / ' + p.name) })),
-        h('input', { value: actor, onChange: function (e) { setActor(e.target.value) }, placeholder: '操作人',
-          style: { width: '110px', padding: '7px 9px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }),
-        h('select', { value: type, onChange: function (e) { setType(e.target.value) },
-          style: { padding: '7px 9px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } },
-          h('option', { value: '' }, '全部类型'),
-          Object.keys(TYPE_NAMES).map(function (key) { return h('option', { key: key, value: key }, TYPE_NAMES[key]) })),
-        h('input', { value: startDate, onChange: function (e) { setStartDate(e.target.value) }, type: 'date', title: '开始日期',
-          style: { padding: '7px 9px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }),
-        h('input', { value: endDate, onChange: function (e) { setEndDate(e.target.value) }, type: 'date', title: '结束日期',
-          style: { padding: '7px 9px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }),
-        h('button', { onClick: function () { load(1) }, style: { padding: '7px 14px', borderRadius: '7px', border: 0, background: COLORS.accent, color: '#fff', fontSize: '12px', cursor: 'pointer' } }, loading ? '查询中…' : '查询'),
-        h('button', { onClick: resetFilters, style: { padding: '7px 12px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '清除筛选'),
-        h('span', { style: { fontSize: '11px', color: COLORS.muted, marginLeft: '6px' } }, '共 ' + total + ' 条 · 第 ' + page + ' / ' + Math.max(1, Math.ceil(total / 100)) + ' 页'),
-        h('button', { onClick: function () { if (page > 1) load(page - 1) }, disabled: page <= 1,
-          style: { padding: '7px 10px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer', opacity: page <= 1 ? 0.4 : 1 } }, '上一页'),
-        h('button', { onClick: function () { if (page * 100 < total) load(page + 1) }, disabled: page * 100 >= total,
-          style: { padding: '7px 10px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer', opacity: page * 100 >= total ? 0.4 : 1 } }, '下一页'),
-        h('button', { onClick: exportCsv, style: { padding: '7px 14px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '导出 CSV'),
-        h('button', { onClick: exportPageCsv, style: { padding: '7px 14px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '导出当前页'))
+      const filterBar = h('div', { className: 'ad-form' },
+        h('label', { className: 'ad-field' }, '项目', h('select', { className: 'ad-input', value: project, onChange: function (e) { setProject(e.target.value) } },
+          h('option', { value: '' }, '全部'),
+          projects.map(function (p) { return h('option', { key: p.id, value: p.id }, p.client + ' / ' + p.name) }))),
+        h('label', { className: 'ad-field' }, '操作人', h('input', { className: 'ad-input', value: actor, onChange: function (e) { setActor(e.target.value) } })),
+        h('label', { className: 'ad-field' }, '类型', h('select', { className: 'ad-input', value: type, onChange: function (e) { setType(e.target.value) } },
+          h('option', { value: '' }, '全部'),
+          Object.keys(TYPE_NAMES).map(function (key) { return h('option', { key: key, value: key }, TYPE_NAMES[key]) }))),
+        h('label', { className: 'ad-field' }, '开始', h('input', { className: 'ad-input', value: startDate, onChange: function (e) { setStartDate(e.target.value) }, type: 'date' })),
+        h('label', { className: 'ad-field' }, '结束', h('input', { className: 'ad-input', value: endDate, onChange: function (e) { setEndDate(e.target.value) }, type: 'date' })),
+        h('div', { className: 'ad-form-actions' }, h('button', { className: 'ad-btn primary', onClick: function () { load(1) } }, loading ? '查询中…' : '查询')))
 
       const rows = events.map(function (item) {
         return h('div', { key: item.id, style: { display: 'grid', gridTemplateColumns: '150px 90px 1fr 90px', gap: '10px', padding: '7px 16px', borderBottom: '1px solid ' + COLORS.line, fontSize: '12px', alignItems: 'center' } },
@@ -3273,9 +3302,20 @@ window.__ModuleLoader__.load({
           h('span', { style: { color: COLORS.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, item.project_id))
       })
 
-      return h('div', { style: { height: '100%', display: 'flex', flexDirection: 'column', color: COLORS.text } },
-        h('div', { style: { padding: '14px 16px 6px', fontSize: '14px', fontWeight: 600 } }, '操作留痕'),
-        h('div', { style: { padding: '0 16px 10px', fontSize: '12px', color: COLORS.muted } }, '所有资料清单/底稿/审批/附件操作，按项目、操作人、类型筛选，用于复核与质量追溯。'),
+      return h('div', { className: 'ad-zone-page' },
+        h('div', { className: 'ad-head' },
+          h('div', null,
+            h('h1', { className: 'ad-title' }, '留痕'),
+            h('div', { className: 'ad-sub' }, '共 ' + total + ' 条 · 第 ' + page + ' / ' + Math.max(1, Math.ceil(total / 100)) + ' 页')),
+          h('div', { className: 'ad-actions' },
+            h('button', { className: 'ad-btn quiet', disabled: page <= 1, onClick: function () { if (page > 1) load(page - 1) } }, '上一页'),
+            h('button', { className: 'ad-btn quiet', disabled: page * 100 >= total, onClick: function () { if (page * 100 < total) load(page + 1) } }, '下一页'))),
+        h('details', { className: 'ad-more' },
+          h('summary', null, '清除与导出'),
+          h('div', { className: 'ad-actions' },
+            h('button', { className: 'ad-btn', onClick: resetFilters }, '清除筛选'),
+            h('button', { className: 'ad-btn', onClick: exportCsv }, '导出全部'),
+            h('button', { className: 'ad-btn quiet', onClick: exportPageCsv }, '导出当前页'))),
         filterBar,
         error ? h('div', { style: { padding: '10px 16px', color: '#b91c1c', fontSize: '12px' } }, error) : null,
         h('div', { style: { flex: 1, overflow: 'auto' } },
@@ -3353,24 +3393,26 @@ window.__ModuleLoader__.load({
         return h(Empty, null, '仅管理员可访问用户管理（当前角色：' + role + '）')
       }
       const roleOptions = [['auditor', '审计员'], ['manager', '项目经理'], ['partner', '合伙人'], ['kb-admin', '管理员']]
-      return h('div', { style: { padding: '18px', maxWidth: '960px', height: '100%', overflow: 'auto', boxSizing: 'border-box' } },
-        h('div', { style: { fontSize: '15px', fontWeight: 600, marginBottom: '4px' } }, '用户管理'),
-        h('div', { style: { fontSize: '12px', color: COLORS.muted, marginBottom: '12px' } }, '创建审计人员账号、分配角色与重置密码（管理员）'),
-        message ? h('div', { style: { fontSize: '12px', color: '#16a34a', marginBottom: '8px' } }, message) : null,
-        error ? h('div', { style: { fontSize: '12px', color: '#b91c1c', marginBottom: '8px' } }, error) : null,
-        h('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', padding: '10px', border: '1px solid ' + COLORS.line, borderRadius: '10px', marginBottom: '14px' } },
-          h('input', { value: newUser.username, onChange: function (e) { setNewUser(Object.assign({}, newUser, { username: e.target.value })) }, placeholder: '用户名（登录名）', style: inputStyle }),
-          h('input', { value: newUser.name, onChange: function (e) { setNewUser(Object.assign({}, newUser, { name: e.target.value })) }, placeholder: '姓名', style: inputStyle }),
-          h('input', { value: newUser.password, onChange: function (e) { setNewUser(Object.assign({}, newUser, { password: e.target.value })) }, placeholder: '初始密码（≥6位）', style: inputStyle }),
-          h('select', { value: newUser.role, onChange: function (e) { setNewUser(Object.assign({}, newUser, { role: e.target.value })) }, style: inputStyle },
-            roleOptions.map(function (item) { return h('option', { key: item[0], value: item[0] }, item[1]) })),
-          h('button', { onClick: createUser, style: { padding: '7px 14px', borderRadius: '7px', border: 0, background: COLORS.accent, color: '#fff', fontSize: '12px', cursor: 'pointer' } }, '创建用户')),
+      return h('div', { className: 'ad-zone-page' },
+        h('div', { className: 'ad-head' },
+          h('div', null,
+            h('h1', { className: 'ad-title' }, '用户'),
+            h('div', { className: 'ad-sub' }, '建账号、改角色、重置密码。停用只锁登录，不删历史。'))),
+        message ? h('div', { className: 'ad-note' }, message) : null,
+        error ? h('div', { className: 'ad-note' }, error) : null,
+        h('div', { className: 'ad-form' },
+          h('label', { className: 'ad-field' }, '用户名', h('input', { className: 'ad-input', value: newUser.username, onChange: function (e) { setNewUser(Object.assign({}, newUser, { username: e.target.value })) }, placeholder: '登录名' })),
+          h('label', { className: 'ad-field' }, '姓名', h('input', { className: 'ad-input', value: newUser.name, onChange: function (e) { setNewUser(Object.assign({}, newUser, { name: e.target.value })) } })),
+          h('label', { className: 'ad-field' }, '初始密码', h('input', { className: 'ad-input', value: newUser.password, onChange: function (e) { setNewUser(Object.assign({}, newUser, { password: e.target.value })) }, placeholder: '至少 6 位' })),
+          h('label', { className: 'ad-field' }, '角色', h('select', { className: 'ad-input', value: newUser.role, onChange: function (e) { setNewUser(Object.assign({}, newUser, { role: e.target.value })) } }, roleOptions.map(function (item) { return h('option', { key: item[0], value: item[0] }, item[1]) }))),
+          h('div', { className: 'ad-form-actions' }, h('button', { className: 'ad-btn primary', onClick: createUser }, '创建'))),
         loading ? h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '加载中…') : null,
         users.map(function (user) {
           const active = user.active === 1 || user.active === true
-          return h('div', { key: user.username, style: { display: 'grid', gridTemplateColumns: '110px 1fr 110px 70px 180px', gap: '8px', alignItems: 'center', padding: '8px 4px', borderBottom: '1px solid ' + COLORS.line, fontSize: '12px' } },
-            h('span', null, user.username),
-            h('span', null, user.name),
+          return h('div', { key: user.username, className: 'ad-row' },
+            h('div', null,
+              h('div', { className: 'ad-row-title' }, user.name || user.username),
+              h('div', { className: 'ad-row-meta' }, user.username)),
             h('select', { value: user.role, onChange: function (e) { changeRole(user.username, e.target.value) }, style: inputStyle },
               roleOptions.map(function (item) { return h('option', { key: item[0], value: item[0] }, item[1]) })),
             h('span', null, h(Badge, { tone: active ? 'ok' : 'bad' }, active ? '启用' : '停用')),
@@ -3379,7 +3421,7 @@ window.__ModuleLoader__.load({
             resetUser === user.username
               ? h('div', { style: { display: 'flex', gap: '4px' } },
                   h('input', { value: resetPassword, onChange: function (e) { setResetPassword(e.target.value) }, placeholder: '新密码', style: Object.assign({}, inputStyle, { width: '90px' }) }),
-                  h('button', { onClick: submitReset, style: { padding: '6px 8px', borderRadius: '6px', border: 0, background: COLORS.accent, color: '#fff', fontSize: '11px', cursor: 'pointer' } }, '保存'))
+                  h('button', { onClick: submitReset, style: { padding: '6px 8px', borderRadius: '6px', border: 0, background: COLORS.accent, color: 'var(--dsw-alias-label-primary-foreground)', fontSize: '11px', cursor: 'pointer' } }, '保存'))
               : h('button', { onClick: function () { setResetUser(user.username); setResetPassword('') }, style: { padding: '6px 8px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px', cursor: 'pointer' } }, '重置密码')))
         }))
     }
@@ -3388,6 +3430,12 @@ window.__ModuleLoader__.load({
       const s = props && props.size ? props.size : 18
       return h('svg', { width: s, height: s, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.7, 'aria-hidden': true },
         h('path', { d: 'M12 15a3 3 0 1 0 0-6a3 3 0 0 0 0 6M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33a1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 8.92a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 8.92 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 8.92a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1' }))
+    }
+
+    function CommerceIcon(props) {
+      const s = props && props.size ? props.size : 18
+      return h('svg', { width: s, height: s, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.7, 'aria-hidden': true },
+        h('path', { d: 'M6 3h12v18l-2-1.4L14 21l-2-1.4L10 21l-2-1.4L6 21zM9 8h6M9 12h6M9 16h4' }))
     }
 
     function formatBytes(value) {
@@ -3609,10 +3657,10 @@ window.__ModuleLoader__.load({
       }
 
       const card = function (title, value, hint) {
-        return h('div', { style: { flex: '1 1 200px', minWidth: '200px', padding: '14px', borderRadius: '12px', border: '1px solid ' + COLORS.line, background: COLORS.bg } },
-          h('div', { style: { fontSize: '12px', color: COLORS.muted, marginBottom: '6px' } }, title),
-          h('div', { style: { fontSize: '18px', fontWeight: 600 } }, value),
-          hint ? h('div', { style: { fontSize: '11px', color: COLORS.muted, marginTop: '4px' } }, hint) : null)
+        return h('div', { className: 'ad-kpi' },
+          h('div', { className: 'ad-kpi-label' }, title),
+          h('div', { className: 'ad-kpi-value', style: { fontSize: '18px' } }, value),
+          hint ? h('div', { className: 'ad-kpi-hint' }, hint) : null)
       }
       if (!health) {
         return h('div', { style: { padding: '18px', maxWidth: '960px', height: '100%', overflow: 'auto', boxSizing: 'border-box' } },
@@ -3621,55 +3669,49 @@ window.__ModuleLoader__.load({
           h('button', { onClick: load, style: { marginTop: '10px', padding: '7px 12px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '刷新'))
       }
       const backupStatusText = (health.backup && health.backup.last_backup ? ('上次：' + (health.backup.last_backup_at || '-') + ' · 下次约 ' + Math.max(0, Math.ceil(((health.backup.next_due_seconds || 0) / 3600))) + ' 小时后 · 自动备份每 ' + (health.backup.interval_hours || 24) + ' 小时') : ('自动备份：每 ' + (((health.backup || {}).interval_hours) || 24) + ' 小时检查一次')) + ' · 共 ' + backups.length + ' 份 · 总占用 ' + formatBytes(backups.reduce(function (sum, item) { return sum + (item.size || 0) }, 0)) + ' · 保留最近 ' + (((health.backup || {}).keep) || 10) + ' 份' + (health.last_drill ? (' · 最近演练：' + (String(health.last_drill.status || '').indexOf('PASS') === 0 ? '通过' : '异常') + '（' + (health.last_drill.at || '') + '）') : '')
-      return h('div', { style: { padding: '18px', maxWidth: '960px', height: '100%', overflow: 'auto', boxSizing: 'border-box' } },
-        h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' } },
+      return h('div', { className: 'ad-zone-page' },
+        h('div', { className: 'ad-head' },
           h('div', null,
-            h('div', { style: { fontSize: '15px', fontWeight: 600 } }, '系统状态'),
-            h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '服务时间：' + health.server_time + ' · 数据目录：mini4pro:8030')),
-          h('div', { style: { display: 'flex', gap: '8px' } },
-            isAdmin ? h('button', { onClick: exportOpsReport, style: { padding: '7px 12px', borderRadius: '7px', border: '1px solid ' + COLORS.accent, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '导出运维报告（MD）') : null,
-            isAdmin ? h('button', { onClick: exportOpsReportPdf, style: { padding: '7px 12px', borderRadius: '7px', border: '1px solid ' + COLORS.accent, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '导出运维报告（PDF）') : null,
-            isAdmin ? h('button', { onClick: pushOpsReport, style: { padding: '7px 12px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '推送运维报告') : null,
-            h('button', { onClick: load, style: { padding: '7px 12px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, loading ? '刷新中…' : '刷新'))),
+            h('h1', { className: 'ad-title' }, '系统'),
+            h('div', { className: 'ad-sub' }, '服务时间 ' + health.server_time + ' · 网关 mini4pro:8030')),
+          h('div', { className: 'ad-actions' },
+            h('button', { className: 'ad-btn primary', onClick: load }, loading ? '刷新中…' : '刷新'),
+            isAdmin ? h('button', { className: 'ad-btn', onClick: exportOpsReport }, '运维报告') : null)),
         message ? h('div', { style: { fontSize: '12px', color: '#16a34a', marginBottom: '8px' } }, message) : null,
         error ? h('div', { style: { fontSize: '12px', color: '#b91c1c', marginBottom: '8px' } }, error) : null,
-        h('div', { style: { display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '12px' } },
+        h('div', { className: 'ad-kpis' },
           card('项目数', health.projects),
           card('启用用户', health.active_users),
           card('已生成文件', health.generated_files + ' 个', formatBytes(health.generated_bytes)),
           card('今日操作', health.events_today + ' 条', '最近：' + (health.last_event_at || '-'))),
-        h('div', { style: { display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '12px' } },
+        h('div', { className: 'ad-kpis' },
           card('数据库大小', formatBytes(health.database_bytes)),
           card('生成目录', formatBytes(health.generated_root_bytes)),
           card('上传目录', formatBytes(health.uploads_root_bytes)),
           card('磁盘使用', health.disk_used_percent + '%', '剩余 ' + formatBytes(health.disk_free) + ' / 共 ' + formatBytes(health.disk_total))),
-        isAdmin ? h('div', { style: { marginBottom: '12px', padding: '14px', borderRadius: '12px', border: '1px solid ' + COLORS.line } },
-          h('div', { style: { fontSize: '13px', fontWeight: 600, marginBottom: '6px' } }, '后台任务'),
-          h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '8px', fontSize: '12px' } },
-            h('div', { style: { padding: '8px', borderRadius: '8px', border: '1px solid ' + COLORS.line } },
-              h('div', { style: { fontWeight: 600, marginBottom: '3px' } }, '审批超期自动扫描'),
-              h('div', { style: { color: COLORS.muted } }, (health.escalation ? (health.escalation.auto ? '已启用' : '已关闭') + ' · 每 ' + health.escalation.interval_hours + ' 小时' : '未配置')),
-              h('div', { style: { color: COLORS.muted } }, '最近：' + ((health.escalation && health.escalation.last_run) || '待运行')),
-              h('button', { onClick: runEscalationNow, style: { marginTop: '4px', padding: '3px 8px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px', cursor: 'pointer' } }, '立即扫描')),
-            h('div', { style: { padding: '8px', borderRadius: '8px', border: '1px solid ' + COLORS.line } },
-              h('div', { style: { fontWeight: 600, marginBottom: '3px' } }, '运维报告定时推送'),
-              h('div', { style: { color: COLORS.muted } }, (health.report_push ? (health.report_push.auto ? '已启用' : '已关闭') + ' · 每日 ' + health.report_push.hour + ':00' : '未配置')),
-              h('div', { style: { color: COLORS.muted } }, '最近：' + ((health.report_push && health.report_push.last_at) || '待运行') + (health.report_push && health.report_push.last_sent ? ' · 成功' : '')),
-              h('button', { onClick: pushOpsReport, style: { marginTop: '4px', padding: '3px 8px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px', cursor: 'pointer' } }, '立即推送')),
-            h('div', { style: { padding: '8px', borderRadius: '8px', border: '1px solid ' + COLORS.line } },
-              h('div', { style: { fontWeight: 600, marginBottom: '3px' } }, '数据库自动备份'),
-              h('div', { style: { color: COLORS.muted } }, (health.backup ? (health.backup.auto ? '已启用' : '已关闭') + ' · 每 ' + health.backup.interval_hours + ' 小时' : '未配置')),
-              h('div', { style: { color: COLORS.muted } }, '最近备份：' + ((health.backup && health.backup.last_backup_at) || '无')),
-              h('div', { style: { display: 'flex', gap: '6px', marginTop: '4px' } },
-                h('button', { onClick: createBackup, style: { padding: '3px 8px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px', cursor: 'pointer' } }, '立即备份'),
-                h('button', { onClick: drillBackup, style: { padding: '3px 8px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px', cursor: 'pointer' } }, '恢复演练'))))) : null,
-        isAdmin ? h('div', { style: { marginBottom: '12px', padding: '14px', borderRadius: '12px', border: '1px solid ' + COLORS.line } },
-          h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' } },
-            h('div', { style: { fontSize: '13px', fontWeight: 600 } }, '知识库定时更新'),
-            h('div', { style: { display: 'flex', gap: '8px' } },
-              h('button', { onClick: loadKbSync, style: { padding: '5px 10px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px', cursor: 'pointer' } }, '刷新状态'),
-              h('button', { onClick: runKbSync, disabled: kbSync && kbSync.state && kbSync.state.running,
-                style: { padding: '5px 10px', borderRadius: '7px', border: 0, background: COLORS.accent, color: '#fff', fontSize: '11px', cursor: 'pointer', opacity: kbSync && kbSync.state && kbSync.state.running ? 0.6 : 1 } }, kbSync && kbSync.state && kbSync.state.running ? '检查中…' : '立即检查'))),
+        isAdmin ? h('div', { className: 'ad-card' },
+          h('div', { className: 'ad-row-title', style: { marginBottom: '4px' } }, '后台任务'),
+          h('div', { className: 'ad-row' },
+            h('div', null,
+              h('div', { className: 'ad-row-title' }, '审批超期扫描'),
+              h('div', { className: 'ad-row-meta' }, (health.escalation ? (health.escalation.auto ? '已启用' : '已关闭') + ' · 每 ' + health.escalation.interval_hours + ' 小时' : '未配置') + ' · 最近 ' + ((health.escalation && health.escalation.last_run) || '待运行'))),
+            h('button', { className: 'ad-btn quiet', onClick: runEscalationNow }, '立即扫描')),
+          h('div', { className: 'ad-row' },
+            h('div', null,
+              h('div', { className: 'ad-row-title' }, '运维报告推送'),
+              h('div', { className: 'ad-row-meta' }, (health.report_push ? (health.report_push.auto ? '已启用' : '已关闭') + ' · 每日 ' + health.report_push.hour + ':00' : '未配置') + ' · 最近 ' + ((health.report_push && health.report_push.last_at) || '待运行'))),
+            h('button', { className: 'ad-btn quiet', onClick: pushOpsReport }, '立即推送')),
+          h('div', { className: 'ad-row' },
+            h('div', null,
+              h('div', { className: 'ad-row-title' }, '自动备份'),
+              h('div', { className: 'ad-row-meta' }, (health.backup ? (health.backup.auto ? '已启用' : '已关闭') + ' · 每 ' + health.backup.interval_hours + ' 小时' : '未配置') + ' · 最近 ' + ((health.backup && health.backup.last_backup_at) || '无'))),
+            h('button', { className: 'ad-btn quiet', onClick: drillBackup }, '恢复演练'))) : null,
+        isAdmin ? h('div', { className: 'ad-card' },
+          h('div', { className: 'ad-head', style: { marginBottom: '8px' } },
+            h('div', { className: 'ad-row-title' }, '知识库定时更新'),
+            h('div', { className: 'ad-actions' },
+              h('button', { className: 'ad-btn quiet', onClick: loadKbSync }, '刷新'),
+              h('button', { className: 'ad-btn primary', onClick: runKbSync, disabled: kbSync && kbSync.state && kbSync.state.running }, kbSync && kbSync.state && kbSync.state.running ? '检查中…' : '立即检查'))),
           h('div', { style: { fontSize: '12px', color: COLORS.muted, lineHeight: 1.8 } },
             '自动检查：' + (kbSync && kbSync.config && kbSync.config.auto ? ('每日 ' + kbSync.config.hour + ':00') : '已关闭')
             + ' · 最近：' + ((kbSync && kbSync.last && kbSync.last.at) || '尚未运行')
@@ -3684,12 +3726,12 @@ window.__ModuleLoader__.load({
           kbSync && kbSync.state && kbSync.state.results && kbSync.state.results.length ? h('div', { style: { marginTop: '6px', fontSize: '11px', color: COLORS.muted } },
             kbSync.state.results.map(function (r, i) { return h('div', { key: 'kbs-' + i }, '· ' + r.source + '：' + (r.ok ? '成功' : '失败') + '（新增 ' + (r.added || 0) + '，' + (r.elapsed || 0) + 's）') })) : null,
           kbSyncMsg ? h('div', { style: { marginTop: '6px', fontSize: '11px', color: '#b45309' } }, kbSyncMsg) : null) : null,
-        isAdmin ? h('div', { style: { marginBottom: '12px', padding: '14px', borderRadius: '12px', border: '1px solid ' + COLORS.line } },
-          h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' } },
-            h('div', { style: { fontSize: '13px', fontWeight: 600 } }, 'AI 行为审计（事件流）'),
-            h('div', { style: { display: 'flex', gap: '8px' } },
-              h('button', { onClick: loadAuditEvents, style: { padding: '5px 10px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px', cursor: 'pointer' } }, '刷新'),
-              auditEvents ? h('button', { onClick: exportAuditEvents, style: { padding: '5px 10px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px', cursor: 'pointer' } }, '导出 CSV') : null)),
+        isAdmin ? h('div', { className: 'ad-card' },
+          h('div', { className: 'ad-head', style: { marginBottom: '8px' } },
+            h('div', { className: 'ad-row-title' }, 'AI 行为审计'),
+            h('div', { className: 'ad-actions' },
+              auditEvents ? h('button', { className: 'ad-btn quiet', onClick: exportAuditEvents }, '导出') : null,
+              h('button', { className: 'ad-btn', onClick: loadAuditEvents }, '刷新'))),
           auditEventsMsg ? h('div', { style: { fontSize: '12px', color: '#b45309' } }, auditEventsMsg) : null,
           auditEvents ? (function () {
             const counts = auditEvents.counts || {}
@@ -3725,8 +3767,9 @@ window.__ModuleLoader__.load({
                 h('span', null, (event.item_name || '') + ' · ' + (event.new_status || '') + ' · ' + (event.actor || '')),
                 h('span', { style: { color: COLORS.muted } }, event.created_at))
             }) : h('div', { style: { color: COLORS.muted } }, '加载中…或者暂无记录')) : null) : null,
-        isAdmin && settings ? h('div', { style: { marginBottom: '12px', padding: '14px', borderRadius: '12px', border: '1px solid ' + COLORS.line } },
-          h('div', { style: { fontSize: '13px', fontWeight: 600, marginBottom: '6px' } }, '审批超期自动扫描'),
+        isAdmin && settings ? h('details', { className: 'ad-card' },
+          h('summary', { className: 'ad-row-title' }, '定时设置'),
+          h('div', { className: 'ad-row-meta', style: { margin: '8px 0' } }, '扫描、备份、推送和知识库检查一起保存。'),
           h('div', { style: { display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', fontSize: '12px' } },
             h('label', { style: { display: 'flex', gap: '6px', alignItems: 'center' } },
               h('input', { type: 'checkbox', checked: !!settings.auto, onChange: function (e) { setSettings(Object.assign({}, settings, { auto: e.target.checked })) } }), '启用自动扫描'),
@@ -3736,7 +3779,7 @@ window.__ModuleLoader__.load({
               h('input', { type: 'number', min: 1, value: settings.interval_hours || 6, onChange: function (e) { setSettings(Object.assign({}, settings, { interval_hours: Number(e.target.value) || 6 })) }, style: { width: '64px', padding: '4px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit' } })),
             h('label', { style: { display: 'flex', gap: '6px', alignItems: 'center' } }, '去重（小时）',
               h('input', { type: 'number', min: 1, value: settings.dedupe_hours || 24, onChange: function (e) { setSettings(Object.assign({}, settings, { dedupe_hours: Number(e.target.value) || 24 })) }, style: { width: '64px', padding: '4px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit' } })),
-            h('button', { onClick: function () { saveSettings(settings, backupSettings) }, style: { padding: '6px 12px', borderRadius: '7px', border: 0, background: COLORS.accent, color: '#fff', fontSize: '12px', cursor: 'pointer' } }, '保存设置'),
+            h('button', { className: 'ad-btn quiet', onClick: function () { saveSettings(settings, backupSettings, reportPushSettings, (kbSync && kbSync.config) || kbSync) } }, '保存全部设置'),
             settingsMessage ? h('span', { style: { color: '#16a34a' } }, settingsMessage) : null),
           h('div', { style: { marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed ' + COLORS.line, display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', fontSize: '12px' } },
             h('div', { style: { fontWeight: 600, width: '100%', marginBottom: '2px' } }, '数据库自动备份'),
@@ -3745,8 +3788,7 @@ window.__ModuleLoader__.load({
             backupSettings ? h('label', { style: { display: 'flex', gap: '6px', alignItems: 'center' } }, '保留份数',
               h('input', { type: 'number', min: 1, value: backupSettings.keep || 10, onChange: function (e) { setBackupSettings(Object.assign({}, backupSettings, { keep: Number(e.target.value) || 10 })) }, style: { width: '64px', padding: '4px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit' } })) : null,
             backupSettings ? h('label', { style: { display: 'flex', gap: '6px', alignItems: 'center' } }, '备份间隔（小时）',
-              h('input', { type: 'number', min: 1, value: backupSettings.interval_hours || 24, onChange: function (e) { setBackupSettings(Object.assign({}, backupSettings, { interval_hours: Number(e.target.value) || 24 })) }, style: { width: '64px', padding: '4px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit' } })) : null,
-            h('button', { onClick: function () { saveSettings(settings, backupSettings, reportPushSettings) }, style: { padding: '6px 12px', borderRadius: '7px', border: 0, background: COLORS.accent, color: '#fff', fontSize: '12px', cursor: 'pointer' } }, '保存备份设置')),
+              h('input', { type: 'number', min: 1, value: backupSettings.interval_hours || 24, onChange: function (e) { setBackupSettings(Object.assign({}, backupSettings, { interval_hours: Number(e.target.value) || 24 })) }, style: { width: '64px', padding: '4px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit' } })) : null),
           h('div', { style: { marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed ' + COLORS.line, display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', fontSize: '12px' } },
             h('div', { style: { fontWeight: 600, width: '100%', marginBottom: '2px' } }, '运维报告推送'),
             reportPushSettings ? h('label', { style: { display: 'flex', gap: '6px', alignItems: 'center' } },
@@ -3754,33 +3796,30 @@ window.__ModuleLoader__.load({
             reportPushSettings ? h('label', { style: { display: 'flex', gap: '6px', alignItems: 'center' } }, '推送时间',
               h('input', { type: 'number', min: 0, max: 23, value: reportPushSettings.hour || 8, onChange: function (e) { setReportPushSettings(Object.assign({}, reportPushSettings, { hour: Number(e.target.value) || 0 })) }, style: { width: '64px', padding: '4px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit' } }), '点') : null,
             reportPushSettings ? h('label', { style: { display: 'flex', gap: '6px', alignItems: 'center' } }, '失败重试',
-              h('input', { type: 'number', min: 1, max: 10, value: reportPushSettings.retries || 3, onChange: function (e) { setReportPushSettings(Object.assign({}, reportPushSettings, { retries: Number(e.target.value) || 3 })) }, style: { width: '54px', padding: '4px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit' } }), '次') : null,
-            h('button', { onClick: function () { saveSettings(settings, backupSettings, reportPushSettings) }, style: { padding: '6px 12px', borderRadius: '7px', border: 0, background: COLORS.accent, color: '#fff', fontSize: '12px', cursor: 'pointer' } }, '保存推送设置')),
+              h('input', { type: 'number', min: 1, max: 10, value: reportPushSettings.retries || 3, onChange: function (e) { setReportPushSettings(Object.assign({}, reportPushSettings, { retries: Number(e.target.value) || 3 })) }, style: { width: '54px', padding: '4px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit' } }), '次') : null),
           h('div', { style: { marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed ' + COLORS.line, display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', fontSize: '12px' } },
             h('div', { style: { fontWeight: 600, width: '100%', marginBottom: '2px' } }, '知识库定时更新'),
             h('label', { style: { display: 'flex', gap: '6px', alignItems: 'center' } },
               h('input', { type: 'checkbox', checked: !!((kbSync && kbSync.config) || {}).auto,
                 onChange: function (e) { const cfg = Object.assign({}, (kbSync && kbSync.config) || {}, { auto: e.target.checked }); setKbSync(Object.assign({}, kbSync || {}, { config: cfg })) } }), '每日自动检查'),
             h('label', { style: { display: 'flex', gap: '6px', alignItems: 'center' } }, '检查时间',
-              h('input', { type: 'number', min: 0, max: 23, value: ((kbSync && kbSync.config) || {}).hour || 6,
-                onChange: function (e) { const cfg = Object.assign({}, (kbSync && kbSync.config) || {}, { hour: Number(e.target.value) || 0 }); setKbSync(Object.assign({}, kbSync || {}, { config: cfg })) },
-                style: { width: '60px', padding: '4px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit' } }), '点'),
-            h('button', { onClick: function () { saveSettings(settings, backupSettings, reportPushSettings, (kbSync && kbSync.config) || kbSync) },
-              style: { padding: '6px 12px', borderRadius: '7px', border: 0, background: COLORS.accent, color: '#fff', fontSize: '12px', cursor: 'pointer' } }, '保存知识库设置'))) : null,
-        isAdmin ? h('div', { style: { padding: '14px', borderRadius: '12px', border: '1px solid ' + COLORS.line } },
-          h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' } },
+              h('input', { type: 'number', min: 0, max: 23, value: ((kbSync && kbSync.config) || {}).hour || 6, onChange: function (e) { const cfg = Object.assign({}, (kbSync && kbSync.config) || {}, { hour: Number(e.target.value) || 0 }); setKbSync(Object.assign({}, kbSync || {}, { config: cfg })) }, style: { width: '60px', padding: '4px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit' } }), '点'))) : null,
+        isAdmin ? h('div', { className: 'ad-card' },
+          h('div', { className: 'ad-head', style: { marginBottom: '8px' } },
             h('div', null,
-              h('div', { style: { fontSize: '13px', fontWeight: 600 } }, '数据库备份（保留最近 ' + (((health.backup || {}).keep) || 10) + ' 份）'),
-              h('div', { style: { fontSize: '11px', color: COLORS.muted, marginTop: '2px' } }, backupStatusText)),
-            h('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap' } },
-              h('button', { onClick: function () { checkAutoBackup(false) }, style: { padding: '7px 12px', borderRadius: '8px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '检查自动备份'),
-              h('button', { onClick: drillBackup, style: { padding: '7px 12px', borderRadius: '8px', border: '1px solid ' + COLORS.accent, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '恢复演练'),
-              h('button', { onClick: loadDrillHistory, style: { padding: '7px 12px', borderRadius: '8px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, drillEvents ? '收起演练记录' : '演练记录'),
-              h('button', { onClick: function () { pruneBackups(0) }, style: { padding: '7px 12px', borderRadius: '8px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '清理旧备份'),
-              h('span', { style: { fontSize: '11px', color: COLORS.muted, display: 'flex', alignItems: 'center', gap: '4px' } }, '清理早于',
-                h('input', { type: 'number', min: 1, value: pruneDays, onChange: function (e) { setPruneDays(Number(e.target.value) || 30) }, style: { width: '54px', padding: '4px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px' } }), '天',
-                h('button', { onClick: function () { pruneBackups(pruneDays) }, style: { padding: '4px 8px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px', cursor: 'pointer' } }, '执行')),
-              h('button', { onClick: createBackup, style: { padding: '7px 12px', borderRadius: '8px', border: 0, background: COLORS.accent, color: '#fff', fontSize: '12px', cursor: 'pointer' } }, '立即备份'))),
+              h('div', { className: 'ad-row-title' }, '数据库备份'),
+              h('div', { className: 'ad-row-meta' }, '保留最近 ' + (((health.backup || {}).keep) || 10) + ' 份')),
+            h('div', { className: 'ad-actions' },
+              h('button', { className: 'ad-btn primary', onClick: createBackup }, '立即备份'))),
+          h('details', { className: 'ad-more' },
+            h('summary', null, '检查、演练与清理'),
+            h('div', { className: 'ad-actions' },
+              h('button', { className: 'ad-btn', onClick: function () { checkAutoBackup(false) } }, '检查自动备份'),
+              h('button', { className: 'ad-btn', onClick: drillBackup }, '恢复演练'),
+              h('button', { className: 'ad-btn', onClick: loadDrillHistory }, drillEvents ? '收起演练记录' : '演练记录'),
+              h('button', { className: 'ad-btn quiet', onClick: function () { pruneBackups(0) } }, '清理旧备份'),
+              h('label', { className: 'ad-row-meta' }, '清理早于 ', h('input', { className: 'ad-input', type: 'number', min: 1, value: pruneDays, onChange: function (e) { setPruneDays(Number(e.target.value) || 30) }, style: { width: '64px', display: 'inline-block' } }), ' 天'),
+              h('button', { className: 'ad-btn quiet', onClick: function () { pruneBackups(pruneDays) } }, '按天数清理'))),
           backupVerifyMessage ? h('div', { style: { fontSize: '12px', marginBottom: '6px', color: backupVerifyMessage.indexOf('通过') >= 0 ? '#16a34a' : '#b45309' } }, backupVerifyMessage) : null,
           drillEvents ? h('div', { style: { marginBottom: '8px', padding: '8px', borderRadius: '8px', background: 'rgba(127,127,127,0.06)', fontSize: '11px' } },
             h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' } },
@@ -3813,21 +3852,20 @@ window.__ModuleLoader__.load({
               h('button', { onClick: function () { restoreBackup(restoreName) }, disabled: !restoreSummary || !restoreSummary.ok,
                 style: { padding: '5px 10px', borderRadius: '6px', border: 0, background: '#b45309', color: '#fff', fontSize: '12px', cursor: 'pointer', opacity: (!restoreSummary || !restoreSummary.ok) ? 0.5 : 1 } }, '确认恢复'),
               h('button', { onClick: function () { setRestoreName(''); setRestoreSummary(null) }, style: { padding: '5px 10px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '取消'))) : null) : null,
-        h('div', { style: { marginTop: '12px', padding: '14px', borderRadius: '12px', border: '1px solid ' + COLORS.line } },
-          h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' } },
-            h('div', { style: { fontSize: '13px', fontWeight: 600 } }, '任务中心（最近任务）'),
-            h('button', { onClick: load, style: { padding: '6px 10px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '刷新')),
+        h('div', { className: 'ad-card' },
+          h('div', { className: 'ad-head', style: { marginBottom: '8px' } },
+            h('div', { className: 'ad-row-title' }, '最近任务'),
+            h('button', { className: 'ad-btn quiet', onClick: load }, '刷新')),
           jobs.length ? jobs.map(function (job) {
-            return h('div', { key: 'job-' + job.id, style: { display: 'grid', gridTemplateColumns: '1fr 110px 90px 1fr 110px', gap: '8px', alignItems: 'center', fontSize: '12px', padding: '5px 0', borderBottom: '1px solid ' + COLORS.line } },
-              h('span', { style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, job.project_id),
-              h('span', null, job.kind === 'generate_all' ? '批量生成底稿' : job.kind),
-              h('span', { style: { color: COLORS.muted } }, (job.progress || 0) + '/' + (job.total || 4)),
-              h('span', { style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, job.message || ''),
-              h('div', { style: { display: 'flex', gap: '6px', justifyContent: 'flex-end', alignItems: 'center' } },
+            return h('div', { key: 'job-' + job.id, className: 'ad-row' },
+              h('div', { style: { minWidth: 0 } },
+                h('div', { className: 'ad-row-title' }, (job.kind === 'generate_all' ? '批量生成底稿' : job.kind) + ' · ' + (job.progress || 0) + '/' + (job.total || 4)),
+                h('div', { className: 'ad-row-meta' }, (job.project_id || '') + (job.message ? ' · ' + job.message : ''))),
+              h('div', { className: 'ad-actions' },
                 h(Badge, { tone: job.status === '已完成' ? 'ok' : job.status === '部分失败' ? 'bad' : job.status === '已取消' ? 'muted' : 'warn' }, job.status),
-                (job.status === '部分失败' || job.status === '失败') ? h('button', { onClick: function () { retryJob(job) }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '重试') : null,
-                (job.status === '排队中' || job.status === '执行中') ? h('button', { onClick: function () { cancelJob(job) }, style: { border: 0, background: 'transparent', color: '#b91c1c', fontSize: '12px', cursor: 'pointer' } }, '取消') : null))
-          }) : h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '暂无任务'))
+                (job.status === '部分失败' || job.status === '失败') ? h('button', { className: 'ad-btn quiet', onClick: function () { retryJob(job) } }, '重试') : null,
+                (job.status === '排队中' || job.status === '执行中') ? h('button', { className: 'ad-btn quiet', onClick: function () { cancelJob(job) } }, '取消') : null))
+          }) : h('div', { className: 'ad-row-meta' }, '暂无任务'))
         )
     }
 
@@ -3837,17 +3875,50 @@ window.__ModuleLoader__.load({
         h('path', { d: 'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z' }))
     }
 
+    function RoleHomeCards(props) {
+      const [home, setHome] = React.useState(null)
+      React.useEffect(function () {
+        let cancelled = false
+        api('/audit/home').then(function (d) { if (!cancelled) setHome(d) }).catch(function () {})
+        return function () { cancelled = true }
+      }, [])
+      if (!home || !home.cards || !home.cards.length) return null
+      const tone = { high: { color: '#b91c1c', bg: 'rgba(185,28,28,0.07)', border: '#b91c1c' }, medium: { color: '#b45309', bg: 'rgba(180,83,9,0.07)', border: '#b45309' }, low: { color: '#6b7280', bg: 'transparent', border: COLORS.line } }
+      const openProject = function (c) {
+        try { localStorage.setItem('auditdesk.lastContext', JSON.stringify({ company: c.client, project: c.project_id, zone: '概览' })) } catch (e) {}
+        try { if (props.ui && props.ui.layout) props.ui.layout.selectPanel('audit-companies') } catch (e) {}
+      }
+      return h('div', { style: { marginBottom: '12px' } },
+        h('div', { style: { fontSize: '12px', fontWeight: 600, color: COLORS.muted, marginBottom: '6px' } }, '下一步该做什么 · ' + (home.greeting || '')),
+        (home.todo && home.todo.length) ? h('div', { style: { display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' } },
+          home.todo.map(function (t) {
+            return h('div', { key: 'todo-' + t.label, style: { flex: '1 1 140px', minWidth: '140px', padding: '10px 12px', borderRadius: '10px', border: '1px solid ' + COLORS.line, background: 'rgba(47,124,246,0.05)', textAlign: 'center' } },
+              h('div', { style: { fontSize: '22px', fontWeight: 700, color: COLORS.accent } }, t.value),
+              h('div', { style: { fontSize: '11px', color: COLORS.muted, marginTop: '2px' } }, t.label))
+          })) : null,
+        h('div', { className: 'ad-next' },
+          home.cards.slice(0, 6).map(function (c) {
+            const t = tone[c.priority] || tone.low
+            return h('div', { key: 'hc-' + c.project_id, className: 'ad-next-card', onClick: function () { openProject(c) } },
+              h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' } },
+                h('span', { className: 'ad-pill ' + (c.priority === 'high' ? 'warn' : ''), style: { color: t.color } }, c.kind),
+                h('span', { className: 'ad-row-meta' }, c.metric)),
+              h('div', { className: 'ad-row-title' }, c.project),
+              h('div', { className: 'ad-row-meta' }, c.action))
+          })))
+    }
+
     function DashboardPage(props) {
       const authUser = (props && props.auth && props.auth.user) || {}
       const role = authUser.role || 'auditor'
       const roleLabel = { auditor: '审计员', manager: '项目经理', partner: '合伙人', 'kb-admin': '管理员', admin: '管理员' }[role] || role
       const roleHome = {
-        auditor: { hint: '今天先看我的项目与底稿进度，再处理资料清单待补项。', actions: [['进入客户与项目', 'audit-companies'], ['知识库检索', 'audit-kb']] },
-        manager: { hint: '优先处理「我的待办」中的审批，再复核底稿与报告。', actions: [['进入客户与项目（审批）', 'audit-companies'], ['知识库', 'audit-kb']] },
-        partner: { hint: '关注报告复核与定稿、重要性确认与归档。', actions: [['进入客户与项目（报告）', 'audit-companies'], ['系统状态', 'audit-system']] },
+        auditor: { hint: '今天先看我的项目与底稿进度，再处理资料清单待补项。', actions: [['进入项目', 'audit-companies'], ['知识库检索', 'audit-kb']] },
+        manager: { hint: '优先处理「我的待办」中的审批，再复核底稿与报告。', actions: [['进入项目（审批）', 'audit-companies'], ['知识库', 'audit-kb']] },
+        partner: { hint: '关注报告复核与定稿、重要性确认与归档。', actions: [['进入项目（报告）', 'audit-companies'], ['系统状态', 'audit-system']] },
         'kb-admin': { hint: '关注知识库更新审批、用户与备份，再进入项目抽查。', actions: [['系统状态', 'audit-system'], ['知识库（待审）', 'audit-kb']] },
         admin: { hint: '关注系统健康、备份与知识库更新，再进入项目抽查。', actions: [['系统状态', 'audit-system'], ['知识库（待审）', 'audit-kb']] },
-      }[role] || { hint: '进入客户与项目查看进度。', actions: [['进入客户与项目', 'audit-companies']] }
+      }[role] || { hint: '进入项目查看进度。', actions: [['进入项目', 'audit-companies']] }
       function goPanel(panelId) { try { if (props.ui && props.ui.layout) props.ui.layout.selectPanel(panelId) } catch (e) {} }
       const pendingState = React.useState(0); const pendingTotal = pendingState[0]; const setPendingTotal = pendingState[1]
       React.useEffect(function () {
@@ -3895,15 +3966,15 @@ window.__ModuleLoader__.load({
 
       if (!dashboard) {
         return h('div', { style: { padding: '18px' } },
-          h('div', { style: { fontSize: '15px', fontWeight: 600, marginBottom: '8px' } }, '项目看板'),
+          h('div', { style: { fontSize: '15px', fontWeight: 600, marginBottom: '8px' } }, '今日'),
           h('div', { style: { fontSize: '12px', color: COLORS.muted } }, loading ? '加载中…' : (error || '暂无数据')),
           h('button', { onClick: load, style: { marginTop: '10px', padding: '7px 12px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '刷新'))
       }
       const card = function (title, value, hint) {
-        return h('div', { style: { flex: '1 1 160px', minWidth: '160px', padding: '14px', borderRadius: '12px', border: '1px solid ' + COLORS.line, background: COLORS.bg } },
-          h('div', { style: { fontSize: '12px', color: COLORS.muted, marginBottom: '6px' } }, title),
-          h('div', { style: { fontSize: '18px', fontWeight: 600 } }, value),
-          hint ? h('div', { style: { fontSize: '11px', color: COLORS.muted, marginTop: '4px' } }, hint) : null)
+        return h('div', { className: 'ad-kpi' },
+          h('div', { className: 'ad-kpi-label' }, title),
+          h('div', { className: 'ad-kpi-value' }, value),
+          hint ? h('div', { className: 'ad-kpi-hint' }, hint) : null)
       }
       const formatBytesLocal = function (value) {
         const number = Number(value || 0)
@@ -3925,24 +3996,24 @@ window.__ModuleLoader__.load({
       else if (sortBy === 'pbc') rows.sort(function (a, b) { return (a.pbc_percent || 0) - (b.pbc_percent || 0) })
       else if (sortBy === 'pending') rows.sort(function (a, b) { return (b.approval_pending || 0) - (a.approval_pending || 0) })
       const isManager = false
-      return h('div', { style: { padding: '18px', maxWidth: '960px', height: '100%', overflow: 'auto', boxSizing: 'border-box' } },
-        h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' } },
+      return h('div', { className: 'ad-page' }, h('div', { className: 'ad-page-inner' },
+        h('div', { className: 'ad-head' },
           h('div', null,
-            h('div', { style: { fontSize: '15px', fontWeight: 600 } }, '项目看板'),
-            h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '事务所级项目进度与待办汇总')),
-          h('div', { style: { display: 'flex', gap: '8px' } },
-            h('button', { onClick: exportDashboard, style: { padding: '7px 12px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '导出 Excel'),
-            h('button', { onClick: exportDashboardPdf, style: { padding: '7px 12px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '导出 PDF'),
-            h('button', { onClick: load, style: { padding: '7px 12px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, loading ? '刷新中…' : '刷新'))),
-        error ? h('div', { style: { fontSize: '12px', color: '#b91c1c', marginBottom: '8px' } }, error) : null,
-        h('div', { style: { marginBottom: '12px', padding: '10px 14px', borderRadius: '10px', border: '1px solid ' + COLORS.line, display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', fontSize: '12px' } },
-          h('span', { style: { fontWeight: 600 } }, '我的工作台 · ' + roleLabel),
-          h('span', { style: { color: COLORS.muted } }, roleHome.hint),
-          pendingTotal > 0 ? h('span', { style: { padding: '1px 8px', borderRadius: '9px', background: 'rgba(180,83,9,0.12)', color: '#b45309', fontSize: '11px' } }, '当前待审批 ' + pendingTotal + ' 项') : null,
-          roleHome.actions.map(function (pair) {
-            return h('button', { key: 'rh-' + pair[1], onClick: function () { goPanel(pair[1]) },
-              style: { padding: '5px 10px', borderRadius: '7px', border: '1px solid ' + COLORS.accent, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, pair[0])
-          })),
+            h('h1', { className: 'ad-title' }, '今日'),
+            h('div', { className: 'ad-sub' }, roleLabel + ' · ' + roleHome.hint)),
+          h('div', { className: 'ad-actions' },
+            roleHome.actions.slice(0, 1).map(function (pair) {
+              return h('button', { key: 'rh-' + pair[1], className: 'ad-btn primary', onClick: function () { goPanel(pair[1]) } }, pair[0])
+            }),
+            h('button', { className: 'ad-btn quiet', onClick: load }, loading ? '刷新中…' : '刷新'),
+            h('details', { className: 'ad-more', style: { margin: 0 } },
+              h('summary', null, '导出'),
+              h('div', { className: 'ad-actions' },
+                h('button', { className: 'ad-btn', onClick: exportDashboard }, 'Excel'),
+                h('button', { className: 'ad-btn', onClick: exportDashboardPdf }, 'PDF'))))),
+        error ? h('div', { className: 'ad-note', style: { color: 'var(--dsw-alias-state-error-primary)' } }, error) : null,
+        pendingTotal > 0 ? h('div', { className: 'ad-note' }, '当前待审批 ' + pendingTotal + ' 项。先处理审批，再进项目。') : null,
+        h(RoleHomeCards, { ui: props.ui }),
         dashboard.count === 0 ? h('div', { style: { marginBottom: '14px', padding: '16px 18px', borderRadius: '12px', border: '1px solid ' + COLORS.accent, background: 'rgba(47,124,246,0.06)' } },
           h('div', { style: { fontSize: '14px', fontWeight: 600, marginBottom: '4px' } }, '三步开始第一次审计'),
           h('div', { style: { fontSize: '12px', color: COLORS.muted, marginBottom: '10px' } }, '不需要记流程，按顺序点即可：'),
@@ -3952,50 +4023,32 @@ window.__ModuleLoader__.load({
                 style: { padding: '9px 14px', borderRadius: '8px', border: '1px solid ' + COLORS.accent, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, pair[0])
             }),
             h('button', { onClick: function () { goPanel('audit-guide') }, style: { padding: '9px 14px', borderRadius: '8px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '查看使用指南'))) : null,
-        showGuide ? h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', padding: '10px 14px', borderRadius: '10px', background: 'rgba(47,124,246,0.08)', border: '1px solid ' + COLORS.accent, marginBottom: '12px', fontSize: '12px' } },
-          h('span', null, '第一次使用？侧栏「使用指南」有 5 步上手流程：新建项目 → 导入数据 → 执行程序 → 报告 → 归档。'),
-          h('button', { onClick: dismissGuide, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '知道了')) : null,
-        h('div', { style: { display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '12px' } },
+        h('div', { className: 'ad-kpis' },
           card('项目数', dashboard.count),
           card('进行中', dashboard.active),
           card('已归档', dashboard.archived),
           card('待审批', dashboard.approval_pending),
           card('已生成文件', formatBytesLocal(dashboard.generated_bytes))),
-        h('div', { style: { display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '8px' } },
-          h('input', { value: keyword, onChange: function (e) { setKeyword(e.target.value) }, placeholder: '搜索客户/项目…',
-            style: { width: '220px', padding: '7px 10px', borderRadius: '8px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }),
-          h('select', { value: statusFilter, onChange: function (e) { setStatusFilter(e.target.value) }, style: { padding: '7px 9px', borderRadius: '8px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } },
+        h('div', { className: 'ad-toolbar', style: { marginBottom: '12px' } },
+          h('input', { className: 'ad-input', style: { width: '220px' }, value: keyword, onChange: function (e) { setKeyword(e.target.value) }, placeholder: '搜索客户或项目' }),
+          h('select', { className: 'ad-input', style: { width: 'auto' }, value: statusFilter, onChange: function (e) { setStatusFilter(e.target.value) } },
             h('option', { value: '' }, '全部状态'),
             h('option', { value: '进行中' }, '进行中'),
             h('option', { value: '已归档' }, '已归档')),
-          h('select', { value: sortBy, onChange: function (e) { setSortBy(e.target.value) }, style: { padding: '7px 9px', borderRadius: '8px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } },
+          h('select', { className: 'ad-input', style: { width: 'auto' }, value: sortBy, onChange: function (e) { setSortBy(e.target.value) } },
             h('option', { value: 'updated' }, '按更新时间'),
             h('option', { value: 'name' }, '按项目名称'),
-            h('option', { value: 'pbc' }, '按资料清单完成率'),
-            h('option', { value: 'pending' }, '按待审批数')),
-          h('span', { style: { fontSize: '12px', color: COLORS.muted } }, '共 ' + rows.length + ' 个项目')),
-        h('div', { style: { borderRadius: '12px', border: '1px solid ' + COLORS.line, overflow: 'hidden' } },
-          h('div', { style: { display: 'grid', gridTemplateColumns: '1fr 90px 70px 130px 130px 130px 70px 70px', gap: '8px', padding: '8px 12px', fontSize: '11px', color: COLORS.muted, borderBottom: '1px solid ' + COLORS.line, background: COLORS.bg } },
-            h('span', null, '客户 / 项目'), h('span', null, '期间'), h('span', null, '状态'), h('span', null, '资料清单'), h('span', null, '底稿执行'), h('span', null, '审计程序'), h('span', null, '生成文件'), h('span', null, '待审批')),
+            h('option', { value: 'pbc' }, '按资料完成率'),
+            h('option', { value: 'pending' }, '按待审批')),
+          h('span', { className: 'ad-row-meta' }, rows.length + ' 个项目')),
+        h('div', { className: 'ad-card' },
           rows.map(function (item) {
-            return h('div', { key: item.id, style: { display: 'grid', gridTemplateColumns: '1fr 90px 70px 130px 130px 130px 70px 70px', gap: '8px', alignItems: 'center', padding: '8px 12px', fontSize: '12px', borderBottom: '1px solid ' + COLORS.line } },
+            return h('div', { key: item.id, className: 'ad-row' },
               h('div', { style: { minWidth: 0 } },
-                h('div', { style: { fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, item.name),
-                h('div', { style: { fontSize: '11px', color: COLORS.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, item.client + (item.business_type ? ' · ' + item.business_type : ''))),
-              h('span', null, item.period || '-'),
-              h(Badge, { tone: item.status === '已归档' ? 'muted' : 'ok' }, item.status),
-              h('div', null,
-                h('div', { style: { display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '2px' } }, h('span', null, item.pbc_percent + '%'), h('span', { style: { color: COLORS.muted } }, item.pbc_done + '/' + item.pbc_total)),
-                h('div', { style: { height: '5px', borderRadius: '3px', background: COLORS.line } }, h('div', { style: { width: item.pbc_percent + '%', height: '100%', borderRadius: '3px', background: COLORS.accent } }))),
-              h('div', null,
-                h('div', { style: { display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '2px' } }, h('span', null, item.wp_percent + '%'), h('span', { style: { color: COLORS.muted } }, '待执行 ' + item.wp_pending)),
-                h('div', { style: { height: '5px', borderRadius: '3px', background: COLORS.line } }, h('div', { style: { width: item.wp_percent + '%', height: '100%', borderRadius: '3px', background: '#16a34a' } }))),
-              h('div', null,
-                h('div', { style: { display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '2px' } }, h('span', null, (item.program_percent || 0) + '%'), h('span', { style: { color: COLORS.muted } }, (item.program_done || 0) + '/' + (item.program_total || 0))),
-                h('div', { style: { height: '5px', borderRadius: '3px', background: COLORS.line } }, h('div', { style: { width: (item.program_percent || 0) + '%', height: '100%', borderRadius: '3px', background: '#7c3aed' } }))),
-              h('span', null, item.generated_files),
-              h('span', { style: { color: item.approval_pending ? '#b45309' : 'inherit' } }, item.approval_pending))
-          })))
+                h('div', { className: 'ad-row-title' }, item.name, (item.data_source === 'test') ? h('span', { className: 'ad-pill warn', style: { marginLeft: '6px' } }, '测试') : null),
+                h('div', { className: 'ad-row-meta' }, item.client + ' · ' + (item.period || '-') + ' · 资料 ' + item.pbc_percent + '% · 底稿 ' + item.wp_percent + '% · 程序 ' + (item.program_percent || 0) + '%' + (item.approval_pending ? ' · 待审批 ' + item.approval_pending : ''))),
+              h(Badge, { tone: item.status === '已归档' ? 'muted' : 'ok' }, item.status))
+          }))))
     }
 
     const CLIENT_VERSION = '0.1.0'
@@ -4032,7 +4085,7 @@ window.__ModuleLoader__.load({
         h('div', { style: { padding: '14px', borderRadius: '12px', border: '1px solid ' + COLORS.line, marginBottom: '12px' } },
           h('div', { style: { fontSize: '13px', fontWeight: 600, marginBottom: '6px' } }, '已启用模块'),
           h('div', { style: { fontSize: '12px', lineHeight: 1.9, color: COLORS.muted } },
-            '项目看板 · 客户与项目（概览/风险评估/资料清单/审计底稿/审计程序/项目对话/审批状态/报告）· 知识库 · 操作留痕 · 用户管理 · 系统状态 · 使用指南')),
+            '今日 · 项目 · 商务（客户/合同/发票）· 知识库 · 设置（留痕/用户/程序库/映射规则/底稿引擎/系统/指南，按角色显示）')),
         h('div', { style: { padding: '14px', borderRadius: '12px', border: '1px solid ' + COLORS.line } },
           h('div', { style: { fontSize: '13px', fontWeight: 600, marginBottom: '6px' } }, '升级方式'),
           h('div', { style: { fontSize: '12px', lineHeight: 1.9, color: COLORS.muted } },
@@ -4127,30 +4180,28 @@ window.__ModuleLoader__.load({
       const inputStyle = { padding: '5px 8px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' }
       const smallBtn = { padding: '4px 9px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px', cursor: 'pointer' }
 
-      return h('div', { style: { padding: '18px', maxWidth: '960px', height: '100%', overflow: 'auto', boxSizing: 'border-box' } },
-        h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', flexWrap: 'wrap' } },
+      return h('div', { className: 'ad-zone-page' },
+        h('div', { className: 'ad-head' },
           h('div', null,
-            h('div', { style: { fontSize: '15px', fontWeight: 600, marginBottom: '2px' } }, '审计程序库'),
-            h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '事务所底库模板：新项目按业务类型自动套用；改这里的程序会应用到之后新建或补全的项目')),
-          canEdit ? h('div', { style: { display: 'flex', gap: '6px' } },
-            h('button', { onClick: resetCatalog, style: Object.assign({}, smallBtn, { fontSize: '11.5px', padding: '6px 10px' }) }, '恢复默认'),
-            h('button', { onClick: function () { setEditing('new'); setDraft({ category: '', name: '', source: '程序' }) }, style: Object.assign({}, smallBtn, { fontSize: '11.5px', padding: '6px 10px', border: 0, background: COLORS.accent, color: '#fff' }) }, '+ 新增程序')) : null),
-        h('div', { style: { display: 'flex', gap: '6px', margin: '10px 0 4px', flexWrap: 'wrap' } },
+            h('h1', { className: 'ad-title' }, '程序库'),
+            h('div', { className: 'ad-sub' }, '新项目按业务类型套用。改这里只影响之后新建或补全的项目。')),
+          canEdit ? h('div', { className: 'ad-actions' },
+            h('button', { className: 'ad-btn primary', onClick: function () { setEditing('new'); setDraft({ category: '', name: '', source: '程序' }) } }, '新增程序'),
+            h('button', { className: 'ad-btn quiet', onClick: resetCatalog }, '恢复默认')) : null),
+        h('div', { className: 'ad-tabs' },
           TYPES.map(function (type) {
-            const active = type === businessType
-            return h('button', { key: 'type-' + type, onClick: function () { setBusinessType(type); cancelEdit() },
-              style: { padding: '5px 12px', borderRadius: '7px', border: '1px solid ' + (active ? COLORS.accent : COLORS.line), background: active ? 'rgba(47,124,246,0.08)' : 'transparent', color: active ? COLORS.accent : 'inherit', fontSize: '12px', cursor: 'pointer' } }, type)
+            return h('button', { key: 'type-' + type, className: 'ad-tab' + (type === businessType ? ' on' : ''), onClick: function () { setBusinessType(type); cancelEdit() } }, type)
           }),
-          h('span', { style: { fontSize: '11px', color: COLORS.muted, alignSelf: 'center', marginLeft: '4px' } }, '共 ' + items.length + ' 项 · ' + groups.length + ' 个分类' + (loading ? ' · 加载中…' : ''))),
-        msg ? h('div', { style: { fontSize: '12px', color: '#16a34a', margin: '4px 0' } }, msg) : null,
-        err ? h('div', { style: { fontSize: '12px', color: '#b91c1c', margin: '4px 0' } }, err) : null,
-        editing === 'new' ? h('div', { style: { margin: '8px 0 12px', padding: '10px', borderRadius: '8px', border: '1px solid ' + COLORS.accent, display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' } },
-          h('input', { value: draft.category, onChange: function (e) { setDraft(Object.assign({}, draft, { category: e.target.value })) }, placeholder: '分类（如：货币资金）', style: Object.assign({}, inputStyle, { width: '160px' }) }),
-          h('input', { value: draft.name, onChange: function (e) { setDraft(Object.assign({}, draft, { name: e.target.value })) }, placeholder: '程序名称（必填）', style: Object.assign({}, inputStyle, { flex: 1, minWidth: '180px' }) }),
-          h('select', { value: draft.source, onChange: function (e) { setDraft(Object.assign({}, draft, { source: e.target.value })) }, style: inputStyle },
-            ['账载', '外部', '现场', '程序'].map(function (src) { return h('option', { key: 'new-src-' + src, value: src }, src) })),
-          h('button', { onClick: function () { submitSave(0) }, style: Object.assign({}, smallBtn, { border: 0, background: COLORS.accent, color: '#fff' }) }, '添加'),
-          h('button', { onClick: cancelEdit, style: smallBtn }, '取消')) : null,
+          h('span', { className: 'ad-row-meta', style: { alignSelf: 'center', marginLeft: '8px' } }, items.length + ' 项' + (loading ? ' · 加载中' : ''))),
+        msg ? h('div', { className: 'ad-note' }, msg) : null,
+        err ? h('div', { className: 'ad-note' }, err) : null,
+        editing === 'new' ? h('div', { className: 'ad-form' },
+          h('label', { className: 'ad-field' }, '分类', h('input', { className: 'ad-input', value: draft.category, onChange: function (e) { setDraft(Object.assign({}, draft, { category: e.target.value })) }, placeholder: '如：货币资金' })),
+          h('label', { className: 'ad-field' }, '程序名称', h('input', { className: 'ad-input', value: draft.name, onChange: function (e) { setDraft(Object.assign({}, draft, { name: e.target.value })) }, placeholder: '必填' })),
+          h('label', { className: 'ad-field' }, '来源', h('select', { className: 'ad-input', value: draft.source, onChange: function (e) { setDraft(Object.assign({}, draft, { source: e.target.value })) } }, ['账载', '外部', '现场', '程序'].map(function (src) { return h('option', { key: 'new-src-' + src, value: src }, src) }))),
+          h('div', { className: 'ad-form-actions' },
+            h('button', { className: 'ad-btn primary', onClick: function () { submitSave(0) } }, '添加'),
+            h('button', { className: 'ad-btn', onClick: cancelEdit }, '取消'))) : null,
         groups.length ? groups.map(function (category) {
           const groupItems = items.filter(function (item) { return (item.category || '其他') === category })
           return h('div', { key: 'cat-' + category, style: { marginBottom: '14px' } },
@@ -4164,7 +4215,7 @@ window.__ModuleLoader__.load({
                   h('input', { value: draft.name, onChange: function (e) { setDraft(Object.assign({}, draft, { name: e.target.value })) }, placeholder: '程序名称', style: Object.assign({}, inputStyle, { flex: 1, minWidth: '180px' }) }),
                   h('select', { value: draft.source, onChange: function (e) { setDraft(Object.assign({}, draft, { source: e.target.value })) }, style: inputStyle },
                     ['账载', '外部', '现场', '程序'].map(function (src) { return h('option', { key: 'edit-src-' + src, value: src }, src) })),
-                  h('button', { onClick: function () { submitSave(item.id) }, style: Object.assign({}, smallBtn, { border: 0, background: COLORS.accent, color: '#fff' }) }, '保存'),
+                  h('button', { onClick: function () { submitSave(item.id) }, style: Object.assign({}, smallBtn, { border: 0, background: COLORS.accent, color: 'var(--dsw-alias-label-primary-foreground)' }) }, '保存'),
                   h('button', { onClick: cancelEdit, style: smallBtn }, '取消'))
               }
               return h('div', { key: 'cat-item-' + item.id, style: { display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 120px', gap: '8px', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid ' + COLORS.line, fontSize: '12px' } },
@@ -4176,6 +4227,620 @@ window.__ModuleLoader__.load({
         }) : h('div', { style: { padding: '14px', fontSize: '12px', color: COLORS.muted } }, loading ? '加载中…' : '程序库为空，可「恢复默认」或新增程序'),
         h('div', { style: { marginTop: '10px', fontSize: '11px', color: COLORS.muted, lineHeight: 1.8 } },
           '说明：① 程序库修改只影响之后新建/补全的项目，已有项目清单不变；② 停用是逻辑删除，可随时「恢复默认」找回内置程序；③ 维护权限仅限合伙人/管理员。'))
+    }
+
+    function ReportOverviewPanel(props) {
+      const [ov, setOv] = React.useState(null)
+      const [draft, setDraft] = React.useState(null)
+      const [err, setErr] = React.useState('')
+      React.useEffect(function () {
+        if (!props.projectId) return
+        let cancelled = false
+        api('/audit/report/overview', { project: props.projectId })
+          .then(function (d) { if (!cancelled) setOv(d) })
+          .catch(function (e) { if (!cancelled) setErr(String(e)) })
+        api('/audit/opinion-draft', { project: props.projectId })
+          .then(function (d) { if (!cancelled) setDraft(d) })
+          .catch(function () {})
+        return function () { cancelled = true }
+      }, [props.projectId])
+      if (err) return h('div', { style: { fontSize: '12px', color: '#b91c1c', padding: '6px 0' } }, '报告总览加载失败：' + err)
+      if (!ov) return h('div', { style: { fontSize: '12px', color: COLORS.muted, padding: '6px 0' } }, '加载报告总览…')
+      const op = ov.opinion || {}
+      const level = op.level || ''
+      const tone = level.indexOf('无法表示') >= 0 || level.indexOf('否定') >= 0 ? { color: '#b91c1c', bg: 'rgba(185,28,28,0.10)', border: '#b91c1c' }
+        : level.indexOf('保留') >= 0 ? { color: '#b45309', bg: 'rgba(180,83,9,0.10)', border: '#b45309' }
+        : { color: '#16a34a', bg: 'rgba(22,163,74,0.10)', border: '#16a34a' }
+      const limits = op.limits || []
+      const mat = ov.materiality
+      const versions = ov.versions || []
+      const latest = versions[0]
+      const checklistRisk = (ov.checklist || []).filter(function (i) { return i.status === 'RISK' }).length
+      const checklistTodo = (ov.checklist || []).filter(function (i) { return i.status === 'TODO' }).length
+      const SEQ = ['草稿', '复核中', '已复核', '已定稿']
+      const curIdx = latest ? Math.max(0, SEQ.indexOf(latest.status)) : -1
+      return h('div', { style: { marginBottom: '14px', padding: '14px 16px', borderRadius: '12px', border: '1px solid ' + tone.border, background: tone.bg } },
+        draft && draft.has_materiality ? h('div', { style: { marginBottom: '10px', padding: '8px 10px', borderRadius: '8px', border: '1px solid ' + COLORS.line, background: 'rgba(47,124,246,0.04)' } },
+          h('div', { style: { display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'baseline' } },
+            h('span', { style: { fontSize: '11px', color: COLORS.muted } }, '结论草稿'),
+            h('span', { style: { fontSize: '14px', fontWeight: 700, color: COLORS.accent } }, draft.opinion),
+            h('span', { style: { fontSize: '11px', color: COLORS.muted } }, draft.reason)),
+          h('div', { style: { fontSize: '11px', color: COLORS.muted, marginTop: '2px' } },
+            '依据：重要性 ' + draft.materiality.basis + '=' + draft.materiality.overall + (draft.materiality.confirmed ? '（已确认）' : '（推荐值，未确认）') + ' · 错报合计 ' + draft.misstatement_total + (draft.unquantified_diff > 0 ? ' · 未量化差异 ' + draft.unquantified_diff + ' 项' : '')),
+          draft.notes && draft.notes.length ? h('div', { style: { marginTop: '4px' } }, draft.notes.map(function (n, ni) { return h('div', { key: 'dn-' + ni, style: { fontSize: '11px', color: '#b45309', padding: '1px 0' } }, '· ' + n) })) : null) : null,
+        h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', flexWrap: 'wrap' } },
+          h('div', { style: { flex: '1 1 260px' } },
+            h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '审计意见倾向'),
+            h('div', { style: { fontSize: '20px', fontWeight: 700, color: tone.color, margin: '4px 0' } }, level || '未生成'),
+            op.text ? h('div', { style: { fontSize: '12px', lineHeight: 1.7 } }, op.text) : null),
+          h('div', { style: { flex: '1 1 200px', fontSize: '12px' } },
+            h('div', { style: { fontSize: '12px', fontWeight: 600, marginBottom: '4px' } }, '限制事项（' + limits.length + '）'),
+            limits.length ? limits.slice(0, 6).map(function (l) { return h('div', { key: 'lim-' + l, style: { padding: '2px 0', color: '#b45309' } }, '⚠ ' + l) }) : h('div', { style: { color: '#16a34a' } }, '无未解决限制事项')),
+          h('div', { style: { flex: '1 1 180px', fontSize: '12px' } },
+            h('div', { style: { fontSize: '12px', fontWeight: 600, marginBottom: '4px' } }, '重要性（万元）'),
+            mat ? h('div', null,
+              [['整体', mat.overall], ['执行', mat.performance], ['明显微小', mat.trivial]].map(function (p) {
+                return h('div', { key: 'mat-' + p[0], style: { display: 'flex', justifyContent: 'space-between', padding: '1px 0' } }, h('span', { style: { color: COLORS.muted } }, p[0]), h('span', null, p[1] != null ? (p[1] / 10000).toFixed(2) : '—'))
+              }),
+              mat.confirmed_by ? h('div', { style: { marginTop: '4px', color: COLORS.muted, fontSize: '11px' } }, '确认人：' + mat.confirmed_by) : null) : h('div', { style: { color: COLORS.muted } }, '未确认'),
+            h('div', { style: { fontSize: '12px', fontWeight: 600, margin: '8px 0 4px' } }, '检查清单'),
+            h('div', { style: { fontSize: '11px', color: COLORS.muted } }, '风险 ' + checklistRisk + ' · 待办 ' + checklistTodo))),
+        h('div', { style: { display: 'flex', gap: '6px', marginTop: '10px', flexWrap: 'wrap', alignItems: 'center' } },
+          h('span', { style: { fontSize: '11px', color: COLORS.muted } }, '版本：'),
+          SEQ.map(function (s, i) {
+            const reached = i <= curIdx
+            const isLast = i === SEQ.length - 1
+            return h('span', { key: 'vs-' + s, style: { display: 'inline-flex', alignItems: 'center', gap: '6px' } },
+              h('span', { style: { padding: '3px 10px', borderRadius: '20px', fontSize: '11px', border: '1px solid ' + (reached ? tone.color : COLORS.line), background: reached ? tone.bg : 'transparent', color: reached ? tone.color : COLORS.muted } }, (reached ? '✓ ' : '○ ') + s),
+              isLast ? null : h('span', { style: { color: reached ? tone.color : COLORS.muted } }, '→'))
+          }),
+          latest ? h('span', { style: { fontSize: '11px', color: COLORS.muted } }, '（最新：' + (latest.created_by || '') + ' · ' + (latest.created_at || '') + '）') : null))
+    }
+
+    function EvidencePanel(props) {
+      const [ev, setEv] = React.useState(null)
+      React.useEffect(function () {
+        if (!props.projectId) return
+        let cancelled = false
+        api('/audit/evidence', { project: props.projectId })
+          .then(function (d) { if (!cancelled) setEv(d) })
+          .catch(function () {})
+        return function () { cancelled = true }
+      }, [props.projectId])
+      if (!ev) return null
+      const findings = ev.findings || []
+      const mis = ev.misstatements || []
+      const events = (ev.events || []).slice(0, 8)
+      if (!findings.length && !mis.length) return null
+      const kindTone = { formula_error: '#b91c1c', tb_mismatch: '#b45309', total_mismatch: '#b45309' }
+      return h('div', { style: { marginBottom: '14px', padding: '14px 16px', borderRadius: '12px', border: '1px solid ' + COLORS.line } },
+        h('div', { style: { fontSize: '13px', fontWeight: 600, marginBottom: '8px' } }, '证据溯源链'),
+        mis.length ? h('div', { style: { marginBottom: '8px' } },
+          h('div', { style: { fontSize: '11px', color: COLORS.muted, marginBottom: '4px' } }, '未更正错报（' + mis.length + '）'),
+          mis.map(function (m) {
+            return h('div', { key: 'm-' + m.id, style: { fontSize: '12px', padding: '4px 0', borderTop: '1px solid ' + COLORS.line, display: 'flex', justifyContent: 'space-between', gap: '10px' } },
+              h('span', { style: { minWidth: 0 } }, m.description + (m.source ? '（' + m.source + '）' : '') + ' · ' + (m.amount || 0)),
+              h('span', { style: { color: COLORS.muted, fontSize: '11px', flexShrink: 0 } }, (m.created_by || '') + ' ' + (m.created_at || '')))
+          })) : null,
+        findings.length ? h('div', { style: { marginBottom: '8px' } },
+          h('div', { style: { fontSize: '11px', color: COLORS.muted, marginBottom: '4px' } }, '核对发现（' + findings.length + '）'),
+          findings.slice(0, 12).map(function (f, i) {
+            return h('div', { key: 'f-' + i, style: { fontSize: '11px', padding: '3px 0', borderTop: '1px solid ' + COLORS.line, display: 'flex', justifyContent: 'space-between', gap: '10px' } },
+              h('span', { style: { minWidth: 0 } },
+                h('span', { style: { fontWeight: 600, color: kindTone[f.kind] || COLORS.muted } }, f.kind + ' '),
+                h('span', null, (f.sheet || '') + ' ' + (f.cell || '') + '：' + (f.message || '')),
+                f.expected != null ? h('span', { style: { color: COLORS.muted } }, ' 期望 ' + f.expected + ' vs 实际 ' + f.actual) : null),
+              h('span', { style: { color: COLORS.muted, flexShrink: 0 } }, (f.checked_by || '') + ' ' + String(f.checked_at || '').slice(0, 16)))
+          })) : null,
+        events.length ? h('div', null,
+          h('div', { style: { fontSize: '11px', color: COLORS.muted, marginBottom: '4px' } }, '最近操作'),
+          events.map(function (e, i) {
+            return h('div', { key: 'e-' + i, style: { fontSize: '11px', padding: '2px 0', color: COLORS.muted } },
+              String(e.created_at || '').slice(0, 16) + ' · ' + (e.actor || '') + ' · ' + (e.item_name || '') + ' → ' + (e.new_status || ''))
+          })) : null)
+    }
+
+    function KamPanel(props) {
+      const [kam, setKam] = React.useState(null)
+      React.useEffect(function () {
+        if (!props.projectId) return
+        let cancelled = false
+        api('/audit/kam', { project: props.projectId })
+          .then(function (d) { if (!cancelled) setKam(d) })
+          .catch(function () {})
+        return function () { cancelled = true }
+      }, [props.projectId])
+      if (!kam || !kam.kam || !kam.kam.length) return null
+      const tone = { high: { color: '#b91c1c', bg: 'rgba(185,28,28,0.07)', border: '#b91c1c' }, medium: { color: '#b45309', bg: 'rgba(180,83,9,0.07)', border: '#b45309' } }
+      return h('div', { style: { marginBottom: '14px', padding: '14px 16px', borderRadius: '12px', border: '1px solid ' + COLORS.line } },
+        h('div', { style: { fontSize: '13px', fontWeight: 600, marginBottom: '8px' } }, '关键审计事项（' + kam.count + '）'),
+        kam.kam.map(function (k, i) {
+          const t = tone[k.severity] || tone.medium
+          return h('div', { key: 'kam-' + i, style: { padding: '10px 12px', marginBottom: '8px', borderRadius: '8px', border: '1px solid ' + t.border, background: t.bg } },
+            h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' } },
+              h('span', { style: { fontSize: '13px', fontWeight: 700, color: t.color } }, (i + 1) + '. ' + k.title),
+              h('span', { style: { fontSize: '11px', padding: '1px 8px', borderRadius: '9px', color: t.color } }, k.severity === 'high' ? '重大' : '关注')),
+            h('div', { style: { fontSize: '12px' } }, k.detail),
+            h('div', { style: { fontSize: '11px', color: COLORS.muted, marginTop: '2px' } }, '依据：' + k.basis))
+        }),
+        h('div', { style: { fontSize: '11px', color: COLORS.muted } }, '关键审计事项为 AI 推导，须审计师复核确认后进入报告。'))
+    }
+
+    function FlowPanel(props) {
+      const [flow, setFlow] = React.useState(null)
+      const [err, setErr] = React.useState('')
+      const [confirming, setConfirming] = React.useState(false)
+      function load() {
+        api('/audit/project-flow', { project: props.projectId })
+          .then(function (d) { setFlow(d) })
+          .catch(function (e) { setErr(String(e)) })
+      }
+      React.useEffect(function () {
+        if (!props.projectId) return
+        let cancelled = false
+        api('/audit/project-flow', { project: props.projectId })
+          .then(function (d) { if (!cancelled) setFlow(d) })
+          .catch(function (e) { if (!cancelled) setErr(String(e)) })
+        return function () { cancelled = true }
+      }, [props.projectId])
+      function confirmStage() {
+        if (!flow || !flow.can_confirm) return
+        setConfirming(true); setErr('')
+        api('/audit/flow/confirm', null, { method: 'POST', body: { project: props.projectId, stage: flow.current } })
+          .then(function () { setConfirming(false); load() })
+          .catch(function (e) { setConfirming(false); setErr(String(e)) })
+      }
+      if (err) return h('div', { style: { fontSize: '12px', color: '#b91c1c', padding: '6px 0' } }, '流程加载失败：' + err)
+      if (!flow) return h('div', { style: { fontSize: '12px', color: COLORS.muted, padding: '6px 0' } }, '加载审计流程…')
+      const META = { done: { color: '#16a34a', bg: 'rgba(22,163,74,0.12)', txt: '完成' }, current: { color: '#2f7cf6', bg: 'rgba(47,124,246,0.12)', txt: '进行中' }, pending: { color: '#9ca3af', bg: 'rgba(156,163,175,0.10)', txt: '待开始' } }
+      const last = flow.stages.length - 1
+      return h('div', { style: { marginBottom: '14px', padding: '14px 16px', borderRadius: '12px', border: '1px solid ' + COLORS.line, background: COLORS.bg } },
+        h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', gap: '10px', flexWrap: 'wrap' } },
+          h('div', { style: { fontSize: '13px', fontWeight: 600 } }, '审计全流程'),
+          h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '进度 ' + flow.progress + '% · 下一步：' + flow.next_action),
+          flow.can_confirm ? h('button', { onClick: confirmStage, disabled: confirming, style: { padding: '6px 14px', borderRadius: '8px', border: 0, background: COLORS.accent, color: 'var(--dsw-alias-label-primary-foreground)', fontSize: '12px', cursor: 'pointer' } }, confirming ? '确认中…' : '确认完成，进入下一节点') : null),
+        h('div', { style: { height: '6px', borderRadius: '3px', background: 'rgba(127,127,127,0.18)', marginBottom: '16px', overflow: 'hidden' } },
+          h('div', { style: { width: Math.max(4, flow.progress) + '%', height: '100%', borderRadius: '3px', background: flow.archived ? '#16a34a' : COLORS.accent, transition: 'width .5s ease' } })),
+        h('div', { style: { display: 'flex' } },
+          flow.stages.map(function (st, i) {
+            const meta = META[st.status] || META.pending
+            const done = st.status === 'done'
+            const leftLine = i === 0 ? 'transparent' : (done ? '#16a34a' : 'rgba(127,127,127,0.2)')
+            return h('div', { key: 'st-' + st.key, onClick: function () { if (props.onJumpZone) props.onJumpZone(({ receive: '资料清单', fill: '审计底稿', tieout: '审计底稿', diff: '审计底稿', memo: '报告', review: '审批状态', archive: '概览' })[st.key] || '概览') }, style: { flex: '1 1 0', minWidth: '62px', display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer' } },
+              h('div', { style: { display: 'flex', alignItems: 'center', width: '100%', marginBottom: '6px' } },
+                h('div', { style: { flex: 1, height: '2px', background: leftLine } }),
+                h('div', { style: { width: '28px', height: '28px', flexShrink: 0, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: meta.bg, color: meta.color, border: '1px solid ' + meta.color, fontWeight: 700, fontSize: '13px', boxShadow: st.status === 'current' ? '0 0 0 4px rgba(47,124,246,0.18)' : 'none' } }, done ? '✓' : (i + 1)),
+                h('div', { style: { flex: 1, height: '2px', background: i === last ? 'transparent' : (done ? '#16a34a' : 'rgba(127,127,127,0.2)') } })),
+              h('div', { style: { fontSize: '11px', fontWeight: st.status === 'current' ? 700 : 600, color: st.status === 'pending' ? COLORS.muted : 'inherit' } }, st.label),
+              h('div', { style: { fontSize: '9px', color: meta.color, marginTop: '2px' } }, meta.txt),
+              st.metrics.map(function (m) { return h('div', { key: 'm-' + st.key + '-' + m.label, style: { fontSize: '9.5px', color: COLORS.muted, marginTop: '1px', maxWidth: '90px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, m.label + ' ' + m.value) }))
+          })))
+    }
+
+    function ProjectFieldsPanel(props) {
+      const [msg, setMsg] = React.useState('')
+      const [f, setF] = React.useState({ principal: '', service_unit: '', project_type: '年报审计', risk_level: 'A' })
+      React.useEffect(function () {
+        if (!props.projectId) return
+        api('/audit/projects/fields', { project: props.projectId }).then(function (d) {
+          const x = d.fields || {}
+          setF({ principal: x.principal || '', service_unit: x.service_unit || '', project_type: x.project_type || '年报审计', risk_level: x.risk_level || 'A' })
+        }).catch(function () {})
+      }, [props.projectId])
+      function upd(k, v) { setF(function (p) { const n = Object.assign({}, p); n[k] = v; return n }) }
+      function save() {
+        api('/audit/projects/fields/save', null, { method: 'POST', body: Object.assign({ project: props.projectId }, f) })
+          .then(function () { setMsg('已保存') }).catch(function (e) { setMsg('保存失败：' + e) })
+      }
+      const inp = { padding: '4px 8px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px' }
+      return h('div', { style: { marginTop: '10px', padding: '10px 12px', borderRadius: '8px', border: '1px solid ' + COLORS.line } },
+        h('div', { style: { fontSize: '12px', fontWeight: 600, marginBottom: '6px' } }, '项目立项信息'),
+        h('div', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' } },
+          h('input', { value: f.principal, placeholder: '主委托方', onChange: function (e) { upd('principal', e.target.value) }, style: inp }),
+          h('input', { value: f.service_unit, placeholder: '被服务单位', onChange: function (e) { upd('service_unit', e.target.value) }, style: inp }),
+          h('input', { value: f.project_type, placeholder: '项目类型', onChange: function (e) { upd('project_type', e.target.value) }, style: inp }),
+          h('select', { value: f.risk_level, onChange: function (e) { upd('risk_level', e.target.value) }, style: inp }, ['A', 'B', 'C'].map(function (t) { return h('option', { key: 'rl-' + t, value: t }, '风险 ' + t) })),
+          h('button', { onClick: save, style: { padding: '4px 10px', borderRadius: '6px', border: 0, background: COLORS.accent, color: 'var(--dsw-alias-label-primary-foreground)', fontSize: '11px', cursor: 'pointer' } }, '保存'),
+          msg ? h('span', { style: { fontSize: '11px', color: '#16a34a' } }, msg) : null))
+    }
+
+    function ArchivePackagePanel(props) {
+      const [pkg, setPkg] = React.useState(null)
+      React.useEffect(function () {
+        if (!props.projectId) return
+        let cancelled = false
+        api('/audit/archive/package', { project: props.projectId })
+          .then(function (d) { if (!cancelled) setPkg(d) })
+          .catch(function () {})
+        return function () { cancelled = true }
+      }, [props.projectId])
+      if (!pkg) return null
+      const c = pkg.coverage
+      const e = pkg.evidence_workflow
+      return h('div', { style: { marginBottom: '14px', padding: '12px 14px', borderRadius: '10px', border: '1px solid ' + COLORS.line } },
+        h('div', { style: { fontSize: '13px', fontWeight: 600, marginBottom: '6px' } }, '归档包快照'),
+        h('div', { style: { fontSize: '11px', color: COLORS.muted, lineHeight: 1.8 } },
+          '流程确认 ' + (pkg.flow_confirmations || []).length + ' 节点 · 底稿 ' + (c ? c.total_filled : 0) + ' 格 · 取证 ' + (e ? e.count : 0) + ' 项 · 结论 ' + (pkg.opinion_draft || '未定') + ' · 留痕 ' + (pkg.events || []).length + ' 条'),
+        h('div', { style: { fontSize: '11px', color: COLORS.muted, marginTop: '4px' } }, pkg.traceability_note))
+    }
+
+    function EngineFillsPanel(props) {
+      const [data, setData] = React.useState(null)
+      const [cov, setCov] = React.useState(null)
+      const [ewf, setEwf] = React.useState(null)
+      React.useEffect(function () {
+        if (!props.projectId) return
+        let cancelled = false
+        api('/audit/workpapers/engine-fills', { project: props.projectId })
+          .then(function (d) { if (!cancelled) setData(d) })
+          .catch(function () { if (!cancelled) setData({ has_engine: false }) })
+        api('/audit/fill-coverage', { project: props.projectId })
+          .then(function (d) { if (!cancelled) setCov(d) })
+          .catch(function () {})
+        api('/audit/evidence-workflow', { project: props.projectId })
+          .then(function (d) { if (!cancelled) setEwf(d) })
+          .catch(function () {})
+        return function () { cancelled = true }
+      }, [props.projectId])
+      function markDone(itemKey) {
+        api('/audit/evidence/update', null, { method: 'POST', body: { project: props.projectId, company: data.company, item_key: itemKey, status: '已核' } })
+          .then(function () { return api('/audit/evidence-workflow', { project: props.projectId }) })
+          .then(function (d) { setEwf(d) })
+          .catch(function () {})
+      }
+      if (!data || !data.has_engine) return null
+      return h('div', { style: { marginBottom: '12px', padding: '12px 14px', borderRadius: '10px', border: '1px solid ' + COLORS.line, background: 'rgba(47,124,246,0.05)' } },
+        h('div', { style: { fontSize: '13px', fontWeight: 600, marginBottom: '4px' } }, '引擎填写结果 · ' + data.company + '（' + data.fill_count + ' 格 / ' + data.evidence_count + ' 证据）'),
+        cov && cov.has_engine ? h('div', { style: { marginBottom: '8px' } },
+          h('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '4px' } },
+            (cov.workbooks || []).map(function (w) {
+              return h('span', { key: 'cw-' + w.workbook, style: { fontSize: '11px', padding: '2px 8px', borderRadius: '8px', border: '1px solid ' + COLORS.line, color: COLORS.muted } },
+                w.workbook.replace(/\.xlsx$/i, '') + ' ' + w.filled + '/' + w.touched + ' 格')
+            })),
+          cov.uncovered_count > 0 ? h('div', { style: { fontSize: '11px', color: '#b45309' } },
+            '未覆盖 ' + cov.uncovered_count + ' 表：' + cov.uncovered.map(function (u) { return u.sheet + (u.index ? '(' + u.index + ')' : '') }).join('、')) : null) : null,
+        h('div', { style: { fontSize: '11px', color: COLORS.muted, marginBottom: '8px' } }, '每个数字可追溯到科目/报表行/凭证'),
+        h('div', { style: { maxHeight: '220px', overflow: 'auto', border: '1px solid ' + COLORS.line, borderRadius: '8px' } },
+          (data.fills || []).slice(0, 60).map(function (f, i) {
+            return h('div', { key: 'ef-' + i, style: { fontSize: '11px', padding: '3px 8px', borderBottom: '1px solid ' + COLORS.line, display: 'flex', gap: '8px' } },
+              h('span', { style: { color: COLORS.muted, flexShrink: 0 } }, f.sheet + ' ' + f.cell),
+              h('span', null, f.value),
+              h('span', { style: { color: COLORS.muted } }, '← ' + f.basis))
+          })),
+        (data.evidence || []).length ? h('div', { style: { marginTop: '8px' } },
+          h('div', { style: { fontSize: '11px', color: COLORS.muted, marginBottom: '2px' } }, '待取证（' + data.evidence_count + '）'),
+          (data.evidence || []).map(function (e, i) {
+            return h('div', { key: 'ee-' + i, style: { fontSize: '11px', padding: '2px 0' } },
+              h('span', { style: { fontWeight: 600, color: e.type === '报表与底表差异' ? '#b45309' : '#6b7280' } }, e.type + ' '),
+              h('span', null, e.item + '：' + e.detail))
+          })) : null,
+        ewf && ewf.has_engine ? h('div', { style: { marginTop: '8px', borderTop: '1px solid ' + COLORS.line, paddingTop: '8px' } },
+          h('div', { style: { fontSize: '11px', color: COLORS.muted, marginBottom: '4px' } }, '待取证闭环（已核 ' + ewf.done + ' / 待处理 ' + ewf.pending + '）'),
+          h('div', { style: { maxHeight: '160px', overflow: 'auto' } },
+            (ewf.evidence || []).map(function (e, i) {
+              const stColor = e.status === '已核' ? '#16a34a' : e.status === '已取' ? '#b45309' : '#6b7280'
+              return h('div', { key: 'ew-' + i, style: { fontSize: '11px', padding: '3px 0', borderBottom: '1px solid ' + COLORS.line, display: 'flex', gap: '8px', alignItems: 'center' } },
+                h('span', { style: { color: stColor, flexShrink: 0, fontWeight: 600 } }, e.status),
+                h('span', { style: { flex: '1 1 auto', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, e.item),
+                e.owner ? h('span', { style: { color: COLORS.muted, flexShrink: 0 } }, e.owner + (e.deadline ? ' · ' + e.deadline : '')) : null,
+                e.status !== '已核' ? h('button', { onClick: function () { markDone(e.item_key) }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '11px', cursor: 'pointer', flexShrink: 0 } }, '已核') : null)
+            }))) : null)
+    }
+
+    function EnginePanel(props) {
+      const [logic, setLogic] = React.useState(null)
+      const [std, setStd] = React.useState(null)
+      const [tpl, setTpl] = React.useState(null)
+      React.useEffect(function () {
+        api('/audit/logic').then(function (d) { setLogic(d) }).catch(function () {})
+        api('/audit/templates').then(function (d) { setTpl(d.templates || []) }).catch(function () {})
+      }, [])
+      if (!logic) return h('div', { style: { padding: '18px', fontSize: '12px', color: COLORS.muted } }, '加载审计逻辑…')
+      const sheets = logic.sheets || []
+      function openStandard(s) {
+        if (!s.standard) return
+        setStd({ sheet: s.sheet, standard: s.standard, loading: true, hits: null })
+        api('/kb/search', { q: s.standard }).then(function (d) {
+          setStd({ sheet: s.sheet, standard: s.standard, loading: false, hits: (d.hits || []).slice(0, 2) })
+        }).catch(function () { setStd({ sheet: s.sheet, standard: s.standard, loading: false, hits: [] }) })
+      }
+      return h('div', { className: 'ad-zone-page' },
+        h('div', { className: 'ad-head' },
+          h('div', null,
+            h('h1', { className: 'ad-title' }, '底稿引擎'),
+            h('div', { className: 'ad-sub' }, '每张表怎么填、哪些是公式。填写结果在项目的底稿页看。')),
+          tpl && tpl.length ? h('span', { className: 'ad-pill ok' }, tpl[0].name + ' ' + tpl[0].version) : null),
+        logic.general ? h('div', { className: 'ad-note' },
+          h('div', { className: 'ad-row-title', style: { marginBottom: '4px' } }, '总要求'),
+          logic.general.split('\n').filter(function (l) { return l.trim() }).map(function (l, i) {
+            return h('div', { key: 'g-' + i, style: { fontSize: '12px', lineHeight: 1.8 } }, l)
+          })) : null,
+        sheets.map(function (s, idx) {
+          return h('div', { key: 's-' + idx, className: 'ad-card' },
+            h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', flexWrap: 'wrap' } },
+              h('span', { style: { fontSize: '13px', fontWeight: 600 } }, s.workbook + '｜' + s.sheet),
+              s.index ? h('span', { style: { padding: '1px 8px', borderRadius: '9px', background: 'rgba(47,124,246,0.1)', color: COLORS.accent, fontSize: '11px' } }, s.index) : null,
+              s.type ? h('span', { style: { padding: '1px 8px', borderRadius: '9px', border: '1px solid ' + COLORS.line, color: COLORS.muted, fontSize: '11px' } }, s.type) : null,
+              s.standard ? h('span', { onClick: function () { openStandard(s) }, title: '查看准则依据', style: { padding: '1px 8px', borderRadius: '9px', background: 'rgba(124,58,237,0.08)', color: '#7c3aed', fontSize: '11px', cursor: 'pointer' } }, s.standard) : null),
+            (s.steps || []).map(function (step, si) {
+              return h('div', { key: 'st-' + si, style: { fontSize: '12px', lineHeight: 1.8 } }, h('span', { style: { color: COLORS.muted, marginRight: '6px' } }, (si + 1) + '.'), step)
+            }),
+            std && std.sheet === s.sheet ? h('div', { style: { marginTop: '6px', padding: '8px 10px', borderRadius: '8px', background: 'rgba(124,58,237,0.04)', border: '1px solid rgba(124,58,237,0.2)' } },
+              std.loading ? h('div', { style: { fontSize: '11px', color: COLORS.muted } }, '正在检索准则依据…') :
+                (std.hits && std.hits.length) ? std.hits.map(function (hit, hi) {
+                  const title = hit.doc && hit.doc.title ? hit.doc.title : (hit.ref || '')
+                  return h('div', { key: 'sh-' + hi, style: { fontSize: '11px', lineHeight: 1.7, marginBottom: '6px' } },
+                    h('div', { style: { color: '#7c3aed', fontWeight: 600, marginBottom: '2px' } }, title),
+                    h('div', { style: { color: 'inherit' } }, (hit.text || '').slice(0, 220)))
+                }) : h('div', { style: { fontSize: '11px', color: COLORS.muted } }, '未检索到相关准则段落')) : null)
+        }))
+    }
+
+    function ClientsContractsPage(props) {
+      const [tab, setTab] = React.useState(props.section || 'clients')
+      const embedded = !!props.embedded
+      const section = props.section || tab
+      const [clients, setClients] = React.useState(null)
+      const [contracts, setContracts] = React.useState(null)
+      const [msg, setMsg] = React.useState('')
+      const [name, setName] = React.useState('')
+      const [creditCode, setCreditCode] = React.useState('')
+      const [clientType, setClientType] = React.useState('其他')
+      const [contact, setContact] = React.useState('')
+      const [cClient, setCClient] = React.useState('')
+      const [cProject, setCProject] = React.useState('')
+      const [cSeal, setCSeal] = React.useState('双章')
+      const role = (props.auth && props.auth.user && props.auth.user.role) || ''
+      const canApprove = ['manager', 'partner', 'kb-admin', 'admin'].indexOf(role) >= 0
+      function loadClients() { api('/audit/clients').then(function (d) { setClients(d.items || []) }).catch(function () {}) }
+      function loadContracts() { api('/audit/contracts').then(function (d) { setContracts(d.items || []) }).catch(function () {}) }
+      React.useEffect(function () { loadClients(); loadContracts() }, [])
+      function createClient() {
+        if (!name.trim()) { setMsg('客户名称必填'); return }
+        api('/audit/clients/create', null, { method: 'POST', body: { name: name, credit_code: creditCode, client_type: clientType, contact: contact } })
+          .then(function () { setMsg('客户已建档，待审批'); setName(''); setCreditCode(''); setContact(''); loadClients() })
+          .catch(function (e) { setMsg('建档失败：' + e) })
+      }
+      function approveClient(id) {
+        api('/audit/clients/approve', null, { method: 'POST', body: { id: id } })
+          .then(function () { setMsg('客户已审批'); loadClients() })
+          .catch(function (e) { setMsg('审批失败：' + e) })
+      }
+      function createContract() {
+        if (!cClient.trim()) { setMsg('客户名称必填'); return }
+        api('/audit/contracts/create', null, { method: 'POST', body: { client_name: cClient, project_name: cProject, seal_type: cSeal } })
+          .then(function () { setMsg('合同已登记，待归档'); setCClient(''); setCProject(''); loadContracts() })
+          .catch(function (e) { setMsg('登记失败：' + e) })
+      }
+      function archiveContract(id) {
+        api('/audit/contracts/archive', null, { method: 'POST', body: { id: id } })
+          .then(function () { setMsg('合同已归档'); loadContracts() })
+          .catch(function (e) { setMsg('归档失败：' + e) })
+      }
+      function tabBtn(code, label) {
+        const active = tab === code
+        return h('button', { key: 'tab-' + code, onClick: function () { setTab(code) },
+          style: { padding: '6px 14px', borderRadius: '8px', border: '1px solid ' + (active ? COLORS.accent : COLORS.line), background: active ? 'rgba(47,124,246,0.08)' : 'transparent', color: active ? COLORS.accent : 'inherit', fontSize: '12px', cursor: 'pointer' } }, label)
+      }
+      const inp = { padding: '6px 9px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' }
+      return h('div', { style: embedded ? { maxWidth: '980px' } : { padding: '18px', maxWidth: '980px', height: '100%', overflow: 'auto', boxSizing: 'border-box' } },
+        embedded ? null : h('div', { style: { fontSize: '15px', fontWeight: 600, marginBottom: '4px' } }, '客户与合同'),
+        embedded ? null : h('div', { style: { fontSize: '12px', color: COLORS.muted, marginBottom: '10px' } }, '商务外壳：客户建档审批 → 业务约定书登记归档'),
+        embedded ? null : h('div', { style: { display: 'flex', gap: '8px', marginBottom: '12px' } }, tabBtn('clients', '客户管理'), tabBtn('contracts', '合同管理')),
+        msg ? h('div', { style: { fontSize: '11px', color: '#16a34a', marginBottom: '8px' } }, msg) : null,
+        section === 'clients' ? h('div', null,
+          h('div', { className: 'ad-form' },
+            h('label', { className: 'ad-field' }, '客户名称', h('input', { className: 'ad-input', value: name, placeholder: '必填', onChange: function (e) { setName(e.target.value) } })),
+            h('label', { className: 'ad-field' }, '统一社会信用代码', h('input', { className: 'ad-input', value: creditCode, onChange: function (e) { setCreditCode(e.target.value) } })),
+            h('label', { className: 'ad-field' }, '客户类型', h('select', { className: 'ad-input', value: clientType, onChange: function (e) { setClientType(e.target.value) } }, ['其他', '企业', '事业单位', '政府', '个人'].map(function (t) { return h('option', { key: 'ct-' + t, value: t }, t) }))),
+            h('label', { className: 'ad-field' }, '联系信息', h('input', { className: 'ad-input', value: contact, onChange: function (e) { setContact(e.target.value) } })),
+            h('div', { className: 'ad-form-actions' }, h('button', { className: 'ad-btn primary', onClick: createClient }, '建档'))),
+          clients === null ? h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '加载客户…') :
+            (clients.length ? clients.map(function (c) {
+              return h('div', { key: 'cl-' + c.id, className: 'ad-row' },
+                h('div', null,
+                  h('div', { className: 'ad-row-title' }, c.name),
+                  h('div', { className: 'ad-row-meta' }, [c.client_type, c.credit_code, c.contact].filter(Boolean).join(' · '))),
+                h('div', { className: 'ad-actions' },
+                  h('span', { className: 'ad-pill ' + (c.status === '已审批' ? 'ok' : 'warn') }, c.status),
+                  (c.status === '待审批' && canApprove) ? h('button', { className: 'ad-btn quiet', onClick: function () { approveClient(c.id) } }, '审批') : null))
+            }) : h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '暂无客户，先建档'))
+        ) : h('div', null,
+          h('div', { className: 'ad-form' },
+            h('label', { className: 'ad-field' }, '客户名称', h('input', { className: 'ad-input', value: cClient, placeholder: '必填', onChange: function (e) { setCClient(e.target.value) } })),
+            h('label', { className: 'ad-field' }, '项目名称', h('input', { className: 'ad-input', value: cProject, onChange: function (e) { setCProject(e.target.value) } })),
+            h('label', { className: 'ad-field' }, '盖章类型', h('select', { className: 'ad-input', value: cSeal, onChange: function (e) { setCSeal(e.target.value) } }, ['双章', '单章(客户章)'].map(function (t) { return h('option', { key: 'cs-' + t, value: t }, t) }))),
+            h('div', { className: 'ad-form-actions' }, h('button', { className: 'ad-btn primary', onClick: createContract }, '登记'))),
+          contracts === null ? h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '加载合同…') :
+            (contracts.length ? contracts.map(function (c) {
+              return h('div', { key: 'co-' + c.id, className: 'ad-row' },
+                h('div', null,
+                  h('div', { className: 'ad-row-title' }, c.client_name),
+                  h('div', { className: 'ad-row-meta' }, [c.project_name, c.seal_type].filter(Boolean).join(' · '))),
+                h('div', { className: 'ad-actions' },
+                  h('span', { className: 'ad-pill ' + (c.status === '已归档' ? 'ok' : 'warn') }, c.status),
+                  c.status === '待归档' ? h('button', { className: 'ad-btn quiet', onClick: function () { archiveContract(c.id) } }, '归档') : null))
+            }) : h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '暂无合同，先登记'))
+        ))
+    }
+
+    function ReportSealPanel(props) {
+      const [seal, setSeal] = React.useState(null)
+      const [msg, setMsg] = React.useState('')
+      const [f, setF] = React.useState({ report_type: '', seal_type: '电子印章', seal_category: '', signer_partner: '', signer_cpa: '', report_date: '', doc_no: '', codes: '' })
+      React.useEffect(function () {
+        if (!props.projectId) return
+        api('/audit/report/seal', { project: props.projectId }).then(function (d) {
+          const s = d.seal || {}
+          setSeal(d.seal || null)
+          setF({ report_type: s.report_type || '', seal_type: s.seal_type || '电子印章', seal_category: s.seal_category || '', signer_partner: s.signer_partner || '', signer_cpa: s.signer_cpa || '', report_date: s.report_date || '', doc_no: s.doc_no || '', codes: s.codes || '' })
+        }).catch(function () {})
+      }, [props.projectId])
+      function upd(k, v) { setF(function (p) { const n = Object.assign({}, p); n[k] = v; return n }) }
+      function save() {
+        api('/audit/report/seal/save', null, { method: 'POST', body: Object.assign({ project: props.projectId }, f) })
+          .then(function (d) { setSeal(d.seal); setMsg('已保存') }).catch(function (e) { setMsg('保存失败：' + e) })
+      }
+      function advance() {
+        api('/audit/report/seal/advance', null, { method: 'POST', body: { project: props.projectId } })
+          .then(function (d) { setSeal(d.seal); setMsg('状态已推进') }).catch(function (e) { setMsg('推进失败：' + e) })
+      }
+      const inp = { padding: '4px 8px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px' }
+      return h('div', { className: 'ad-card' },
+        h('div', { className: 'ad-head', style: { marginBottom: '8px' } },
+          h('div', null,
+            h('div', { className: 'ad-row-title' }, '报告盖章'),
+            h('div', { className: 'ad-row-meta' }, seal ? seal.status : '未建。保存不代表已盖章。')),
+          h('div', { className: 'ad-actions' },
+            h('button', { className: 'ad-btn primary', onClick: save }, '保存'),
+            seal ? h('button', { className: 'ad-btn', onClick: advance, disabled: seal.status === '已盖章' }, seal.status === '已盖章' ? '已盖章' : '推进状态') : null)),
+        h('div', { className: 'ad-form' },
+          h('label', { className: 'ad-field' }, '报告类型', h('input', { className: 'ad-input', value: f.report_type, onChange: function (e) { upd('report_type', e.target.value) } })),
+          h('label', { className: 'ad-field' }, '盖章类型', h('input', { className: 'ad-input', value: f.seal_type, onChange: function (e) { upd('seal_type', e.target.value) } })),
+          h('label', { className: 'ad-field' }, '用章类别', h('input', { className: 'ad-input', value: f.seal_category, onChange: function (e) { upd('seal_category', e.target.value) } })),
+          h('label', { className: 'ad-field' }, '签字合伙人', h('input', { className: 'ad-input', value: f.signer_partner, onChange: function (e) { upd('signer_partner', e.target.value) } })),
+          h('label', { className: 'ad-field' }, '签字注册会计师', h('input', { className: 'ad-input', value: f.signer_cpa, onChange: function (e) { upd('signer_cpa', e.target.value) } })),
+          h('label', { className: 'ad-field' }, '报告日期', h('input', { className: 'ad-input', value: f.report_date, onChange: function (e) { upd('report_date', e.target.value) } })),
+          h('label', { className: 'ad-field' }, '文号', h('input', { className: 'ad-input', value: f.doc_no, onChange: function (e) { upd('doc_no', e.target.value) } })),
+          h('label', { className: 'ad-field' }, '赋码', h('input', { className: 'ad-input', value: f.codes, onChange: function (e) { upd('codes', e.target.value) } }))),
+        msg ? h('div', { className: 'ad-row-meta' }, msg) : null)
+    }
+
+    function InvoicesPage(props) {
+      const [items, setItems] = React.useState(null)
+      const [msg, setMsg] = React.useState('')
+      const [buyer, setBuyer] = React.useState('')
+      const [invType, setInvType] = React.useState('电子普票')
+      const [amount, setAmount] = React.useState('')
+      const [content, setContent] = React.useState('')
+      const [note, setNote] = React.useState('')
+      function load() { api('/audit/invoices').then(function (d) { setItems(d.items || []) }).catch(function () {}) }
+      React.useEffect(load, [])
+      function create() {
+        if (!buyer.trim()) { setMsg('购方名称必填'); return }
+        api('/audit/invoices/create', null, { method: 'POST', body: { buyer_name: buyer, invoice_type: invType, amount: parseFloat(amount) || 0, content: content, note: note } })
+          .then(function () { setMsg('发票已申请'); setBuyer(''); setAmount(''); setContent(''); setNote(''); load() })
+          .catch(function (e) { setMsg('申请失败：' + e) })
+      }
+      function issue(id) {
+        api('/audit/invoices/issue', null, { method: 'POST', body: { id: id } })
+          .then(function () { setMsg('发票已开具'); load() })
+          .catch(function (e) { setMsg('开具失败：' + e) })
+      }
+      const embedded = !!props.embedded
+      const inp = { padding: '6px 9px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' }
+      return h('div', { style: embedded ? { maxWidth: '980px' } : { padding: '18px', maxWidth: '980px', height: '100%', overflow: 'auto', boxSizing: 'border-box' } },
+        embedded ? null : h('div', { style: { fontSize: '15px', fontWeight: 600, marginBottom: '4px' } }, '发票管理'),
+        embedded ? null : h('div', { style: { fontSize: '12px', color: COLORS.muted, marginBottom: '10px' } }, '开票申请 → 开具（电子专票/普票，含快递备注）'),
+        msg ? h('div', { style: { fontSize: '11px', color: '#16a34a', marginBottom: '8px' } }, msg) : null,
+        h('div', { className: 'ad-form' },
+          h('label', { className: 'ad-field' }, '购方名称', h('input', { className: 'ad-input', value: buyer, placeholder: '必填', onChange: function (e) { setBuyer(e.target.value) } })),
+          h('label', { className: 'ad-field' }, '发票类型', h('select', { className: 'ad-input', value: invType, onChange: function (e) { setInvType(e.target.value) } }, ['电子普票', '电子专票'].map(function (t) { return h('option', { key: 'it-' + t, value: t }, t) }))),
+          h('label', { className: 'ad-field' }, '开票金额', h('input', { className: 'ad-input', value: amount, onChange: function (e) { setAmount(e.target.value) } })),
+          h('label', { className: 'ad-field' }, '开票内容', h('input', { className: 'ad-input', value: content, onChange: function (e) { setContent(e.target.value) } })),
+          h('label', { className: 'ad-field' }, '备注', h('input', { className: 'ad-input', value: note, placeholder: '快递要求等', onChange: function (e) { setNote(e.target.value) } })),
+          h('div', { className: 'ad-form-actions' }, h('button', { className: 'ad-btn primary', onClick: create }, '申请'))),
+        items === null ? h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '加载发票…') :
+          (items.length ? items.map(function (it) {
+            return h('div', { key: 'inv-' + it.id, className: 'ad-row' },
+              h('div', null,
+                h('div', { className: 'ad-row-title' }, it.buyer_name),
+                h('div', { className: 'ad-row-meta' }, [it.invoice_type, '¥' + it.amount, it.content, it.note].filter(Boolean).join(' · '))),
+              h('div', { className: 'ad-actions' },
+                h('span', { className: 'ad-pill ' + (it.status === '已开' ? 'ok' : 'warn') }, it.status),
+                it.status === '待开' ? h('button', { className: 'ad-btn quiet', onClick: function () { issue(it.id) } }, '开具') : null))
+          }) : h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '暂无发票，先申请'))
+      )
+    }
+
+    function MappingRulesPage(props) {
+      const auth = props.auth || {}
+      const role = (auth.user && auth.user.role) || ''
+      const canEdit = ['kb-admin', 'admin'].indexOf(role) >= 0
+      const KINDS = [{ code: 'name', label: '名称关键词' }, { code: 'prefix_code', label: '编码前缀' }, { code: 'exact_code', label: '精确编码' }]
+      const [kind, setKind] = React.useState('name')
+      const [items, setItems] = React.useState([])
+      const [loading, setLoading] = React.useState(false)
+      const [msg, setMsg] = React.useState('')
+      const [err, setErr] = React.useState('')
+      const [editing, setEditing] = React.useState(null)
+      const [draft, setDraft] = React.useState({ needle: '', std: '', kind: 'name', company: '', note: '' })
+      function load() {
+        setLoading(true); setErr('')
+        api('/audit/mapping-rules', { kind: kind })
+          .then(function (d) { setItems(d.items || []) })
+          .catch(function (e) { setErr(String(e)) })
+          .then(function () { setLoading(false) })
+      }
+      React.useEffect(function () { load() }, [kind])
+      function startEdit(item) {
+        if (!canEdit) return
+        setEditing(item.id)
+        setDraft({ needle: item.needle || '', std: item.std || '', kind: item.kind || 'name', company: item.company || '', note: item.note || '' })
+        setMsg('')
+      }
+      function cancelEdit() { setEditing(null); setDraft({ needle: '', std: '', kind: kind, company: '', note: '' }) }
+      function submitSave(id) {
+        if (!canEdit) return
+        if (!draft.needle.trim() || !draft.std.trim()) { setErr('关键词/编码 和 标准科目码 均必填'); return }
+        const body = { needle: draft.needle.trim(), std: draft.std.trim(), kind: draft.kind, company: draft.company.trim() || null, note: draft.note.trim() }
+        if (id) body.id = id
+        api('/audit/mapping-rules/save', null, { method: 'POST', body: body })
+          .then(function () { setMsg(id ? '已保存修改' : '已新增规则'); cancelEdit(); load() })
+          .catch(function (e) { setErr(String(e)) })
+      }
+      function toggle(item) {
+        if (!canEdit) return
+        api('/audit/mapping-rules/save', null, { method: 'POST', body: { id: item.id, needle: item.needle, std: item.std, kind: item.kind, company: item.company, note: item.note, enabled: item.enabled ? 0 : 1 } })
+          .then(function () { load() })
+          .catch(function (e) { setErr(String(e)) })
+      }
+      const inputStyle = { padding: '5px 8px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' }
+      const smallBtn = { padding: '4px 9px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11px', cursor: 'pointer' }
+      const kindLabel = function (k) { const f = KINDS.filter(function (x) { return x.code === k })[0]; return f ? f.label : k }
+      return h('div', { className: 'ad-zone-page' },
+        h('div', { className: 'ad-head' },
+          h('div', null,
+            h('h1', { className: 'ad-title' }, '映射规则'),
+            h('div', { className: 'ad-sub' }, '客户科目对不上标准科目时在这里补。保存后全所生效。')),
+          canEdit ? h('button', { className: 'ad-btn primary', onClick: function () { setEditing('new'); setDraft({ needle: '', std: '', kind: kind, company: '', note: '' }) } }, '新增规则') : null),
+        h('div', { className: 'ad-tabs' },
+          KINDS.map(function (k) {
+            return h('button', { key: 'kind-' + k.code, className: 'ad-tab' + (k.code === kind ? ' on' : ''), onClick: function () { setKind(k.code); cancelEdit() } }, k.label)
+          }),
+          h('span', { className: 'ad-row-meta', style: { alignSelf: 'center', marginLeft: '8px' } }, items.length + ' 条' + (loading ? ' · 加载中' : ''))),
+        msg ? h('div', { className: 'ad-note' }, msg) : null,
+        err ? h('div', { className: 'ad-note' }, err) : null,
+        editing === 'new' ? h('div', { className: 'ad-form' },
+          h('label', { className: 'ad-field' }, '关键词或编码', h('input', { className: 'ad-input', value: draft.needle, onChange: function (e) { setDraft(Object.assign({}, draft, { needle: e.target.value })) }, placeholder: '必填' })),
+          h('label', { className: 'ad-field' }, '标准科目码', h('input', { className: 'ad-input', value: draft.std, onChange: function (e) { setDraft(Object.assign({}, draft, { std: e.target.value })) }, placeholder: '如 1601' })),
+          h('label', { className: 'ad-field' }, '类型', h('select', { className: 'ad-input', value: draft.kind, onChange: function (e) { setDraft(Object.assign({}, draft, { kind: e.target.value })) } }, KINDS.map(function (k) { return h('option', { key: 'new-' + k.code, value: k.code }, k.label) }))),
+          h('label', { className: 'ad-field' }, '客户', h('input', { className: 'ad-input', value: draft.company, onChange: function (e) { setDraft(Object.assign({}, draft, { company: e.target.value })) }, placeholder: '留空表示通用' })),
+          h('label', { className: 'ad-field' }, '备注', h('input', { className: 'ad-input', value: draft.note, onChange: function (e) { setDraft(Object.assign({}, draft, { note: e.target.value })) } })),
+          h('div', { className: 'ad-form-actions' },
+            h('button', { className: 'ad-btn primary', onClick: function () { submitSave(0) } }, '添加'),
+            h('button', { className: 'ad-btn', onClick: cancelEdit }, '取消'))) : null,
+        items.length ? h('div', { style: { marginTop: '6px' } }, items.map(function (item) {
+          if (editing === item.id) {
+            return h('div', { key: 'it-' + item.id, style: { display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid ' + COLORS.line } },
+              h('input', { value: draft.needle, onChange: function (e) { setDraft(Object.assign({}, draft, { needle: e.target.value })) }, style: Object.assign({}, inputStyle, { width: '170px' }) }),
+              h('input', { value: draft.std, onChange: function (e) { setDraft(Object.assign({}, draft, { std: e.target.value })) }, style: Object.assign({}, inputStyle, { width: '110px' }) }),
+              h('select', { value: draft.kind, onChange: function (e) { setDraft(Object.assign({}, draft, { kind: e.target.value })) }, style: inputStyle },
+                KINDS.map(function (k) { return h('option', { key: 'e-' + k.code, value: k.code }, k.label) })),
+              h('input', { value: draft.note, onChange: function (e) { setDraft(Object.assign({}, draft, { note: e.target.value })) }, placeholder: '备注', style: Object.assign({}, inputStyle, { flex: 1, minWidth: '120px' }) }),
+              h('button', { onClick: function () { submitSave(item.id) }, style: Object.assign({}, smallBtn, { border: 0, background: COLORS.accent, color: 'var(--dsw-alias-label-primary-foreground)' }) }, '保存'),
+              h('button', { onClick: cancelEdit, style: smallBtn }, '取消'))
+          }
+          return h('div', { key: 'it-' + item.id, className: 'ad-row' },
+            h('div', { style: { minWidth: 0 } },
+              h('div', { className: 'ad-row-title' }, item.needle + ' → ' + item.std),
+              h('div', { className: 'ad-row-meta' }, kindLabel(item.kind) + (item.company ? ' · ' + item.company : ' · 通用') + (item.note ? ' · ' + item.note : ''))),
+            canEdit ? h('div', { className: 'ad-actions' },
+              h('button', { className: 'ad-btn quiet', onClick: function () { startEdit(item) } }, '编辑'),
+              h('button', { className: 'ad-btn quiet', onClick: function () { toggle(item) } }, item.enabled ? '停用' : '启用')) : h('span', { className: 'ad-pill' }, item.enabled ? '启用' : '停用'))
+        })) : h('div', { style: { padding: '14px', fontSize: '12px', color: COLORS.muted } }, loading ? '加载中…' : '该类型暂无规则'),
+        h('div', { style: { marginTop: '10px', fontSize: '11px', color: COLORS.muted, lineHeight: 1.8 } },
+          '说明：① 命中顺序：内置 chart 映射 → 客户专用前缀 → 通用名称关键词（长词优先）；② 改动保存到后端，全部客户端统一生效；③ 维护权限仅限管理员。'))
     }
 
     function GuidePage() {
@@ -4190,7 +4855,7 @@ window.__ModuleLoader__.load({
       return h('div', { style: { padding: '18px', maxWidth: '960px', height: '100%', overflow: 'auto', boxSizing: 'border-box' } },
         h('div', { style: { fontSize: '15px', fontWeight: 600, marginBottom: '10px' } }, '使用指南'),
         section('快速开始（5 步）', h('div', null,
-          line('1. 客户与项目 → + 新建项目：填写公司、项目名称、期间，选择业务类型（年报/专项/内控）。'),
+          line('1. 项目 → + 新建项目：先选已登记合同，再填项目名称、期间和业务类型（年报/专项/内控）。没有合同不能立项。'),
           line('2. 风险评估：确认重要性（经理/合伙人），上传财务报表（xlsx），导入科目余额表、序时账（支持 xlsx/xls/csv、多工作表、模板下载）。'),
           line('3. 执行程序：试算平衡、抽样、函证/回函、账龄、截止测试、存货监盘；生成程序底稿（Word）。'),
           line('4. 审计程序：按业务类型自动生成程序清单，更新状态/负责人，联动底稿台账。'),
@@ -4209,7 +4874,7 @@ window.__ModuleLoader__.load({
           line('AI 输出为初稿，须审计师复核；准则/法规结论以知识库检索结果为准。'))),
         section('归档与备份', h('div', null,
           line('归档后项目只读；归档包含最新底稿、程序底稿、扫描件、操作日志与项目信息。'),
-          line('系统状态 → 数据库备份/恢复；服务常驻时每日自动备份（保留 10 份）。'))),
+          line('设置 → 系统（管理员）：数据库备份/恢复；服务常驻时每日自动备份（保留 10 份）。'))),
         section('底稿与交付文档', h('div', null,
           line('底稿 15 类：货币资金、应收账款、存货、营业收入成本、试算平衡、期后事项、持续经营、关联方、或有事项、期初余额、会计政策与估计、风险评估、固定资产、应付职工薪酬、应交税费。'),
           line('底稿 ZIP：打包下载含 README/清单/校验值；「校验底稿包（ZIP）」可核对 SHA256，失败自动告警并生成复核审批。'),
@@ -4220,6 +4885,70 @@ window.__ModuleLoader__.load({
           line('登录 429：连续失败锁定 5 分钟，请联系管理员或稍后再试。'),
           line('导入失败：用「校验」查看缺失列；.xls 若为网页导出请另存为 .xlsx。'),
           line('报告 PDF 中文空白：服务器缺少 Arial Unicode 字体。'))))
+    }
+
+    function shellTab(code, label, tab, setTab) {
+      return h('button', { key: 'shell-' + code, className: 'ad-tab' + (tab === code ? ' on' : ''), onClick: function () { setTab(code) } }, label)
+    }
+
+    function CommercePage(props) {
+      const [tab, setTab] = React.useState('clients')
+      return h('div', { className: 'ad-page' }, h('div', { className: 'ad-page-inner' },
+        h('div', { className: 'ad-head' },
+          h('div', null,
+            h('h1', { className: 'ad-title' }, '商务'),
+            h('div', { className: 'ad-sub' }, '客户建档审批，再登记合同。没有合同不能立项。')),
+          null),
+        h('div', { className: 'ad-tabs' },
+          shellTab('clients', '客户', tab, setTab), shellTab('contracts', '合同', tab, setTab), shellTab('invoices', '发票', tab, setTab)),
+        tab === 'invoices'
+          ? h(InvoicesPage, { auth: props.auth, embedded: true })
+          : h(ClientsContractsPage, { auth: props.auth, embedded: true, section: tab })))
+    }
+
+    function settingsTabsFor(role) {
+      const tabs = []
+      if (['manager', 'partner', 'kb-admin', 'admin'].indexOf(role) >= 0) tabs.push({ id: 'events', label: '留痕' })
+      if (role === 'kb-admin' || role === 'admin') {
+        tabs.push({ id: 'users', label: '用户' })
+        tabs.push({ id: 'catalog', label: '程序库' })
+        tabs.push({ id: 'mapping', label: '映射规则' })
+        tabs.push({ id: 'engine', label: '底稿引擎' })
+        tabs.push({ id: 'system', label: '系统' })
+      }
+      tabs.push({ id: 'guide', label: '指南' })
+      tabs.push({ id: 'about', label: '关于' })
+      return tabs
+    }
+
+    function SettingsPage(props) {
+      const role = (props.auth && props.auth.user && props.auth.user.role) || ''
+      const tabs = settingsTabsFor(role)
+      const initial = (function () {
+        try {
+          const saved = localStorage.getItem('auditdesk.settings.tab') || ''
+          if (saved) localStorage.removeItem('auditdesk.settings.tab')
+          if (tabs.some(function (item) { return item.id === saved })) return saved
+        } catch (e) {}
+        return tabs[0].id
+      })()
+      const [tab, setTab] = React.useState(initial)
+      const current = tabs.some(function (item) { return item.id === tab }) ? tab : tabs[0].id
+      let body = h(GuidePage, null)
+      if (current === 'events') body = h(EventsPage, { auth: props.auth })
+      else if (current === 'users') body = h(UsersPage, { auth: props.auth })
+      else if (current === 'catalog') body = h(ProgramCatalogPage, { auth: props.auth })
+      else if (current === 'mapping') body = h(MappingRulesPage, { auth: props.auth })
+      else if (current === 'engine') body = h(EnginePanel, { auth: props.auth })
+      else if (current === 'system') body = h(SystemPage, Object.assign({}, props, { auth: props.auth }))
+      else if (current === 'about') body = h(AboutPage, null)
+      return h('div', { style: { height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 } },
+        h('div', { style: { padding: '22px 28px 0', flexShrink: 0 } },
+          h('h1', { className: 'ad-title' }, '设置'),
+          h('div', { className: 'ad-sub', style: { marginBottom: '12px' } }, role === 'auditor' ? '使用说明。后台页签按角色开放。' : '能看到的页签由当前角色决定。'),
+          h('div', { className: 'ad-tabs' },
+            tabs.map(function (item) { return shellTab(item.id, item.label, current, setTab) }))),
+        h('div', { style: { flex: 1, minHeight: 0 } }, body))
     }
 
     return {
@@ -4234,25 +4963,37 @@ window.__ModuleLoader__.load({
           })
         }
         function AuditCompaniesPage(props) { return h(CompaniesPage, { onStartChat: onStartChat, ui: ctx, auth: props.auth }) }
-        const panels = [
-          { id: 'audit-dashboard', label: '项目看板', icon: DashboardIcon, page: withAuth(function (p) { return h(DashboardPage, Object.assign({}, p, { ui: ctx })) }), order: 29 },
-          { id: 'audit-guide', label: '使用指南', icon: GuideIcon, page: withAuth(GuidePage), order: 35 },
-          { id: 'audit-about', label: '关于', icon: AboutIcon, page: withAuth(AboutPage), order: 36 },
-          { id: 'audit-companies', label: '客户与项目', icon: CompaniesIcon, page: withAuth(AuditCompaniesPage), order: 30 },
+        const sidebar = [
+          { id: 'audit-dashboard', label: '今日', icon: DashboardIcon, page: withAuth(function (p) { return h(DashboardPage, Object.assign({}, p, { ui: ctx })) }), order: 29 },
+          { id: 'audit-companies', label: '项目', icon: CompaniesIcon, page: withAuth(AuditCompaniesPage), order: 30 },
+          { id: 'audit-commerce', label: '商务', icon: CommerceIcon, page: withAuth(CommercePage), order: 30.5 },
           { id: 'audit-kb', label: '知识库', icon: KbIcon, page: withAuth(KbPage), order: 31 },
-          { id: 'audit-events', label: '操作留痕', icon: EventsIcon, page: withAuth(EventsPage), order: 32 },
-          { id: 'audit-users', label: '用户管理', icon: UsersIcon, page: withAuth(UsersPage), order: 33 },
-          { id: 'audit-catalog', label: '程序库', icon: GuideIcon, page: withAuth(ProgramCatalogPage), order: 33.5 },
-          { id: 'audit-system', label: '系统状态', icon: SystemIcon, page: withAuth(function (props) { return h(SystemPage, Object.assign({}, props, { ui: ctx })) }), order: 34 },
+          { id: 'audit-settings', label: '设置', icon: SystemIcon, page: withAuth(function (p) { return h(SettingsPage, Object.assign({}, p, { ui: ctx })) }), order: 40 },
         ]
-        panels.forEach(function (panel) {
+        const hidden = [
+          { id: 'audit-guide', page: withAuth(GuidePage) },
+          { id: 'audit-about', page: withAuth(AboutPage) },
+          { id: 'audit-clients', page: withAuth(ClientsContractsPage) },
+          { id: 'audit-invoices', page: withAuth(InvoicesPage) },
+          { id: 'audit-events', page: withAuth(EventsPage) },
+          { id: 'audit-users', page: withAuth(UsersPage) },
+          { id: 'audit-catalog', page: withAuth(ProgramCatalogPage) },
+          { id: 'audit-mapping-rules', page: withAuth(MappingRulesPage) },
+          { id: 'audit-engine', page: withAuth(EnginePanel) },
+          { id: 'audit-system', page: withAuth(function (props) { return h(SystemPage, Object.assign({}, props, { ui: ctx })) }) },
+        ]
+        function registerMain(panel) {
           ctx.slots.inject('main', function () {
             return ctx.slots.register({ name: 'main', key: panel.id }, panel.page)
           })
+        }
+        sidebar.forEach(function (panel) {
+          registerMain(panel)
           ctx.slots.inject('sidebar.panellist', function () {
             return ctx.slots.register({ name: 'sidebar.panellist', id: panel.id, order: panel.order, label: function () { return panel.label } }, panel.icon)
           })
         })
+        hidden.forEach(registerMain)
       },
     }
   },
