@@ -832,15 +832,29 @@ window.__ModuleLoader__.load({
               l.hint
                 ? h('span', { className: 'ad-row-meta', style: { minWidth: '72px' } }, l.hint)
                 : (!noRow && diff !== 0 && !hasHint
-                    ? h(ui.Button, { variant: 'ghost', size: 'sm', title: '记入未更正错报汇总，在报告页处置',
-                        style: { fontSize: '10px', padding: '1px 6px', minHeight: '20px' },
-                        onClick: function () {
-                          if (props.onAddMisstatement) props.onAddMisstatement({
-                            sheet: '勾稽', cell: l.line,
-                            message: '勾稽差异：' + l.line + ' 计算 ' + fmt(l.calc) + ' vs 报表 ' + fmt(l.fs),
-                            diff: Math.abs(diff)
-                          })
-                        } }, '记为错报')
+                    ? (function () {
+                        const describe = function () {
+                          return '勾稽差异：' + l.line + ' 计算 ' + fmt(l.calc) + ' vs 报表 ' + fmt(l.fs)
+                        }
+                        const record = function (category) {
+                          if (!props.onAddMisstatement) return
+                          let note = ''
+                          if (category === '豁免') {
+                            try { note = window.prompt('豁免理由（会记入留痕，不能为空）：') || '' } catch (e) { note = '' }
+                            if (!note.trim()) return
+                          }
+                          props.onAddMisstatement({ sheet: '勾稽', cell: l.line, message: describe(), diff: Math.abs(diff), category: category, note: note })
+                        }
+                        const btn = function (label, category, title) {
+                          return h(ui.Button, { variant: 'ghost', size: 'sm', title: title,
+                            style: { fontSize: '10px', padding: '1px 5px', minHeight: '20px' },
+                            onClick: function () { record(category) } }, label)
+                        }
+                        return h('span', { style: { display: 'flex', gap: '2px' } },
+                          btn('错报', '未更正', '认定为错报，进未更正错报汇总，在报告页处置'),
+                          btn('豁免', '豁免', '不认定为错报，需填写理由并留痕'),
+                          btn('待补', '待补证据', '暂不结论，标记待补证据'))
+                      })()
                     : null))
           })),
         h('details', { className: 'ad-more ad-card' },
@@ -3414,7 +3428,8 @@ window.__ModuleLoader__.load({
           source: (finding.sheet || '') + '!' + (finding.cell || ''),
           description: finding.message || '客户底稿核对差异',
           amount: Math.abs(Number(finding.diff) || 0),
-          category: '未更正',
+          category: finding.category || '未更正',
+          note: finding.note || '',
         } }).then(function (d) {
           setClientCheckMsg('已记入未更正错报：' + ((d.item && d.item.description) || '').slice(0, 40))
           loadMisstatements()
