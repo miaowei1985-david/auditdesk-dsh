@@ -4155,6 +4155,31 @@ window.__ModuleLoader__.load({
         window.addEventListener('auditdesk:events-refresh', onRefresh)
         return function () { window.removeEventListener('auditdesk:events-refresh', onRefresh) }
       }, [])
+      // 快捷时间：直接带参数查，不走 load()（state 尚未更新，闭包会读到旧值）
+      function applyQuickRange(days) {
+        if (days < 0) {
+          setStartDate(''); setEndDate('')
+          setLoading(true); setError('')
+          api('/audit/events', { project: project || undefined, actor: actor || undefined,
+            item_type: type || undefined, item_name: itemName || undefined, limit: 100, offset: 0 })
+            .then(function (d) { setEvents(d.events || []); setTotal(d.total || (d.events || []).length); setPage(1) })
+            .catch(function (e) { setError(String(e)) })
+            .then(function () { setLoading(false) })
+          return
+        }
+        const now = new Date()
+        const fmtD = function (d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') }
+        const end = fmtD(now)
+        const start = days === 0 ? end : fmtD(new Date(now.getTime() - days * 86400000))
+        setStartDate(start); setEndDate(end)
+        setLoading(true); setError('')
+        api('/audit/events', { project: project || undefined, actor: actor || undefined,
+          item_type: type || undefined, item_name: itemName || undefined,
+          start_date: start, end_date: end, limit: 100, offset: 0 })
+          .then(function (d) { setEvents(d.events || []); setTotal(d.total || (d.events || []).length); setPage(1) })
+          .catch(function (e) { setError(String(e)) })
+          .then(function () { setLoading(false) })
+      }
       function resetFilters() {
         setProject(''); setActor(''); setType(''); setItemName(''); setStartDate(''); setEndDate(''); setPage(1)
         try { localStorage.removeItem('auditdesk.events.filters') } catch (e) {}
@@ -4207,6 +4232,13 @@ window.__ModuleLoader__.load({
         load()
       }, [])
 
+      const quickBar = h('div', { style: { display: 'flex', gap: '6px', padding: '0 14px 8px', flexWrap: 'wrap', alignItems: 'center' } },
+        h('span', { style: { fontSize: '11px', color: COLORS.muted } }, '快捷时间：'),
+        [{ label: '今天', days: 0 }, { label: '近 7 天', days: 7 }, { label: '近 30 天', days: 30 }, { label: '全部', days: -1 }].map(function (r) {
+          return h(ui.Button, { key: 'qr-' + r.label, variant: 'ghost', size: 'sm',
+            style: { fontSize: '11px', padding: '2px 8px', minHeight: '22px' },
+            onClick: function () { applyQuickRange(r.days) } }, r.label)
+        }))
       const filterBar = h('div', { className: 'ad-form' },
         h('label', { className: 'ad-field' }, '项目', h('select', { className: 'ad-input', value: project, onChange: function (e) { setProject(e.target.value) } },
           h('option', { value: '' }, '全部'),
@@ -4320,6 +4352,7 @@ window.__ModuleLoader__.load({
             h(ui.Button, { variant: 'outline', size: 'sm', onClick: resetFilters }, '清除筛选'),
             h(ui.Button, { variant: 'outline', size: 'sm', onClick: exportCsv }, '导出全部'),
             h(ui.Button, { variant: 'ghost', size: 'sm', onClick: exportPageCsv }, '导出当前页'))),
+        quickBar,
         filterBar,
         error ? h('div', { style: { padding: '10px 16px', color: '#b91c1c', fontSize: '12px' } }, error) : null,
         rows.length ? h('div', { style: { display: 'grid', gridTemplateColumns: '140px 70px 66px minmax(0,1fr) 150px 110px', gap: '10px', padding: '4px 16px', fontSize: '11px', color: COLORS.muted, borderBottom: '1px solid ' + COLORS.line, background: 'rgba(127,127,127,0.05)' } },
