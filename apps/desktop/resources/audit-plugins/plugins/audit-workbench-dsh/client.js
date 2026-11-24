@@ -635,6 +635,26 @@ window.__ModuleLoader__.load({
       const [companies, setCompanies] = React.useState(null)
       const [data, setData] = React.useState(null)
       const [err, setErr] = React.useState('')
+      // 勾稽差异的处置状态：source 形如「勾稽!科目名」，按科目名索引
+      const [disposals, setDisposals] = React.useState({})
+      React.useEffect(function () {
+        if (!props.projectId) return
+        let cancelled = false
+        api('/audit/misstatements', { project: props.projectId })
+          .then(function (d) {
+            if (cancelled) return
+            const map = {}
+            ;(d.items || []).forEach(function (it) {
+              const src = String(it.source || '')
+              if (src.indexOf('勾稽!') === 0) {
+                map[src.slice(3)] = { category: it.category || '未更正', status: it.status || '', note: it.note || '' }
+              }
+            })
+            setDisposals(map)
+          })
+          .catch(function () { if (!cancelled) setDisposals({}) })
+        return function () { cancelled = true }
+      }, [props.projectId])
 
       React.useEffect(function () {
         if (props.client) { setCode(props.client); return }
@@ -833,6 +853,14 @@ window.__ModuleLoader__.load({
                 ? h('span', { className: 'ad-row-meta', style: { minWidth: '72px' } }, l.hint)
                 : (!noRow && diff !== 0 && !hasHint
                     ? (function () {
+                        const disp = disposals[l.line]
+                        if (disp) {
+                          const label = disp.category === '豁免' ? '已豁免'
+                            : disp.category === '待补证据' ? '待补证据'
+                              : (disp.status === '已调整' ? '已调整' : (disp.status === '已询问' ? '已询问' : '已记错报'))
+                          const tip = [disp.category, disp.status, disp.note].filter(Boolean).join(' · ')
+                          return h('span', { title: tip || label, className: 'ad-row-meta', style: { fontSize: '10px', padding: '1px 6px', borderRadius: '9px', border: '1px solid var(--dsw-alias-border-l2)', whiteSpace: 'nowrap' } }, label)
+                        }
                         const describe = function () {
                           return '勾稽差异：' + l.line + ' 计算 ' + fmt(l.calc) + ' vs 报表 ' + fmt(l.fs)
                         }
@@ -844,6 +872,11 @@ window.__ModuleLoader__.load({
                             if (!note.trim()) return
                           }
                           props.onAddMisstatement({ sheet: '勾稽', cell: l.line, message: describe(), diff: Math.abs(diff), category: category, note: note })
+                          setDisposals(function (prev) {
+                            const next = Object.assign({}, prev)
+                            next[l.line] = { category: category, status: '未处理', note: note }
+                            return next
+                          })
                         }
                         const btn = function (label, category, title) {
                           return h(ui.Button, { variant: 'ghost', size: 'sm', title: title,
@@ -1627,7 +1660,7 @@ window.__ModuleLoader__.load({
               h('h1', { className: 'ad-title' }, '底稿'),
               h('div', { className: 'ad-sub' }, '按模板生成底稿。点状态只改执行进度，复核状态单独记录。')),
             h(ui.Button, { variant: 'primary', size: 'sm', disabled: props.generating || readOnly, onClick: function () { if (props.onGenerateAll) props.onGenerateAll() } }, props.generating ? '生成中…' : '生成常用底稿')),
-          h(WorkpaperGatePanel, { client: (props.project && props.project.client) || '', onAddMisstatement: props.onAddMisstatement }),
+          h(WorkpaperGatePanel, { client: (props.project && props.project.client) || '', projectId: props.project ? props.project.id : '', onAddMisstatement: props.onAddMisstatement }),
           h(EngineFillsPanel, { projectId: props.project ? props.project.id : '' }),
           h('div', { style: { padding: '8px 14px 0', display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center', fontSize: '11px' } },
             h('span', { style: { color: COLORS.muted } }, '底稿统计：共 ' + generated.length + ' 份 · 台账 ' + (items ? items.length : 0) + ' 项'),
