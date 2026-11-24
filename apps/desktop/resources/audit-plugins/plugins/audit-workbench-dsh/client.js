@@ -218,6 +218,8 @@ window.__ModuleLoader__.load({
       '.ad-plain input{padding:0 !important;border:0 !important;background:transparent !important;color:inherit !important;font-size:13px !important;outline:none}',
       '.ad-ml6{margin-left:6px}',
       '.ad-tabs-fit{width:fit-content}',
+      '.ad-flow{display:inline-flex;align-items:center;gap:12px;margin-top:6px;font-size:11px;color:var(--dsw-alias-label-secondary)}',
+      '.ad-flow-step{display:inline-flex;align-items:center;gap:4px}',
       '.ad-tile.wide{flex:2 1 420px;min-width:420px}',
       'body:not([data-ds-dark-theme]) .ad-tile{box-shadow:var(--dsw-shadow-lv1),var(--dsw-shadow-lv1-blur)}',
       '.ad-card summary{list-style:none;cursor:pointer}',
@@ -289,6 +291,22 @@ window.__ModuleLoader__.load({
     function AStatus(props) {
       const tone = props.tone === 'ok' ? 'success' : props.tone === 'warn' ? 'warning' : props.tone === 'bad' ? 'danger' : 'neutral'
       return h(ui.Tag, { tone: tone, className: props.className }, props.children)
+    }
+
+    // 客户准入流程：建档 → 提交 → 审批，用原生 StateDot 画状态点
+    function ClientFlow(props) {
+      const s = props.status
+      const submitted = s === '待审批' || s === '已审批' || s === '已驳回'
+      const steps = [
+        { label: '建档', state: 'done' },
+        { label: '提交', state: submitted ? 'done' : 'idle' },
+        { label: '审批', state: s === '已审批' ? 'done' : s === '已驳回' ? 'error' : s === '待审批' ? 'warning' : 'idle' }
+      ]
+      return h('div', { className: 'ad-flow' }, steps.map(function (st) {
+        return h('span', { key: st.label, className: 'ad-flow-step' },
+          h(ui.StateDot, { state: st.state }),
+          h('span', null, st.label))
+      }))
     }
 
     function Section(props) {
@@ -4712,6 +4730,7 @@ window.__ModuleLoader__.load({
                 h('div', { style: { minWidth: 0, flex: 1 } },
                   h('div', { className: 'ad-row-title' }, c.name),
                   h('div', { className: 'ad-row-meta' }, [c.client_type, c.credit_code, c.contact, c.risk_level ? '风险 ' + c.risk_level : '', c.owner_name ? '责任人 ' + c.owner_name : ''].filter(Boolean).join(' · ')),
+                  h(ClientFlow, { status: c.status }),
                   (c.approver_name && c.status !== '待提交') ? h('div', { className: 'ad-row-meta' }, '审批人：' + c.approver_name + (c.submitted_at ? ' · 提交 ' + c.submitted_at : '') + (c.approve_opinion ? ' · 意见：' + c.approve_opinion : '')) : null,
                   submitFor === c.id ? h('div', { className: 'ad-actions', style: { marginTop: '6px' } },
                     h('select', { className: 'ad-input', style: { width: 'auto' }, value: approverPick, onChange: function (e) { setApproverPick(e.target.value) } },
