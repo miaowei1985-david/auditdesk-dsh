@@ -1114,7 +1114,21 @@ window.__ModuleLoader__.load({
                       h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onDecideApproval) props.onDecideApproval(item, 'reject', '已驳回，请重新处理') },
                         style: { padding: '3px 8px', borderRadius: '6px', border: '1px solid #b91c1c', background: 'transparent', color: '#b91c1c', fontSize: '11px', cursor: 'pointer' } }, '驳回')))
                 })
-              : h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '暂无指派给你的审批；资料清单待补 ' + (pbcCounts['待补'] || 0) + ' 项')),
+              : (function () {
+                  const pendingPbc = pbcCounts['待补'] || 0
+                  const undoPbc = pbcCounts['未交'] || 0
+                  const todoWp = wpCounts['待执行'] || 0
+                  const items = []
+                  if (pendingPbc) items.push({ text: '资料待补 ' + pendingPbc + ' 项', zone: '资料清单' })
+                  if (undoPbc) items.push({ text: '资料未交 ' + undoPbc + ' 项', zone: '资料清单' })
+                  if (todoWp) items.push({ text: '底稿待执行 ' + todoWp + ' 项', zone: '审计底稿' })
+                  if (!items.length) {
+                    return h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '当前没有待办。底稿执行完提交审批后，待办会出现在这里。')
+                  }
+                  return h('div', { style: { fontSize: '12px', color: COLORS.muted, display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' } },
+                    h('span', null, '没有待审批，建议先处理：'),
+                    items.map(function (it) { return h(ui.Button, { key: it.text, variant: 'ghost', size: 'sm', onClick: jump(it.zone) }, it.text) }))
+                })()),
           eventsBlock('pbc'),
           h('div', { style: { marginTop: '6px' } }, eventsBlock('workpaper')),
           h('div', { style: { marginTop: '6px' } }, eventsBlock('approval')))
@@ -5294,7 +5308,7 @@ window.__ModuleLoader__.load({
                   h(MetricBar, { label: '底稿', value: st.wp, color: 'var(--dsw-alias-state-success-primary)' }),
                   h(MetricBar, { label: '程序', value: st.program, color: 'var(--dsw-alias-state-done-primary)' }))))),
           selPrograms === null ? h('div', { className: 'ad-row-meta' }, '加载审计程序…') : null,
-          (prog.groups || []).map(function (cat) {
+          h('div', { className: 'ad-client-grid', style: { alignItems: 'start' } }, (prog.groups || []).map(function (cat) {
             const total = cat.items.length
             const done = cat.items.filter(function (i) { return i.status === '已完成' }).length
             const pct = total ? Math.round(done / total * 100) : 0
@@ -5310,7 +5324,7 @@ window.__ModuleLoader__.load({
                   h('span', { className: 'ad-prog-item-name' }, it.name),
                   h('span', { className: 'ad-prog-item-status' }, it.status))
               }))
-          }),
+          })),
           h('div', { className: 'ad-card' },
             h('div', { className: 'ad-head', style: { marginBottom: '8px' } },
               h('div', null,
