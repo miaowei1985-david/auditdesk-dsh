@@ -1078,8 +1078,7 @@ window.__ModuleLoader__.load({
             card('审计底稿', wpItems.length, '已生成 ' + (wpCounts['已生成'] || 0) + ' · 进行中 ' + (wpCounts['进行中'] || 0) + ' · 待执行 ' + (wpCounts['待执行'] || 0)),
             card('已生成文件', generatedItems.length, '可预览/下载，按索引号回写台账'),
             card('审批状态', approvalItems.length, '已通过 ' + (approvalCounts['已通过'] || 0) + ' · 待审批 ' + (approvalCounts['待审批'] || 0) + ' · 待提交 ' + (approvalCounts['待提交'] || 0)),
-            card('审计程序', programPercent + '%', '已完成 ' + programDone + ' / ' + programItems.length + ' 项'),
-            card('项目成员', memberItems.length, memberItems.map(function (m) { return m.name }).join('、'))),
+            card('审计程序', programPercent + '%', '已完成 ' + programDone + ' / ' + programItems.length + ' 项')),
           h('div', { className: 'ad-card' },
             h('div', { className: 'ad-row-title', style: { marginBottom: '8px' } }, '项目成员（' + memberItems.length + '）'),
             memberItems.length ? memberItems.map(function (m) {
