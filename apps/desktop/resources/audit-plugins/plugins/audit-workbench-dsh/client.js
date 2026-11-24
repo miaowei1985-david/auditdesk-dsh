@@ -5096,6 +5096,8 @@ window.__ModuleLoader__.load({
       else if (sortBy === 'name') rows.sort(function (a, b) { return String(a.name).localeCompare(String(b.name), 'zh') })
       else if (sortBy === 'pbc') rows.sort(function (a, b) { return (a.pbc_percent || 0) - (b.pbc_percent || 0) })
       else if (sortBy === 'pending') rows.sort(function (a, b) { return (b.approval_pending || 0) - (a.approval_pending || 0) })
+      else if (sortBy === 'wp') rows.sort(function (a, b) { return (a.wp_percent || 0) - (b.wp_percent || 0) })
+      else if (sortBy === 'program') rows.sort(function (a, b) { return (a.program_percent || 0) - (b.program_percent || 0) })
       return h('div', { className: 'ad-page' }, h('div', { className: 'ad-page-inner' },
         h('div', { className: 'ad-head' },
           h('div', null,
@@ -5137,8 +5139,10 @@ window.__ModuleLoader__.load({
           h('select', { className: 'ad-input', style: { width: 'auto' }, value: sortBy, onChange: function (e) { setSortBy(e.target.value) } },
             h('option', { value: 'updated' }, '按更新时间'),
             h('option', { value: 'name' }, '按项目名称'),
-            h('option', { value: 'pbc' }, '按资料完成率'),
-            h('option', { value: 'pending' }, '按待审批')),
+            h('option', { value: 'pbc' }, '资料完成率（低→高）'),
+            h('option', { value: 'wp' }, '底稿完成率（低→高）'),
+            h('option', { value: 'program' }, '程序完成率（低→高）'),
+            h('option', { value: 'pending' }, '按待审批（多→少）')),
           h('span', { className: 'ad-row-meta' }, rows.length + ' 个项目')),
         h('div', { className: 'ad-card' },
           rows.map(function (item) {
