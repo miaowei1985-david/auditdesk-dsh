@@ -4656,6 +4656,11 @@ window.__ModuleLoader__.load({
           .then(function () { setMsg('合同已登记，待签'); setCClient(''); setCProject(''); loadContracts() })
           .catch(function (e) { setMsg('登记失败：' + e) })
       }
+      function signContract(id) {
+        api('/audit/contracts/sign', null, { method: 'POST', body: { id: id } })
+          .then(function () { setMsg('合同已签署。下一步：归档'); loadContracts() })
+          .catch(function (e) { setMsg('签署失败：' + e) })
+      }
       function archiveContract(id) {
         api('/audit/contracts/archive', null, { method: 'POST', body: { id: id } })
           .then(function () { setMsg('合同已归档'); loadContracts() })
@@ -4701,6 +4706,7 @@ window.__ModuleLoader__.load({
                     h('button', { className: 'ad-btn', onClick: function () { setDecisionFor(null); setOpinion('') } }, '取消')) : null),
                 h('div', { className: 'ad-actions' },
                   h('span', { className: 'ad-pill ' + (c.status === '已审批' ? 'ok' : c.status === '已驳回' ? 'warn' : '') }, c.status),
+                  (c.overdue_days > 0) ? h('span', { className: 'ad-pill warn' }, '超期 ' + c.overdue_days + ' 天') : null,
                   (c.status === '待提交' || c.status === '已驳回') ? h('button', { className: 'ad-btn quiet', onClick: function () { setSubmitFor(c.id); setApproverPick(c.approver_username || '') } }, '提交审批') : null,
                   (c.status === '待审批' && canApprove) ? h('button', { className: 'ad-btn quiet', onClick: function () { setDecisionFor(c.id); setOpinion('') } }, '审批') : null))
             }) : h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '暂无客户，先建档'))
@@ -4717,10 +4723,11 @@ window.__ModuleLoader__.load({
               return h('div', { key: 'co-' + c.id, className: 'ad-row' },
                 h('div', null,
                   h('div', { className: 'ad-row-title' }, c.client_name),
-                  h('div', { className: 'ad-row-meta' }, [c.project_name, c.seal_type].filter(Boolean).join(' · '))),
+                  h('div', { className: 'ad-row-meta' }, [c.project_name, c.seal_type, c.signed_by ? '签署 ' + c.signed_by + (c.signed_at ? '（' + c.signed_at + '）' : '') : ''].filter(Boolean).join(' · '))),
                 h('div', { className: 'ad-actions' },
-                  h('span', { className: 'ad-pill ' + (c.status === '已归档' ? 'ok' : 'warn') }, c.status === '已归档' ? '已签' : c.status === '待归档' ? '待签' : c.status),
-                  c.status === '待归档' ? h('button', { className: 'ad-btn quiet', onClick: function () { archiveContract(c.id) } }, '标记已签') : null))
+                  h('span', { className: 'ad-pill ' + (c.status === '已归档' || c.status === '已签' ? 'ok' : 'warn') }, c.status === '已归档' ? '已归档' : c.status === '已签' ? '已签' : '待签'),
+                  c.status === '待归档' ? h('button', { className: 'ad-btn quiet', onClick: function () { signContract(c.id) } }, '签署') : null,
+                  c.status === '已签' ? h('button', { className: 'ad-btn quiet', onClick: function () { archiveContract(c.id) } }, '归档') : null))
             }) : h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '暂无合同，先登记'))
         ))
     }
@@ -4775,11 +4782,15 @@ window.__ModuleLoader__.load({
       const [amount, setAmount] = React.useState('')
       const [content, setContent] = React.useState('')
       const [note, setNote] = React.useState('')
+      const [contracts, setContracts] = React.useState([])
+      const [contractId, setContractId] = React.useState('')
       function load() { api('/audit/invoices').then(function (d) { setItems(d.items || []) }).catch(function () {}) }
       React.useEffect(load, [])
+      React.useEffect(function () { api('/audit/contracts').then(function (d) { setContracts(d.items || []) }).catch(function () {}) }, [])
       function create() {
         if (!buyer.trim()) { setMsg('购方名称必填'); return }
-        api('/audit/invoices/create', null, { method: 'POST', body: { buyer_name: buyer, invoice_type: invType, amount: parseFloat(amount) || 0, content: content, note: note } })
+        const picked = (contracts || []).filter(function (c) { return String(c.id) === String(contractId) })[0]
+        api('/audit/invoices/create', null, { method: 'POST', body: { buyer_name: buyer, invoice_type: invType, amount: parseFloat(amount) || 0, content: content, note: note, contract_id: picked ? picked.id : 0, client_name: picked ? picked.client_name : '' } })
           .then(function () { setMsg('发票已申请'); setBuyer(''); setAmount(''); setContent(''); setNote(''); load() })
           .catch(function (e) { setMsg('申请失败：' + e) })
       }
@@ -4796,6 +4807,11 @@ window.__ModuleLoader__.load({
         msg ? h('div', { style: { fontSize: '11px', color: '#16a34a', marginBottom: '8px' } }, msg) : null,
         h('div', { className: 'ad-form' },
           h('label', { className: 'ad-field' }, '购方名称', h('input', { className: 'ad-input', value: buyer, placeholder: '必填', onChange: function (e) { setBuyer(e.target.value) } })),
+          h('label', { className: 'ad-field' }, '关联合同', h('select', { className: 'ad-input', value: contractId, onChange: function (e) { setContractId(e.target.value) } },
+            h('option', { value: '' }, '不关联'),
+            (contracts || []).filter(function (c) { return c.status === '已签' || c.status === '已归档' }).map(function (c) {
+              return h('option', { key: 'ic-' + c.id, value: String(c.id) }, c.client_name + (c.project_name ? ' · ' + c.project_name : ''))
+            }))),
           h('label', { className: 'ad-field' }, '发票类型', h('select', { className: 'ad-input', value: invType, onChange: function (e) { setInvType(e.target.value) } }, ['电子普票', '电子专票'].map(function (t) { return h('option', { key: 'it-' + t, value: t }, t) }))),
           h('label', { className: 'ad-field' }, '开票金额', h('input', { className: 'ad-input', value: amount, onChange: function (e) { setAmount(e.target.value) } })),
           h('label', { className: 'ad-field' }, '开票内容', h('input', { className: 'ad-input', value: content, onChange: function (e) { setContent(e.target.value) } })),
