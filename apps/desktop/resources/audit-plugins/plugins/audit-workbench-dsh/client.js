@@ -1021,6 +1021,25 @@ window.__ModuleLoader__.load({
       const progFilterState = React.useState('all'); const progFilter = progFilterState[0]; const setProgFilter = progFilterState[1]
       // 底稿台账：32 张分属 9 个科目循环，按循环筛选
       const wpCycleState = React.useState('all'); const wpCycle = wpCycleState[0]; const setWpCycle = wpCycleState[1]
+      // 引擎实际填过哪些表（与台账状态是两套：台账靠人点，引擎按单元格填）
+      const engineSheetState = React.useState({}); const engineSheets = engineSheetState[0]; const setEngineSheets = engineSheetState[1]
+      React.useEffect(function () {
+        const pid = props.project && props.project.id
+        if (!pid) return
+        let cancelled = false
+        api('/audit/workpapers/engine-fills', { project: pid })
+          .then(function (d) {
+            if (cancelled) return
+            const agg = {}
+            ;((d && d.fills) || []).forEach(function (f) {
+              const sh = String(f.sheet || '').trim()
+              if (sh) agg[sh] = (agg[sh] || 0) + 1
+            })
+            setEngineSheets(agg)
+          })
+          .catch(function () { if (!cancelled) setEngineSheets({}) })
+        return function () { cancelled = true }
+      }, [props.project && props.project.id])
       const tmpElementsState = React.useState({}); const tmpElements = tmpElementsState[0]; const setTmpElements = tmpElementsState[1]
       const matEditState = React.useState(false); const matEditing = matEditState[0]; const setMatEditing = matEditState[1]
       const matOverallState = React.useState(''); const matOverall = matOverallState[0]; const setMatOverall = matOverallState[1]
@@ -1654,6 +1673,10 @@ window.__ModuleLoader__.load({
                         style: { fontSize: '11px', color: COLORS.accent, cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, item.note)
                     : (item.note ? h('span', { style: { fontSize: '11px', color: COLORS.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, item.note) : null)),
                 h('span', { style: { display: 'flex', gap: '8px', alignItems: 'center' } },
+                  engineSheets[item.name]
+                    ? h('span', { title: '引擎已向这张表写入 ' + engineSheets[item.name] + ' 格（与台账状态独立）',
+                        style: { fontSize: '10px', padding: '1px 6px', borderRadius: '9px', border: '1px solid var(--dsw-alias-state-success-primary)', color: 'var(--dsw-alias-state-success-primary)', whiteSpace: 'nowrap' } }, '引擎已填')
+                    : null,
                   h(ui.Button, { variant: 'ghost', size: 'sm', title: '查看这张底稿的变更历史', style: { fontSize: '11px', padding: '1px 6px', minHeight: '20px' },
                     onClick: function (e) { e.stopPropagation(); if (props.onOpenWorkpaperHistory) props.onOpenWorkpaperHistory(item) } }, '历史'),
                   h('span', { onClick: function () { if (!readOnly && props.onCycleWp) props.onCycleWp(item) }, title: '点击切换执行状态', 'data-wp-id': String(item.id), style: { cursor: 'pointer' } },
