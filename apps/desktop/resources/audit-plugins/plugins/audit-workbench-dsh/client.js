@@ -448,28 +448,6 @@ window.__ModuleLoader__.load({
     }
 
     // ---------- 客户与项目 ----------
-    const PBC = [
-      { name: '科目余额表', status: '已交', tone: 'ok' },
-      { name: '序时账/明细账', status: '已交', tone: 'ok' },
-      { name: '财务报表（未审）', status: '已交', tone: 'ok' },
-      { name: '银行对账单及余额调节表', status: '待补', tone: 'warn' },
-      { name: '已开立银行账户清单', status: '未交', tone: 'bad' },
-      { name: '合同/发票（抽样）', status: '待补', tone: 'warn' },
-    ]
-    const WP = [
-      { name: '货币资金审定表（ZA）', state: '已预填', tone: 'ok' },
-      { name: '货币资金明细表（ZA-1）', state: '已填 9 格', tone: 'ok' },
-      { name: '银行询证函控制表（ZA-4）', state: '待发函', tone: 'warn' },
-      { name: '截止性测试（ZA-5）', state: '待执行', tone: 'warn' },
-      { name: '余额调节表（ZA-7）', state: '待补资料', tone: 'bad' },
-    ]
-    const APPROVAL = [
-      { name: '业务承接/保持', state: '已通过', tone: 'ok', note: '项目经理 · 2026-11-19' },
-      { name: '独立性声明', state: '已通过', tone: 'ok', note: '项目组 · 2026-11-19' },
-      { name: '审计计划', state: '已通过', tone: 'ok', note: '项目负责人 · 2026-11-20' },
-      { name: '成果复核', state: '待提交', tone: 'warn', note: '底稿完成后提交' },
-    ]
-
     function basicProjectPrompt(company, project) {
       return '【审计项目】公司：' + company + '；项目：' + (project ? project.name : '') +
         (project && project.period ? '；期间：' + project.period : '') +
