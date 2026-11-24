@@ -3966,18 +3966,19 @@ window.__ModuleLoader__.load({
       const [project, setProject] = React.useState(savedFilters.project || '')
       const [actor, setActor] = React.useState(savedFilters.actor || '')
       const [type, setType] = React.useState(navType || savedFilters.type || '')
+      const [itemName, setItemName] = React.useState(savedFilters.itemName || '')
       const [startDate, setStartDate] = React.useState(savedFilters.startDate || '')
       const [endDate, setEndDate] = React.useState(savedFilters.endDate || '')
       React.useEffect(function () {
-        try { localStorage.setItem('auditdesk.events.filters', JSON.stringify({ project: project, actor: actor, type: type, startDate: startDate, endDate: endDate })) } catch (e) {}
-      }, [project, actor, type, startDate, endDate])
+        try { localStorage.setItem('auditdesk.events.filters', JSON.stringify({ project: project, actor: actor, type: type, itemName: itemName, startDate: startDate, endDate: endDate })) } catch (e) {}
+      }, [project, actor, type, itemName, startDate, endDate])
       const [loading, setLoading] = React.useState(false)
       const [error, setError] = React.useState('')
       const [page, setPage] = React.useState(1)
       const [total, setTotal] = React.useState(0)
 
       function resetFilters() {
-        setProject(''); setActor(''); setType(''); setStartDate(''); setEndDate(''); setPage(1)
+        setProject(''); setActor(''); setType(''); setItemName(''); setStartDate(''); setEndDate(''); setPage(1)
         try { localStorage.removeItem('auditdesk.events.filters') } catch (e) {}
         setTimeout(function () { load(1) }, 0)
       }
@@ -4014,7 +4015,7 @@ window.__ModuleLoader__.load({
       function load(pageNo) {
         const target = pageNo || page
         setLoading(true); setError('')
-        api('/audit/events', { project: project || undefined, actor: actor || undefined, item_type: type || undefined, start_date: startDate || undefined, end_date: endDate || undefined, limit: 100, offset: (target - 1) * 100 })
+        api('/audit/events', { project: project || undefined, actor: actor || undefined, item_type: type || undefined, item_name: itemName || undefined, start_date: startDate || undefined, end_date: endDate || undefined, limit: 100, offset: (target - 1) * 100 })
           .then(function (d) { setEvents(d.events || []); setTotal(d.total || (d.events || []).length); setPage(target) })
           .catch(function (e) { setError(String(e)) })
           .then(function () { setLoading(false) })
@@ -4033,6 +4034,7 @@ window.__ModuleLoader__.load({
           h('option', { value: '' }, '全部'),
           projects.map(function (p) { return h('option', { key: p.id, value: p.id }, p.client + ' / ' + p.name) }))),
         h('label', { className: 'ad-field' }, '操作人', h(ui.Input, { className: 'ad-iw', value: actor, onChange: function (e) { setActor(e.target.value) } })),
+        h('label', { className: 'ad-field' }, '对象（如底稿名）', h(ui.Input, { className: 'ad-iw', value: itemName, placeholder: '按名称模糊匹配', onChange: function (e) { setItemName(e.target.value) } })),
         h('label', { className: 'ad-field' }, '类型', h('select', { className: 'ad-input', value: type, onChange: function (e) { setType(e.target.value) } },
           h('option', { value: '' }, '全部'),
           Object.keys(TYPE_NAMES).map(function (key) { return h('option', { key: key, value: key }, TYPE_NAMES[key]) }))),
