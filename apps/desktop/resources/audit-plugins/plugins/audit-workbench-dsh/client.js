@@ -2929,7 +2929,7 @@ window.__ModuleLoader__.load({
           mgmtError ? h('div', { style: { fontSize: '12px', color: '#b91c1c', marginBottom: '8px' } }, mgmtError) : null,
           h('div', { style: { display: 'flex', justifyContent: 'flex-end', gap: '8px' } },
             h('button', { onClick: function () { setRenameOpen(false); setDeleteOpen(false); setMgmtError('') }, style: { padding: '7px 12px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: '#111', fontSize: '12px', cursor: 'pointer' } }, '取消'),
-            h('button', { onClick: renameOpen ? submitRename : submitDelete, style: { padding: '7px 12px', borderRadius: '7px', border: 0, background: renameOpen ? COLORS.accent : '#b91c1c', color: '#fff', fontSize: '12px', cursor: 'pointer' } }, renameOpen ? '保存' : '确认删除'))))
+            h('button', { onClick: renameOpen ? submitRename : submitDelete, style: { padding: '7px 12px', borderRadius: '7px', border: 0, background: renameOpen ? COLORS.accent : '#b91c1c', color: renameOpen ? 'var(--dsw-alias-label-primary-foreground)' : '#fff', fontSize: '12px', cursor: 'pointer' } }, renameOpen ? '保存' : '确认删除'))))
         : null
 
       const zoneProps = {
@@ -3760,7 +3760,9 @@ window.__ModuleLoader__.load({
               h('div', { style: { fontWeight: 600 } }, '最近明细（' + sysEvents.length + '）'),
               h('button', { onClick: function () {
                 try { localStorage.setItem('auditdesk.events.type', sysEvent || '') } catch (e) {}
-                try { if (props.ui && props.ui.layout) props.ui.layout.selectPanel('audit-events') } catch (e) {}
+                try { localStorage.setItem('auditdesk.settings.tab', 'events') } catch (e) {}
+                try { window.dispatchEvent(new CustomEvent('auditdesk:goto-settings-tab', { detail: 'events' })) } catch (e) {}
+                try { if (props.ui && props.ui.layout) props.ui.layout.selectPanel('audit-settings') } catch (e) {}
               }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '11px', cursor: 'pointer' } }, '查看全部（操作留痕）')),
             sysEvents.length ? sysEvents.slice(0, 10).map(function (event) {
               return h('div', { key: 'se-' + event.id, style: { display: 'flex', justifyContent: 'space-between', gap: '10px', padding: '2px 0' } },
@@ -3915,11 +3917,22 @@ window.__ModuleLoader__.load({
       const roleHome = {
         auditor: { hint: '今天先看我的项目与底稿进度，再处理资料清单待补项。', actions: [['进入项目', 'audit-companies'], ['知识库检索', 'audit-kb']] },
         manager: { hint: '优先处理「我的待办」中的审批，再复核底稿与报告。', actions: [['进入项目（审批）', 'audit-companies'], ['知识库', 'audit-kb']] },
-        partner: { hint: '关注报告复核与定稿、重要性确认与归档。', actions: [['进入项目（报告）', 'audit-companies'], ['系统状态', 'audit-system']] },
+        partner: { hint: '关注报告复核与定稿、重要性确认与归档。', actions: [['进入项目（报告）', 'audit-companies'], ['知识库', 'audit-kb']] },
         'kb-admin': { hint: '关注知识库更新审批、用户与备份，再进入项目抽查。', actions: [['系统状态', 'audit-system'], ['知识库（待审）', 'audit-kb']] },
         admin: { hint: '关注系统健康、备份与知识库更新，再进入项目抽查。', actions: [['系统状态', 'audit-system'], ['知识库（待审）', 'audit-kb']] },
       }[role] || { hint: '进入项目查看进度。', actions: [['进入项目', 'audit-companies']] }
-      function goPanel(panelId) { try { if (props.ui && props.ui.layout) props.ui.layout.selectPanel(panelId) } catch (e) {} }
+      function goSettingsTab(tabId) {
+        try { localStorage.setItem('auditdesk.settings.tab', tabId) } catch (e) {}
+        try { window.dispatchEvent(new CustomEvent('auditdesk:goto-settings-tab', { detail: tabId })) } catch (e) {}
+        goPanel('audit-settings')
+      }
+      function goPanel(panelId) {
+        // 隐藏面板无侧栏入口，统一路由到「设置」对应页签，保证有返回路径
+        if (panelId === 'audit-system') { goSettingsTab('system'); return }
+        if (panelId === 'audit-guide') { goSettingsTab('guide'); return }
+        if (panelId === 'audit-events') { goSettingsTab('events'); return }
+        try { if (props.ui && props.ui.layout) props.ui.layout.selectPanel(panelId) } catch (e) {}
+      }
       const pendingState = React.useState(0); const pendingTotal = pendingState[0]; const setPendingTotal = pendingState[1]
       React.useEffect(function () {
         api('/audit/approvals/pending-counts').then(function (d) { setPendingTotal((d && d.total) || 0) }).catch(function () {})
@@ -4934,6 +4947,14 @@ window.__ModuleLoader__.load({
       })()
       const [tab, setTab] = React.useState(initial)
       const current = tabs.some(function (item) { return item.id === tab }) ? tab : tabs[0].id
+      React.useEffect(function () {
+        function onGo(e) {
+          const target = e && e.detail
+          if (target && tabs.some(function (item) { return item.id === target })) setTab(target)
+        }
+        try { window.addEventListener('auditdesk:goto-settings-tab', onGo) } catch (e) {}
+        return function () { try { window.removeEventListener('auditdesk:goto-settings-tab', onGo) } catch (e) {} }
+      }, [tabs])
       let body = h(GuidePage, null)
       if (current === 'events') body = h(EventsPage, { auth: props.auth })
       else if (current === 'users') body = h(UsersPage, { auth: props.auth })
