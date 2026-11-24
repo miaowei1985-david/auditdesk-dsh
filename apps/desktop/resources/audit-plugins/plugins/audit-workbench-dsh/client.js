@@ -282,6 +282,7 @@ window.__ModuleLoader__.load({
       '.ad-prog-item-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
       '.ad-prog-item-status{font-size:11px;color:var(--dsw-alias-label-secondary);white-space:nowrap}',
       '.ad-th{font-size:11px;color:var(--dsw-alias-label-secondary);border-bottom:1px solid var(--dsw-alias-border-l2);padding:3px 0 4px;margin-bottom:2px}',
+      'mark{background:rgba(250,204,21,0.32);color:inherit;border-radius:2px;padding:0 1px}',
       '.ad-modal-wide{width:min(920px,94vw) !important}',
       '.ad-modal-wide .ad-form{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 16px}',
       '.ad-cats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px 12px;margin-top:2px}',
@@ -3890,9 +3891,20 @@ window.__ModuleLoader__.load({
           const meta = (hit.doc && hit.doc.code ? (CAT[hit.doc.code] || hit.doc.code) : '') + ' · ' + (hit.section || '')
           return h('div', { key: 'hit-' + i, className: 'ad-row', onClick: function () { openDoc(hit.ref) }, style: { cursor: 'pointer', alignItems: 'flex-start' } },
             h('div', null,
-              h('div', { className: 'ad-row-title' }, title),
+              h('div', { className: 'ad-row-title' }, markKw(title, q)),
               h('div', { className: 'ad-row-meta' }, meta),
-              h('div', { className: 'ad-row-meta', style: { marginTop: '6px', lineHeight: 1.6, maxHeight: '3.2em', overflow: 'hidden' } }, hit.text)))
+              h('div', { className: 'ad-row-meta', style: { marginTop: '6px', lineHeight: 1.6, maxHeight: '3.2em', overflow: 'hidden' } }, markKw(hit.text, q))))
+        })
+      }
+      const markKw = function (text, kw) {
+        const src = String(text == null ? '' : text)
+        const k = String(kw || '').trim()
+        if (!k) return src
+        const esc = k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        let re
+        try { re = new RegExp('(' + esc + ')', 'gi') } catch (e) { return src }
+        return src.split(re).map(function (part, i) {
+          return part.toLowerCase() === k.toLowerCase() ? h('mark', { key: 'mk-' + i }, part) : part
         })
       }
       const middle = h('div', { style: { width: '320px', borderRight: '1px solid ' + COLORS.line, display: 'flex', flexDirection: 'column', minHeight: 0, maxHeight: '100%', flexShrink: 0 } },
