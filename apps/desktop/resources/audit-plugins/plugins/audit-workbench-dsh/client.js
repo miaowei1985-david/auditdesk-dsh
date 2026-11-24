@@ -745,9 +745,13 @@ window.__ModuleLoader__.load({
       const supColor = function (st) { return st === 'placed' || st === 'sampled' ? '#22C55E' : st === 'overflow' ? '#F59E0B' : 'var(--dsw-alias-border-l2)' }
       const supPlaced = SUP_SUBJECTS.filter(function (x) { var st = supSubjectState((supMap[x] || {}).tables || []); return st === 'placed' || st === 'sampled' }).length
       const supOverflow = SUP_SUBJECTS.filter(function (x) { return supSubjectState((supMap[x] || {}).tables || []) === 'overflow' }).length
+      const supEmptyCount = Object.keys(supMap).reduce(function (n, k) {
+        return n + (supMap[k].tables || []).filter(function (t) { return supTableState(t) === 'empty' }).length
+      }, 0)
       const supplementPanel = h('details', { className: 'ad-more ad-card' },
         h('summary', null, '附表落位 · ' + SUP_SUBJECTS.length + ' 科目 · 已落位 ' + supPlaced
-          + (supOverflow ? ' · 溢出待补 ' + supOverflow : '')),
+          + (supOverflow ? ' · 溢出待补 ' + supOverflow : '')
+          + (supEmptyCount ? ' · 无数据 ' + supEmptyCount : '')),
         h('div', { className: 'ad-row-title', style: { marginTop: '6px', marginBottom: '8px' } }, '附表落位（程序表驱动）'),
         h('div', { style: { display: 'flex', gap: '18px', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap' } },
           h(Ring, { value: SUP_SUBJECTS.length ? (supPlaced / SUP_SUBJECTS.length * 100) : 0 }),
@@ -806,9 +810,10 @@ window.__ModuleLoader__.load({
           }),
           (gate.blocked_by || []).length ? h('div', { className: 'ad-note', style: { marginTop: '8px' } }, '阻塞项：' + (gate.blocked_by || []).join('；')) : null),
         h('details', { className: 'ad-more ad-card' },
-          h('summary', null, '勾稽明细 · ' + lines.length + ' 行'
+          h('summary', { style: lineBad ? { color: '#b91c1c', fontWeight: 600 } : undefined },
+            '勾稽明细 · ' + lines.length + ' 行'
             + (lineOk ? ' · 一致 ' + lineOk : '')
-            + (lineBad ? ' · 差异 ' + lineBad : '')
+            + (lineBad ? ' · 差异 ' + lineBad + '（需处理）' : '')
             + (lineNo ? ' · 报表无此行 ' + lineNo : '')),
           h('div', { className: 'ad-row ad-th', style: { marginTop: '6px' } },
             h('span', { style: { flex: 1, minWidth: 0 } }, '科目'),
