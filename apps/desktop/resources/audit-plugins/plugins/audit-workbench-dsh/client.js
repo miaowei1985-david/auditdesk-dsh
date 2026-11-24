@@ -1736,7 +1736,12 @@ window.__ModuleLoader__.load({
           h(EngineFillsPanel, { projectId: props.project ? props.project.id : '' }),
           h('div', { style: { padding: '8px 14px 0', display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center', fontSize: '11px' } },
             h('span', { style: { color: COLORS.muted, display: 'inline-flex', alignItems: 'center', gap: '4px' } },
-              '底稿统计：共 ' + generated.length + ' 份 · 台账 ' + (items ? items.length : 0) + ' 项',
+              (function () {
+                // 「份」是工作簿文件数，「张表」是台账里被引擎填过数的工作表数——两个维度，别混
+                const filled = (items || []).filter(function (it) { return it.status === '已生成' }).length
+                return '底稿统计：共 ' + generated.length + ' 份文件 · 台账 ' + (items ? items.length : 0) + ' 项'
+                  + (filled ? '（引擎已填 ' + filled + ' 张表）' : '')
+              })(),
               h('span', { title: '完成口径（悬停或点击查看）',
                 onClick: function () {
                   try {
