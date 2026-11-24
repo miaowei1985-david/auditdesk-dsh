@@ -4224,6 +4224,7 @@ window.__ModuleLoader__.load({
         try { localStorage.removeItem('auditdesk.events.filters') } catch (e) {}
         setTimeout(function () { load(1) }, 0)
       }
+      // 操作留痕导出（**全量**）：走后端 /audit/events/export，12 列（含动作/细节）
       function exportCsv() {
         const params = []
         if (project) params.push('project=' + encodeURIComponent(project))
@@ -4241,6 +4242,7 @@ window.__ModuleLoader__.load({
             URL.revokeObjectURL(url)
           }).catch(function (e) { setError(String(e)) })
       }
+      // 操作留痕导出（**仅当前页最多 100 条**）：前端拼 CSV，11 列
       function exportPageCsv() {
         // 与后端 /audit/events/export 保持同样的列（含 action/detail）
         const rows = [['ID', '项目', '类型', '对象', '原状态', '新状态', '操作人', 'IP', '时间', '动作', '细节']]
@@ -4649,7 +4651,8 @@ window.__ModuleLoader__.load({
         }).then(function (d) { setAuditEvents(d); setAuditEventsMsg('') })
           .catch(function () { setAuditEvents(null); setAuditEventsMsg('AI 行为审计插件未启用') })
       }
-      function exportAuditEvents() {
+      // AI 工具调用的行为审计（不是 audit_events 操作留痕——名字容易混，故与后者区分）
+      function exportAiBehaviorLog() {
         if (!auditEvents) return
         const rows = [['时间', '事件', '模式', '参数摘要']].concat((auditEvents.recent || []).map(function (rec) {
           return [new Date(rec.at).toISOString(), rec.event || '', rec.mode || '', JSON.stringify(rec.args || []).slice(0, 500)]
@@ -4817,7 +4820,7 @@ window.__ModuleLoader__.load({
           h('div', { className: 'ad-head', style: { marginBottom: '8px' } },
             h('div', { className: 'ad-row-title' }, 'AI 行为审计'),
             h('div', { className: 'ad-actions' },
-              auditEvents ? h(ui.Button, { variant: 'ghost', size: 'sm', onClick: exportAuditEvents }, '导出') : null,
+              auditEvents ? h(ui.Button, { variant: 'ghost', size: 'sm', onClick: exportAiBehaviorLog }, '导出') : null,
               h(ui.Button, { variant: 'outline', size: 'sm', onClick: loadAuditEvents }, '刷新'))),
           auditEventsMsg ? h('div', { style: { fontSize: '12px', color: '#b45309' } }, auditEventsMsg) : null,
           auditEvents ? (function () {
