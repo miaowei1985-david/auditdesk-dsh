@@ -3691,6 +3691,11 @@ window.__ModuleLoader__.load({
         api('/audit/approvals/submit', null, { method: 'POST', body: { id: item.id, approver: approverUsername } }).then(refreshApprovals).catch(function () {})
       }
       function decideApproval(item, decision, opinion) {
+        // 审批决定是终态：后端只允许从「待审批」决策，没有撤回接口。
+        const actionLabel = decision === 'approve' ? '通过' : '驳回'
+        try {
+          if (!window.confirm('确认「' + actionLabel + '」：' + (item.title || '') + '？\n\n审批决定提交后不可撤销。')) return
+        } catch (e) { return }
         api('/audit/approvals/decide', null, { method: 'POST', body: { id: item.id, decision: decision, opinion: opinion } }).then(refreshApprovals).catch(function () {})
       }
 
