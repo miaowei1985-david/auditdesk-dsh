@@ -1695,8 +1695,9 @@ window.__ModuleLoader__.load({
                     : (item.note ? h('span', { style: { fontSize: '11px', color: COLORS.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, item.note) : null)),
                 h('span', { style: { display: 'flex', gap: '8px', alignItems: 'center' } },
                   engineSheets[item.name]
+                    // 数字直接显示在徽标里（原来只在悬停提示里，用户看不到填了多少格）
                     ? h('span', { title: '引擎已向这张表写入 ' + engineSheets[item.name] + ' 格（与台账状态独立）',
-                        style: { fontSize: '10px', padding: '1px 6px', borderRadius: '9px', border: '1px solid var(--dsw-alias-state-success-primary)', color: 'var(--dsw-alias-state-success-primary)', whiteSpace: 'nowrap' } }, '引擎已填')
+                        style: { fontSize: '10px', padding: '1px 6px', borderRadius: '9px', border: '1px solid var(--dsw-alias-state-success-primary)', color: 'var(--dsw-alias-state-success-primary)', whiteSpace: 'nowrap' } }, '引擎已填 ' + engineSheets[item.name] + ' 格')
                     : null,
                   h(ui.Button, { variant: 'ghost', size: 'sm', title: '查看这张底稿的变更历史', style: { fontSize: '11px', padding: '1px 6px', minHeight: '20px' },
                     onClick: function (e) { e.stopPropagation(); if (props.onOpenWorkpaperHistory) props.onOpenWorkpaperHistory(item) } }, '历史'),
