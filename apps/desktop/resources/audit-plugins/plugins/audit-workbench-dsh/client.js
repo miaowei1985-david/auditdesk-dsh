@@ -4279,6 +4279,11 @@ window.__ModuleLoader__.load({
                 (o + ' → ' + n))
             }
             if (act && !isStatus(n)) {
+              // 有旧状态时保留「未交 → 删除」的上下文，比单写"动作：删除"信息多
+              if (isStatus(o)) {
+                return h('span', { title: (o + ' → 删除') + ' · ' + extra, style: { color: '#b45309', fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } },
+                  o + ' → ' + act)
+              }
               return h('span', { title: extra, style: { color: COLORS.muted, fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, '动作：' + act)
             }
             // 旧记录没有 action 列，退回白名单判断
