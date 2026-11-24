@@ -1636,8 +1636,11 @@ window.__ModuleLoader__.load({
                     ? h('span', { onClick: function () { if (props.onOpenWorkpaperIndex) props.onOpenWorkpaperIndex(item.index_no) }, title: '打开已生成底稿',
                         style: { fontSize: '11px', color: COLORS.accent, cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, item.note)
                     : (item.note ? h('span', { style: { fontSize: '11px', color: COLORS.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, item.note) : null)),
-                h('span', { onClick: function () { if (!readOnly && props.onCycleWp) props.onCycleWp(item) }, title: '点击切换执行状态', 'data-wp-id': String(item.id), style: { cursor: 'pointer' } },
-                  h(Badge, { tone: toneOfWp(item.status) }, item.status)))
+                h('span', { style: { display: 'flex', gap: '8px', alignItems: 'center' } },
+                  h(ui.Button, { variant: 'ghost', size: 'sm', title: '查看这张底稿的变更历史', style: { fontSize: '11px', padding: '1px 6px', minHeight: '20px' },
+                    onClick: function (e) { e.stopPropagation(); if (props.onOpenWorkpaperHistory) props.onOpenWorkpaperHistory(item) } }, '历史'),
+                  h('span', { onClick: function () { if (!readOnly && props.onCycleWp) props.onCycleWp(item) }, title: '点击切换执行状态', 'data-wp-id': String(item.id), style: { cursor: 'pointer' } },
+                    h(Badge, { tone: toneOfWp(item.status) }, item.status))))
             }) : [h('div', { key: 'empty', style: { padding: '14px', fontSize: '12px', color: COLORS.muted } }, '暂无底稿，先从模板生成')])
         const generated = props.generated === null ? [] : props.generated
         const generatedStats = generated.reduce(function (acc, item) { const kind = item.kind || 'other'; acc[kind] = (acc[kind] || 0) + 1; return acc }, {})
@@ -3652,6 +3655,18 @@ window.__ModuleLoader__.load({
             h(ui.Button, { variant: 'outline', size: 'sm', onClick: renameOpen ? submitRename : submitDelete, style: { padding: '7px 12px', borderRadius: '7px', border: 0, background: renameOpen ? COLORS.accent : '#b91c1c', color: renameOpen ? 'var(--dsw-alias-label-primary-foreground)' : '#fff', fontSize: '12px', cursor: 'pointer' } }, renameOpen ? '保存' : '确认删除'))))
         : null
 
+      // 从对象跳到它的变更历史：写筛选条件 + 切到留痕页
+      function openWorkpaperHistory(item) {
+        try {
+          localStorage.setItem('auditdesk.events.filters', JSON.stringify({
+            project: activeProject, type: 'workpaper', itemName: item.name || ''
+          }))
+        } catch (e) {}
+        try { window.dispatchEvent(new CustomEvent('auditdesk:goto-settings-tab', { detail: 'events' })) } catch (e) {}
+        try { if (props.ui && props.ui.layout) props.ui.layout.selectPanel('audit-settings') } catch (e) {}
+        // 留痕页若已在打开状态，不会重新挂载，用事件让它重读筛选条件
+        try { setTimeout(function () { window.dispatchEvent(new CustomEvent('auditdesk:events-refresh')) }, 50) } catch (e) {}
+      }
       const zoneProps = {
         zone: zone, pbc: pbc, wp: wp, linked: linked, events: events, approvals: approvals,
         auth: props.auth, readOnly: readOnly,
@@ -3668,7 +3683,7 @@ window.__ModuleLoader__.load({
         generated: generated, generating: generating, generateMessage: generateMessage,
         reviewerName: reviewerName, onReviewerNameChange: setReviewerName,
         members: members, newMemberName: newMemberName, onNewMemberNameChange: setNewMemberName,
-        onAddMember: addProjectMember, onRemoveMember: removeProjectMember,
+        onAddMember: addProjectMember, onRemoveMember: removeProjectMember, onOpenWorkpaperHistory: openWorkpaperHistory,
         generatedDate: generatedDate, onGeneratedDateChange: setGeneratedDate,
         onOpenWorkpaperIndex: openWorkpaperByIndex, onGenerateWorkpaper: generateWorkpaper,
         onGenerateAll: generateAllWorkpapers, onGenerateLocal: generateLocalWorkpapers, localAtt: localAtt, onLocalAttChange: setLocalAtt, localAtts: localAttachments(), onExportWorkpapers: exportWorkpapersZip, reportVersionFilter: reportVersionFilter, onSetReportVersionFilter: setReportVersionFilter, approvalFilter: approvalFilter, onSetApprovalFilter: setApprovalFilter, onExportApprovals: exportApprovals, todoOverdueOnly: todoOverdueOnly, onSetTodoOverdueOnly: setTodoOverdueOnly, wpStatusFilter: wpStatusFilter, onSetWpStatusFilter: setWpStatusFilter, wpSearch: wpSearch, onSetWpSearch: setWpSearch, onExportWorkpaperList: exportWorkpaperListCsv, onJumpTodoZone: jumpTodoZone, onJumpZone: function (name) { setZone(name) }, onVerifyWorkpapersZip: verifyWorkpapersZip, wpsVerifyMessage: wpsVerifyMessage,
@@ -3977,6 +3992,29 @@ window.__ModuleLoader__.load({
       const [page, setPage] = React.useState(1)
       const [total, setTotal] = React.useState(0)
 
+      // 从别处（如底稿台账「历史」）跳进来时，组件可能已挂载，需要重读筛选条件
+      React.useEffect(function () {
+        function onRefresh() {
+          try {
+            const f = JSON.parse(localStorage.getItem('auditdesk.events.filters') || '{}') || {}
+            setProject(f.project || ''); setActor(f.actor || ''); setType(f.type || '')
+            setItemName(f.itemName || ''); setStartDate(f.startDate || ''); setEndDate(f.endDate || '')
+            setPage(1)
+            // 直接带参数查询：此时 state 还没更新，走 load() 会用到旧值
+            setLoading(true); setError('')
+            api('/audit/events', {
+              project: f.project || undefined, actor: f.actor || undefined,
+              item_type: f.type || undefined, item_name: f.itemName || undefined,
+              start_date: f.startDate || undefined, end_date: f.endDate || undefined,
+              limit: 100, offset: 0
+            }).then(function (d) { setEvents(d.events || []); setTotal(d.total || (d.events || []).length) })
+              .catch(function (e) { setError(String(e)) })
+              .then(function () { setLoading(false) })
+          } catch (e) {}
+        }
+        window.addEventListener('auditdesk:events-refresh', onRefresh)
+        return function () { window.removeEventListener('auditdesk:events-refresh', onRefresh) }
+      }, [])
       function resetFilters() {
         setProject(''); setActor(''); setType(''); setItemName(''); setStartDate(''); setEndDate(''); setPage(1)
         try { localStorage.removeItem('auditdesk.events.filters') } catch (e) {}
