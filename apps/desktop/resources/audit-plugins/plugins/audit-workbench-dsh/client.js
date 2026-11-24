@@ -836,12 +836,20 @@ window.__ModuleLoader__.load({
         if (!code) return
         setErr('')
         fetch('/api/audit-fill/voucher-rules?company=' + encodeURIComponent(code))
-          .then(function (r) { return r.json() })
+          .then(function (r) {
+            if (r.status === 401 || r.status === 404) throw new Error('NEED_RELOAD')
+            return r.json()
+          })
           .then(function (d) {
             if (d && d.ok) { setData(d) }
             else { setData(null); setErr((d && d.error) || '扫描失败') }
           })
-          .catch(function (e) { setData(null); setErr(String(e)) })
+          .catch(function (e) {
+            setData(null)
+            setErr(String((e && e.message) || e) === 'NEED_RELOAD'
+              ? '接口尚未加载：重启 DSH 后本面板即可扫描凭证'
+              : ('扫描失败：' + String((e && e.message) || e)))
+          })
       }, [code])
 
       if (!code) return null
