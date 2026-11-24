@@ -1267,7 +1267,11 @@ window.__ModuleLoader__.load({
               h('span', { style: { fontSize: '12px', color: COLORS.muted } }, '种子'),
               h(ui.Input, { className: 'ad-plain', value: sampleSeed, onChange: function (e) { setSampleSeed(e.target.value) }, style: { width: '64px', padding: '5px 8px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' } }),
               h(ui.Button, { variant: 'primary', size: 'sm', onClick: runSampling, disabled: sampling }, sampling ? '抽样中…' : '执行抽样')),
-            sampleResult && sampleResult.available ? h('div', null,
+            sampleResult && sampleResult.available ? h('details', { className: 'ad-more' },
+              h('summary', null, '样本 ' + (sampleResult.samples || []).length + ' 笔 · 总体 '
+                + sampleResult.population_count + ' 笔 · 覆盖率 ' + sampleResult.coverage + '%'),
+              h('div', { style: { fontSize: '11px', color: '#b45309', marginBottom: '4px' } },
+                '抽样结果不随项目保存，刷新即失；需点上方「导出抽样底稿」留痕，同一随机种子可复现同一组样本。'),
               h('div', { style: { fontSize: '12px', color: COLORS.muted, marginBottom: '6px' } },
                 '总体 ' + sampleResult.population_count + ' 笔 / 合计 ' + Number(sampleResult.total).toLocaleString() + ' · 间隔 ' + Number(sampleResult.interval).toLocaleString() + ' · 覆盖率 ' + sampleResult.coverage + '%'),
               (sampleResult.samples || []).map(function (item) {
