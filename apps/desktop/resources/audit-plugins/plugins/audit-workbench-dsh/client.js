@@ -5056,8 +5056,8 @@ window.__ModuleLoader__.load({
           .catch(function () {})
       }
       if (!data || !data.has_engine) return null
-      return h('div', { style: { marginBottom: '12px', padding: '12px 14px', borderRadius: '10px', border: '1px solid ' + COLORS.line, background: 'rgba(47,124,246,0.05)' } },
-        h('div', { style: { fontSize: '13px', fontWeight: 600, marginBottom: '4px' } }, '引擎填写结果 · ' + data.company + '（' + data.fill_count + ' 格 / ' + data.evidence_count + ' 证据）'),
+      return h('details', { className: 'ad-more', style: { marginBottom: '12px', padding: '12px 14px', borderRadius: '10px', border: '1px solid ' + COLORS.line, background: 'rgba(47,124,246,0.05)' } },
+        h('summary', null, '引擎填写结果 · ' + data.company + ' · ' + data.fill_count + ' 格 / ' + data.evidence_count + ' 证据'),
         cov && cov.has_engine ? h('div', { style: { marginBottom: '8px' } },
           h('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '4px' } },
             (cov.workbooks || []).map(function (w) {
