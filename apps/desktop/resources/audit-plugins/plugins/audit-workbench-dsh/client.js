@@ -5494,7 +5494,15 @@ window.__ModuleLoader__.load({
       return h('div', { style: { marginBottom: '14px', padding: '14px 16px', borderRadius: '12px', border: '1px solid ' + COLORS.line, background: COLORS.bg } },
         h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', gap: '10px', flexWrap: 'wrap' } },
           h('div', { style: { fontSize: '13px', fontWeight: 600 } }, '审计全流程'),
-          h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '进度 ' + flow.progress + '% · 下一步：' + flow.next_action),
+          h('div', { style: { display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' } },
+            h('span', { style: { fontSize: '12px', color: COLORS.muted } }, '进度 ' + flow.progress + '% · 下一步：' + flow.next_action),
+            (function () {
+              const zone = ({ receive: '资料清单', fill: '审计底稿', tieout: '审计底稿', diff: '审计底稿', memo: '报告', review: '审批状态', archive: '概览' })[flow.current]
+              if (!zone || !props.onJumpZone) return null
+              return h(ui.Button, { variant: 'outline', size: 'sm', title: '直接去处理这一步',
+                style: { padding: '2px 10px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: COLORS.accent, fontSize: '11px', cursor: 'pointer' },
+                onClick: function () { props.onJumpZone(zone) } }, '去' + zone)
+            })()),
           flow.can_confirm ? h(ui.Button, { variant: 'outline', size: 'sm', onClick: confirmStage, disabled: confirming, style: { padding: '6px 14px', borderRadius: '8px', border: 0, background: COLORS.accent, color: 'var(--dsw-alias-label-primary-foreground)', fontSize: '12px', cursor: 'pointer' } }, confirming ? '确认中…' : '确认完成，进入下一节点') : null),
         h('div', { style: { height: '6px', borderRadius: '3px', background: 'rgba(127,127,127,0.18)', marginBottom: '16px', overflow: 'hidden' } },
           h('div', { style: { width: Math.max(4, flow.progress) + '%', height: '100%', borderRadius: '3px', background: flow.archived ? '#16a34a' : COLORS.accent, transition: 'width .5s ease' } })),
