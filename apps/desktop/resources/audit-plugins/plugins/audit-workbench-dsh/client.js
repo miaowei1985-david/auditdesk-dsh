@@ -1019,8 +1019,9 @@ window.__ModuleLoader__.load({
       const readOnly = Boolean(props.readOnly)
       // 程序执行：65 项一次铺开太长，给一个状态筛选
       const progFilterState = React.useState('all'); const progFilter = progFilterState[0]; const setProgFilter = progFilterState[1]
-      // 底稿台账：32 张分属 9 个科目循环，按循环筛选
-      const wpCycleState = React.useState('all'); const wpCycle = wpCycleState[0]; const setWpCycle = wpCycleState[1]
+      // 底稿台账：按科目循环筛选（状态在 CompaniesPage，便于留痕页预填）
+      const wpCycle = props.wpCycle || 'all'
+      const setWpCycle = props.onSetWpCycle || function () {}
       // 引擎实际填过哪些表（与台账状态是两套：台账靠人点，引擎按单元格填）
       const engineSheetState = React.useState({}); const engineSheets = engineSheetState[0]; const setEngineSheets = engineSheetState[1]
       React.useEffect(function () {
@@ -2247,6 +2248,19 @@ window.__ModuleLoader__.load({
         const projectExists = (target.projects || []).some(function (p) { return p.id === saved.project })
         if (saved.project && projectExists && !activeProject) setActiveProject(saved.project)
       }, [companies])
+      React.useEffect(function () {
+        function onCycle(e) { setWpCycle((e && e.detail) || 'all') }
+        try { window.addEventListener('auditdesk:wp-cycle', onCycle) } catch (e) {}
+        return function () { try { window.removeEventListener('auditdesk:wp-cycle', onCycle) } catch (e) {} }
+      }, [])
+      const [wpCycle, setWpCycle] = React.useState(function () {
+        // 留痕页「查看现状」留下的科目循环预填值（读一次即清）
+        try {
+          const v = localStorage.getItem('auditdesk.pendingWpCycle') || ''
+          if (v) localStorage.removeItem('auditdesk.pendingWpCycle')
+          return v || 'all'
+        } catch (e) { return 'all' }
+      })
       const pbcState = React.useState(null); const pbc = pbcState[0]; const setPbc = pbcState[1]
       const wpState = React.useState(null); const wp = wpState[0]; const setWp = wpState[1]
       const linkedState = React.useState(null); const linked = linkedState[0]; const setLinked = linkedState[1]
@@ -3797,7 +3811,7 @@ window.__ModuleLoader__.load({
         onAddMember: addProjectMember, onRemoveMember: removeProjectMember, onOpenWorkpaperHistory: openWorkpaperHistory, onOpenPbcHistory: openPbcHistory, onInitPbc: initPbcTemplate, onInitStdProject: initStdProject, onSyncEngine: syncEngineStatus,
         generatedDate: generatedDate, onGeneratedDateChange: setGeneratedDate,
         onOpenWorkpaperIndex: openWorkpaperByIndex, onGenerateWorkpaper: generateWorkpaper,
-        onGenerateAll: generateAllWorkpapers, onGenerateLocal: generateLocalWorkpapers, localAtt: localAtt, onLocalAttChange: setLocalAtt, localAtts: localAttachments(), onExportWorkpapers: exportWorkpapersZip, reportVersionFilter: reportVersionFilter, onSetReportVersionFilter: setReportVersionFilter, approvalFilter: approvalFilter, onSetApprovalFilter: setApprovalFilter, onExportApprovals: exportApprovals, todoOverdueOnly: todoOverdueOnly, onSetTodoOverdueOnly: setTodoOverdueOnly, wpStatusFilter: wpStatusFilter, onSetWpStatusFilter: setWpStatusFilter, wpSearch: wpSearch, onSetWpSearch: setWpSearch, onExportWorkpaperList: exportWorkpaperListCsv, onJumpTodoZone: jumpTodoZone, onJumpZone: function (name) { setZone(name) }, onVerifyWorkpapersZip: verifyWorkpapersZip, wpsVerifyMessage: wpsVerifyMessage,
+        onGenerateAll: generateAllWorkpapers, onGenerateLocal: generateLocalWorkpapers, localAtt: localAtt, onLocalAttChange: setLocalAtt, localAtts: localAttachments(), onExportWorkpapers: exportWorkpapersZip, reportVersionFilter: reportVersionFilter, onSetReportVersionFilter: setReportVersionFilter, approvalFilter: approvalFilter, onSetApprovalFilter: setApprovalFilter, onExportApprovals: exportApprovals, todoOverdueOnly: todoOverdueOnly, onSetTodoOverdueOnly: setTodoOverdueOnly, wpStatusFilter: wpStatusFilter, onSetWpStatusFilter: setWpStatusFilter, wpCycle: wpCycle, onSetWpCycle: setWpCycle, wpSearch: wpSearch, onSetWpSearch: setWpSearch, onExportWorkpaperList: exportWorkpaperListCsv, onJumpTodoZone: jumpTodoZone, onJumpZone: function (name) { setZone(name) }, onVerifyWorkpapersZip: verifyWorkpapersZip, wpsVerifyMessage: wpsVerifyMessage,
         onDownloadWorkpaper: downloadGeneratedWorkpaper, onPreviewWorkpaper: previewGeneratedWorkpaper,
         newPbcName: newPbcName, onPbcNameChange: setNewPbcName, onAddPbc: addPbcItem,
         onDeletePbc: deletePbcItem, onUploadAttachment: uploadPbcAttachment,
@@ -4191,6 +4205,22 @@ window.__ModuleLoader__.load({
         h('label', { className: 'ad-field' }, '结束', h(ui.Input, { className: 'ad-iw', value: endDate, onChange: function (e) { setEndDate(e.target.value) }, type: 'date' })),
         h('div', { className: 'ad-form-actions' }, h(ui.Button, { variant: 'primary', size: 'sm', onClick: function () { load(1) } }, loading ? '查询中…' : '查询')))
 
+      // 从留痕跳回对象现状：切到审计底稿并预填该科目循环
+      const gotoObject = function (item) {
+        const p = (projects || []).filter(function (x) { return x.id === item.project_id })[0]
+        const m = String(item.item_name || '').match(/^([A-Z]{1,3})-\d+/)
+        const cycle = m ? m[1] : ''
+        try {
+          localStorage.setItem('auditdesk.lastContext', JSON.stringify({
+            company: (p && p.client) || item.project_id, project: item.project_id, zone: '审计底稿'
+          }))
+          if (cycle) localStorage.setItem('auditdesk.pendingWpCycle', cycle)
+          else localStorage.removeItem('auditdesk.pendingWpCycle')
+        } catch (e) {}
+        // 项目页可能已经挂载，靠事件同步筛选（localStorage 只在首次挂载时读）
+        try { window.dispatchEvent(new CustomEvent('auditdesk:wp-cycle', { detail: cycle || 'all' })) } catch (e) {}
+        try { if (props.ui && props.ui.layout) props.ui.layout.selectPanel('audit-companies') } catch (e) {}
+      }
       // 留痕里最该被看见的是「倒退」：已交→未交、已完成→待执行、已调整→未处理
       const TRANSITION_TONE = (function () {
         const down = { '待执行': 0, '未交': 0, '未处理': 0, '已驳回': 0, '进行中': 1, '待补': 1, '待审批': 1, '已询问': 1 }
@@ -4216,7 +4246,11 @@ window.__ModuleLoader__.load({
           h('span', { title: item.item_name || '', style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, item.item_name || '—'),
           h('span', { style: { color: TRANSITION_TONE(item.old_status, item.new_status), fontSize: '11px', fontWeight: item.old_status && item.new_status && TRANSITION_TONE(item.old_status, item.new_status) === '#b91c1c' ? 700 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }, title: (item.old_status || '—') + ' → ' + (item.new_status || '—') },
             (item.old_status || '—') + ' → ' + (item.new_status || '—')),
-          h('span', { style: { color: COLORS.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, item.project_id))
+          h('span', { style: { color: COLORS.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } },
+            item.item_type === 'workpaper' && item.item_id
+              ? h('span', { style: { color: COLORS.accent, cursor: 'pointer' }, title: '切到审计底稿并预填该科目循环',
+                  onClick: function () { gotoObject(item) } }, '查看现状')
+              : item.project_id))
       })
 
       return h('div', { className: 'ad-zone-page' },
@@ -6201,7 +6235,7 @@ window.__ModuleLoader__.load({
         return function () { try { window.removeEventListener('auditdesk:goto-settings-tab', onGo) } catch (e) {} }
       }, [tabs])
       let body = h(GuidePage, null)
-      if (current === 'events') body = h(EventsPage, { auth: props.auth })
+      if (current === 'events') body = h(EventsPage, { auth: props.auth, ui: props.ui })
       else if (current === 'users') body = h(UsersPage, { auth: props.auth })
       else if (current === 'catalog') body = h(ProgramCatalogPage, { auth: props.auth })
       else if (current === 'mapping') body = h(MappingRulesPage, { auth: props.auth })
