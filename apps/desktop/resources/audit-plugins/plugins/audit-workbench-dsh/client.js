@@ -4205,6 +4205,15 @@ window.__ModuleLoader__.load({
         h('label', { className: 'ad-field' }, '结束', h(ui.Input, { className: 'ad-iw', value: endDate, onChange: function (e) { setEndDate(e.target.value) }, type: 'date' })),
         h('div', { className: 'ad-form-actions' }, h(ui.Button, { variant: 'primary', size: 'sm', onClick: function () { load(1) } }, loading ? '查询中…' : '查询')))
 
+      // 留痕的 new_status 被部分调用方当成「动作描述」用（试算平衡/存货监盘/抽样…），
+      // 先判断是不是真状态，避免把程序名当状态显示成「— → 试算平衡」
+      const KNOWN_STATUSES = ['待执行', '进行中', '已生成', '已完成', '不适用',
+        '未交', '待补', '已交', '部分收到',
+        '待提交', '待审批', '已通过', '已驳回', '已撤回',
+        '待归档', '已归档', '已签', '待开', '已开', '已发', '已回函', '已核', '待核',
+        '待审批', '已审批', '已确认', '已定稿', '已复核', '复核中', '新建', '已执行', '执行中',
+        '待处理', '已询问', '已调整', '已整改']
+      const isStatus = function (v) { return !!v && KNOWN_STATUSES.indexOf(String(v).trim()) >= 0 }
       // 从留痕跳回对象现状：切到审计底稿并预填该科目循环
       const gotoObject = function (item) {
         const p = (projects || []).filter(function (x) { return x.id === item.project_id })[0]
@@ -4244,8 +4253,18 @@ window.__ModuleLoader__.load({
           h('span', null, item.actor || '-'),
           h('span', { style: { color: COLORS.muted, fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, TYPE_NAMES[item.item_type] || item.item_type),
           h('span', { title: item.item_name || '', style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, item.item_name || '—'),
-          h('span', { style: { color: TRANSITION_TONE(item.old_status, item.new_status), fontSize: '11px', fontWeight: item.old_status && item.new_status && TRANSITION_TONE(item.old_status, item.new_status) === '#b91c1c' ? 700 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }, title: (item.old_status || '—') + ' → ' + (item.new_status || '—') },
-            (item.old_status || '—') + ' → ' + (item.new_status || '—')),
+          (function () {
+            const o = item.old_status || ''
+            const n = item.new_status || ''
+            // 两边都不是状态 → 这是动作描述，别伪装成状态变更
+            if (!isStatus(o) && !isStatus(n) && (o || n)) {
+              return h('span', { title: '动作：' + (o || n), style: { color: COLORS.muted, fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } },
+                '动作：' + (o || n))
+            }
+            const tone = TRANSITION_TONE(o, n)
+            return h('span', { style: { color: tone, fontSize: '11px', fontWeight: tone === '#b91c1c' ? 700 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }, title: (o || '—') + ' → ' + (n || '—') },
+              (o || '—') + ' → ' + (n || '—'))
+          })(),
           h('span', { style: { color: COLORS.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } },
             item.item_type === 'workpaper' && item.item_id
               ? h('span', { style: { color: COLORS.accent, cursor: 'pointer' }, title: '切到审计底稿并预填该科目循环',
