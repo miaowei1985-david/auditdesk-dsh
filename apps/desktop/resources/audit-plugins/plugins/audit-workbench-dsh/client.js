@@ -1820,7 +1820,7 @@ window.__ModuleLoader__.load({
             h('div', null,
               h('h1', { className: 'ad-title' }, '审批'),
               h('div', { className: 'ad-sub' }, '提交后等指派人通过或驳回。超期提醒不代替审批。')),
-            canApprove ? h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onEscalateApprovals) props.onEscalateApprovals() } }, '超期提醒') : null),
+            canApprove ? h(ui.Button, { variant: 'outline', size: 'sm', title: '扫描超期 ≥2 天的审批，升级并留痕通知', onClick: function () { if (props.onEscalateApprovals) props.onEscalateApprovals() } }, '催办超期审批') : null),
           props.escalateMessage ? h('div', { className: 'ad-note' }, props.escalateMessage) : null,
           identityBar,
           (function () {
