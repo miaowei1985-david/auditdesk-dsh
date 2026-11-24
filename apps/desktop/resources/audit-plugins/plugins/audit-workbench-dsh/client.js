@@ -2300,6 +2300,9 @@ window.__ModuleLoader__.load({
       const approvalsState = React.useState(null); const approvals = approvalsState[0]; const setApprovals = approvalsState[1]
       const newPbcState = React.useState(''); const newPbcName = newPbcState[0]; const setNewPbcName = newPbcState[1]
       const previewState = React.useState(null); const preview = previewState[0]; const setPreview = previewState[1]
+      // 底稿预览的工作表选择（136 张表时默认只渲染前 3 张，用下拉切换）
+      const previewSheetsState = React.useState({ id: null, names: [], current: '' })
+      const previewSheets = previewSheetsState[0]; const setPreviewSheets = previewSheetsState[1]
       const generatedState = React.useState(null); const generated = generatedState[0]; const setGenerated = generatedState[1]
       const exportingState = React.useState(false); const exporting = exportingState[0]; const setExporting = exportingState[1]
       const reportState = React.useState({}); const report = reportState[0]; const setReport = reportState[1]
@@ -3557,11 +3560,21 @@ window.__ModuleLoader__.load({
         if (generated && generated.length) open(generated)
         else api('/audit/workpapers/generated', { project: activeProject }).then(function (d) { setGenerated(d.items || []); open(d.items) }).catch(function () {})
       }
-      function previewGeneratedWorkpaper(item) {
-        fetch(BASE + '/audit/workpapers/preview?workpaper_id=' + item.id, { headers: { 'X-KB-Token': currentToken() } })
+      function previewGeneratedWorkpaper(item, sheet) {
+        const q = '/audit/workpapers/preview?workpaper_id=' + item.id + (sheet ? '&sheet=' + encodeURIComponent(sheet) : '')
+        fetch(BASE + q, { headers: { 'X-KB-Token': currentToken() } })
           .then(function (resp) { if (!resp.ok) throw new Error('HTTP ' + resp.status); return resp.blob() })
           .then(function (blob) {
-            setPreview({ attachment: { filename: item.filename }, url: URL.createObjectURL(blob), type: 'text/html', onDownload: function () { downloadGeneratedWorkpaper(item) } })
+            setPreview({ attachment: { filename: item.filename }, url: URL.createObjectURL(blob), type: 'text/html', item: item, onDownload: function () { downloadGeneratedWorkpaper(item) } })
+            // 第一次打开时取工作表列表，之后复用
+            if (!previewSheets.names.length || previewSheets.id !== item.id) {
+              fetch(BASE + '/audit/workpapers/sheets?workpaper_id=' + item.id, { headers: { 'X-KB-Token': currentToken() } })
+                .then(function (r) { return r.ok ? r.json() : null })
+                .then(function (d) { if (d && d.sheets) setPreviewSheets({ id: item.id, names: d.sheets, current: sheet || '' }) })
+                .catch(function () {})
+            } else if (previewSheets.current !== (sheet || '')) {
+              setPreviewSheets(Object.assign({}, previewSheets, { current: sheet || '' }))
+            }
           }).catch(function () {})
       }
       function downloadGeneratedWorkpaper(item) {
@@ -3759,7 +3772,17 @@ window.__ModuleLoader__.load({
         style: { position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center' } },
         h('div', { style: { width: '82vw', height: '82vh', background: '#fff', color: '#111', borderRadius: '12px', overflow: 'hidden', display: 'flex', flexDirection: 'column' } },
           h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', borderBottom: '1px solid ' + COLORS.line } },
-            h('div', { style: { fontSize: '13px', fontWeight: 600 } }, preview.attachment.filename),
+            h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 } },
+              h('div', { style: { fontSize: '13px', fontWeight: 600 } }, preview.attachment.filename),
+              (previewSheets.names.length > 1 && preview.item)
+                ? h('select', {
+                    value: previewSheets.current || '',
+                    onChange: function (e) { previewGeneratedWorkpaper(preview.item, e.target.value || null) },
+                    style: { fontSize: '11px', padding: '2px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', maxWidth: '220px' }
+                  },
+                  h('option', { value: '' }, '前 3 张（共 ' + previewSheets.names.length + ' 张）'),
+                  previewSheets.names.map(function (n) { return h('option', { key: 'sh-' + n, value: n }, n) }))
+                : null),
             h('div', { style: { display: 'flex', gap: '10px' } },
               h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { setPreviewZoom(function (value) { return Math.max(0.5, Math.round((value - 0.1) * 10) / 10) }) }, style: { border: '1px solid ' + COLORS.line, background: 'transparent', color: COLORS.muted, fontSize: '12px', cursor: 'pointer', width: '28px', height: '24px', borderRadius: '6px' } }, '−'),
               h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { setPreviewZoom(1) }, style: { border: 0, background: 'transparent', color: COLORS.muted, fontSize: '12px', cursor: 'pointer' } }, Math.round(previewZoom * 100) + '%'),
