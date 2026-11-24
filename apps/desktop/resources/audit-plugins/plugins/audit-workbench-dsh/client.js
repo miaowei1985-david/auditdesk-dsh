@@ -243,7 +243,7 @@ window.__ModuleLoader__.load({
       '.ad-cat-block{min-width:0}',
       '.ad-cat-name{font-weight:600;font-size:12px;color:var(--dsw-alias-label-primary)}',
       '.ad-cat-items{margin:2px 0 0 22px;font-size:11px;color:var(--dsw-alias-label-secondary);line-height:1.6}',
-      '.ad-cat-item{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
+      '.ad-cat-item{display:flex;align-items:center;gap:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}',
       '.ad-cat-check{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--dsw-alias-label-secondary);cursor:pointer;line-height:1.4}',
       '.ad-staff-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:12px}',
       '.ad-staff-label{width:64px;flex:none;color:var(--dsw-alias-label-secondary)}',
@@ -316,6 +316,15 @@ window.__ModuleLoader__.load({
     function Badge(props) {
       const tone = props.tone === 'ok' ? 'success' : props.tone === 'warn' ? 'warning' : props.tone === 'bad' ? 'danger' : 'neutral'
       return h(ui.Tag, { tone: tone }, props.children)
+    }
+
+    // 三态复选框（全选/半选/未选）
+    function CatCheck(props) {
+      const ref = React.useRef(null)
+      React.useEffect(function () {
+        if (ref.current) ref.current.indeterminate = Boolean(props.indeterminate)
+      }, [props.indeterminate])
+      return h('input', { ref: ref, type: 'checkbox', checked: Boolean(props.checked), onChange: props.onChange })
     }
 
     // 状态胶囊：内部走 DSH 原生 Tag
@@ -4732,6 +4741,7 @@ window.__ModuleLoader__.load({
       })
       const [fee, setFee] = React.useState('')
       const [catalog, setCatalog] = React.useState([])
+      const [selItems, setSelItems] = React.useState([])
       const role = (props.auth && props.auth.user && props.auth.user.role) || ''
       const canApprove = ['manager', 'partner', 'kb-admin', 'admin'].indexOf(role) >= 0
       function loadClients() { api('/audit/clients').then(function (d) { setClients(d.items || []) }).catch(function () {}) }
@@ -4876,16 +4886,30 @@ window.__ModuleLoader__.load({
             h('span', null, '适用科目循环（不选 = 全部 13 类，勾选后按该范围生成程序清单）'),
             h('div', { className: 'ad-cat-tree' },
               PROGRAM_CATEGORIES.map(function (cat) {
-                const on = selCats.indexOf(cat) >= 0
                 const names = (catalog || []).filter(function (it) { return (it.category || '') === cat }).map(function (it) { return it.name })
+                const picked = names.filter(function (n) { return selItems.indexOf(n) >= 0 })
+                const all = names.length > 0 && picked.length === names.length
+                const some = picked.length > 0 && !all
                 return h('div', { key: cat, className: 'ad-cat-block' },
                   h('label', { className: 'ad-cat-check' },
-                    h('input', { type: 'checkbox', checked: on, onChange: function () {
-                      setSelCats(function (prev) { return prev.indexOf(cat) >= 0 ? prev.filter(function (x) { return x !== cat }) : prev.concat([cat]) })
+                    h(CatCheck, { checked: all, indeterminate: some, onChange: function () {
+                      setSelItems(function (prev) {
+                        if (all) return prev.filter(function (x) { return names.indexOf(x) < 0 })
+                        const next = prev.slice()
+                        names.forEach(function (n) { if (next.indexOf(n) < 0) next.push(n) })
+                        return next
+                      })
                     } }),
-                    h('span', { className: 'ad-cat-name' }, cat + (names.length ? '（' + names.length + '）' : ''))),
+                    h('span', { className: 'ad-cat-name' }, cat + (names.length ? '（' + picked.length + '/' + names.length + '）' : ''))),
                   names.length ? h('div', { className: 'ad-cat-items' },
-                    names.map(function (n) { return h('div', { key: n, className: 'ad-cat-item' }, n) })) : null)
+                    names.map(function (n) {
+                      const on = selItems.indexOf(n) >= 0
+                      return h('label', { key: n, className: 'ad-cat-item' },
+                        h('input', { type: 'checkbox', checked: on, onChange: function () {
+                          setSelItems(function (prev) { return prev.indexOf(n) >= 0 ? prev.filter(function (x) { return x !== n }) : prev.concat([n]) })
+                        } }),
+                        h('span', null, n))
+                    })) : null)
               }))),
           h('div', { style: { marginTop: '16px' } },
             h('div', { className: 'ad-row-title', style: { marginBottom: '6px' } }, '人力投入'),
@@ -4915,9 +4939,10 @@ window.__ModuleLoader__.load({
           staff_plan: JSON.stringify(Object.keys(staffing).map(function (k) {
             return { role: k, count: Number(staffing[k].count) || 0, hours: Number(staffing[k].hours) || 0 }
           })),
+          program_names: JSON.stringify(selItems),
           fee_estimate: Number(fee) || 0
         } })
-          .then(function () { setMsg('客户已建档（待提交）。下一步：指定审批人提交准入'); setName(''); setCreditCode(''); setContact(''); setOwnerName(''); setSelCats([]); setFee(''); setShowCreateClient(false); loadClients() })
+          .then(function () { setMsg('客户已建档（待提交）。下一步：指定审批人提交准入'); setName(''); setCreditCode(''); setContact(''); setOwnerName(''); setSelCats([]); setSelItems([]); setFee(''); setShowCreateClient(false); loadClients() })
           .catch(function (e) { setMsg('建档失败：' + e) })
       }
       function submitClient(id) {
