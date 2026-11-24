@@ -4192,10 +4192,13 @@ window.__ModuleLoader__.load({
         h('div', { className: 'ad-form-actions' }, h(ui.Button, { variant: 'primary', size: 'sm', onClick: function () { load(1) } }, loading ? '查询中…' : '查询')))
 
       const rows = events.map(function (item) {
-        return h('div', { key: item.id, style: { display: 'grid', gridTemplateColumns: '150px 90px 1fr 90px', gap: '10px', padding: '7px 16px', borderBottom: '1px solid ' + COLORS.line, fontSize: '12px', alignItems: 'center' } },
+        return h('div', { key: item.id, style: { display: 'grid', gridTemplateColumns: '140px 70px 66px minmax(0,1fr) 150px 110px', gap: '10px', padding: '7px 16px', borderBottom: '1px solid ' + COLORS.line, fontSize: '12px', alignItems: 'center' } },
           h('span', { style: { color: COLORS.muted } }, item.created_at),
           h('span', null, item.actor || '-'),
-          h('span', null, (TYPE_NAMES[item.item_type] || item.item_type) + ' · ' + (item.item_name || '') + '：' + (item.old_status || '') + ' → ' + (item.new_status || '')),
+          h('span', { style: { color: COLORS.muted, fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, TYPE_NAMES[item.item_type] || item.item_type),
+          h('span', { title: item.item_name || '', style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, item.item_name || '—'),
+          h('span', { style: { color: COLORS.muted, fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }, title: (item.old_status || '') + ' → ' + (item.new_status || '') },
+            (item.old_status || '—') + ' → ' + (item.new_status || '—')),
           h('span', { style: { color: COLORS.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, item.project_id))
       })
 
@@ -4215,10 +4218,12 @@ window.__ModuleLoader__.load({
             h(ui.Button, { variant: 'ghost', size: 'sm', onClick: exportPageCsv }, '导出当前页'))),
         filterBar,
         error ? h('div', { style: { padding: '10px 16px', color: '#b91c1c', fontSize: '12px' } }, error) : null,
-        rows.length ? h('div', { style: { display: 'grid', gridTemplateColumns: '150px 90px 1fr 90px', gap: '10px', padding: '4px 16px', fontSize: '11px', color: COLORS.muted, borderBottom: '1px solid ' + COLORS.line, background: 'rgba(127,127,127,0.05)' } },
+        rows.length ? h('div', { style: { display: 'grid', gridTemplateColumns: '140px 70px 66px minmax(0,1fr) 150px 110px', gap: '10px', padding: '4px 16px', fontSize: '11px', color: COLORS.muted, borderBottom: '1px solid ' + COLORS.line, background: 'rgba(127,127,127,0.05)' } },
           h('span', null, '时间'),
           h('span', null, '操作人'),
-          h('span', null, '变更内容'),
+          h('span', null, '类型'),
+          h('span', null, '对象'),
+          h('span', null, '状态变更'),
           h('span', null, '项目')) : null,
         h('div', { style: { flex: 1, overflow: 'auto' } },
           rows.length ? rows : h('div', { style: { padding: '20px', fontSize: '12px', color: COLORS.muted } }, '没有符合条件的操作记录')))
