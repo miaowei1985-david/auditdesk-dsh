@@ -828,6 +828,10 @@ window.__ModuleLoader__.load({
             + (lineBad.length ? ' · 待确认差异 ' + lineBad.length + (lineMagnitude.length ? '（量级异常 ' + lineMagnitude.length + '）' : '') : '')
             + (lineReport.length ? ' · 已解释 ' + lineReport.length : '')
             + (lineNo ? ' · 报表无此行 ' + lineNo : '')),
+          // 校验只覆盖重点科目，不是全科目——不写清楚会让人以为「勾稽通过 = 全部正确」
+          h('div', { style: { fontSize: '11px', color: COLORS.muted, lineHeight: 1.7, margin: '4px 0 2px' } },
+            '覆盖范围：货币资金、应收/应付/预收/预付、存货、固定资产、无形资产、实收资本、盈余公积、未分配利润、营业收入等主要科目；'
+            + '债权投资、长期待摊费用等未纳入校验。'),
           h('div', { className: 'ad-row ad-th', style: { marginTop: '6px' } },
             h('span', { style: { flex: 1, minWidth: 0 } }, '科目'),
             h('span', { style: { minWidth: '112px', textAlign: 'right' } }, '计算数'),
