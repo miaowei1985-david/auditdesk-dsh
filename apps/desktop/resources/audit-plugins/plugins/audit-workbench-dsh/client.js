@@ -1578,8 +1578,15 @@ window.__ModuleLoader__.load({
                       onClick: function (e) { e.stopPropagation(); if (props.onOpenPbcHistory) props.onOpenPbcHistory(item) } }, '历史'),
                     readOnly ? null : h(ui.Button, { variant: 'ghost', size: 'sm', onClick: function () { if (props.onDeletePbc) props.onDeletePbc(item) }, 'data-pbc-delete': String(item.id) }, '删除'),
                     h('span', {
-                      onClick: function () { if (!readOnly && props.onCyclePbc) props.onCyclePbc(item) },
-                      title: '点击切换：未交 → 待补 → 已交',
+                      onClick: function () {
+                        if (readOnly || !props.onCyclePbc) return
+                        // 已交再点会退回未交，误点等于宣布"客户没交"，先确认
+                        if (item.status === '已交') {
+                          try { if (!window.confirm('「' + (item.name || '') + '」已交，再点会退回「未交」。确定吗？')) return } catch (e) { return }
+                        }
+                        props.onCyclePbc(item)
+                      },
+                      title: item.status === '已交' ? '已交——再点会退回未交（需确认）' : '点击切换：未交 → 待补 → 已交',
                       'data-pbc-id': String(item.id),
                       style: { cursor: 'pointer' },
                     }, h(Badge, { tone: toneOf(item.status) }, item.status))))
@@ -1679,7 +1686,15 @@ window.__ModuleLoader__.load({
                     : null,
                   h(ui.Button, { variant: 'ghost', size: 'sm', title: '查看这张底稿的变更历史', style: { fontSize: '11px', padding: '1px 6px', minHeight: '20px' },
                     onClick: function (e) { e.stopPropagation(); if (props.onOpenWorkpaperHistory) props.onOpenWorkpaperHistory(item) } }, '历史'),
-                  h('span', { onClick: function () { if (!readOnly && props.onCycleWp) props.onCycleWp(item) }, title: '点击切换执行状态', 'data-wp-id': String(item.id), style: { cursor: 'pointer' } },
+                  h('span', { onClick: function () {
+                      if (readOnly || !props.onCycleWp) return
+                      // 循环到「已完成」再点会退回「待执行」——这是误操作最容易踩的一步，先确认
+                      if (item.status === '已完成') {
+                        try { if (!window.confirm('「' + (item.name || item.index_no) + '」已完成，再点会退回「待执行」。确定要退回吗？')) return } catch (e) { return }
+                      }
+                      props.onCycleWp(item)
+                    }, title: item.status === '已完成' ? '已完成——再点会退回待执行（需确认）' : '点击推进：待执行→进行中→已生成→已完成',
+                    'data-wp-id': String(item.id), style: { cursor: 'pointer' } },
                     h(Badge, { tone: toneOfWp(item.status) }, item.status))))
             }) : [h('div', { key: 'empty', style: { padding: '14px', fontSize: '12px', color: COLORS.muted } }, '暂无底稿，先从模板生成')])
         const generated = props.generated === null ? [] : props.generated
