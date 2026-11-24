@@ -2541,7 +2541,17 @@ window.__ModuleLoader__.load({
       function uploadPbcAttachment(item, file) {
         fetch(BASE + '/audit/pbc/upload?pbc_id=' + item.id + '&project=' + encodeURIComponent(activeProject) + '&filename=' + encodeURIComponent(file.name), {
           method: 'POST', headers: { 'X-KB-Token': currentToken() }, body: file,
-        }).then(function (resp) { if (!resp.ok) throw new Error('HTTP ' + resp.status); return resp.json() }).then(refreshPbc).catch(function () {})
+        }).then(function (resp) { if (!resp.ok) throw new Error('HTTP ' + resp.status); return resp.json() })
+          .then(function () {
+            // 有文件说明客户已提供；「未交」推进到「待补」，等审计员核过内容再标已交
+            if (String(item.status || '未交') === '未交') {
+              api('/audit/pbc/status', null, { method: 'POST', body: { id: item.id, status: '待补' } })
+                .then(refreshPbc).catch(refreshPbc)
+            } else {
+              refreshPbc()
+            }
+          })
+          .catch(function () {})
       }
       function downloadPbcAttachment(att) {
         fetch(BASE + '/audit/pbc/download?attachment_id=' + att.id, { headers: { 'X-KB-Token': currentToken() } })
