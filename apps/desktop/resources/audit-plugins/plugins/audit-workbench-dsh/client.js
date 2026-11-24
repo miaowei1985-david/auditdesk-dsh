@@ -279,6 +279,7 @@ window.__ModuleLoader__.load({
       '.ad-prog-item{display:flex;align-items:center;gap:6px;padding:3px 0;font-size:12px;border-bottom:0.5px solid var(--dsw-alias-border-l3)}',
       '.ad-prog-item-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
       '.ad-prog-item-status{font-size:11px;color:var(--dsw-alias-label-secondary);white-space:nowrap}',
+      '.ad-th{font-size:11px;color:var(--dsw-alias-label-secondary);border-bottom:1px solid var(--dsw-alias-border-l2);padding:3px 0 4px;margin-bottom:2px}',
       '.ad-modal-wide{width:min(920px,94vw) !important}',
       '.ad-modal-wide .ad-form{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 16px}',
       '.ad-cats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px 12px;margin-top:2px}',
@@ -751,13 +752,17 @@ window.__ModuleLoader__.load({
             h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', marginBottom: '4px' } },
               h('span', { className: 'ad-row-title', style: { fontSize: '12.5px' } }, x + ' · ' + item.program_idx),
               h('span', { className: 'ad-row-meta' }, '执行 ' + item.procs + ' 条程序 · 命中 ' + item.tables.length + ' 张附表')),
+            h('div', { className: 'ad-row ad-th', style: { paddingLeft: '10px' } },
+              h('span', { style: { flex: 1, minWidth: 0 } }, '附表'),
+              h('span', { style: { minWidth: '52px' } }, '索引号'),
+              h('span', { style: { minWidth: '88px', textAlign: 'center' } }, '落位状态')),
             item.tables.map(function (t) {
               const st = supTableState(t)
               return h('div', { key: 'st-' + x + '-' + t.name, style: { paddingLeft: '10px', marginBottom: '4px' } },
                 h('div', { className: 'ad-row' },
                   h('span', { style: { flex: 1, minWidth: 0 } }, t.sheet || t.name),
-                  h('span', { className: 'ad-row-meta' }, t.idx || ''),
-                  h(AStatus, { tone: st === 'placed' ? 'ok' : st === 'overflow' ? 'warn' : '' }, st === 'placed' ? '已落位' : st === 'overflow' ? '溢出待补' : '无数据')),
+                  h('span', { className: 'ad-row-meta', style: { minWidth: '52px' } }, t.idx || ''),
+                  h('span', { style: { minWidth: '88px', display: 'flex', justifyContent: 'center' } }, h(AStatus, { tone: st === 'placed' ? 'ok' : st === 'overflow' ? 'warn' : '' }, st === 'placed' ? '已落位' : st === 'overflow' ? '溢出待补' : '无数据'))),
                 h('div', { className: 'ad-row-meta' }, supDesc(t)),
                 (t.warnings || []).length ? h('div', { className: 'ad-note', style: { margin: '4px 0 0', color: 'var(--dsw-alias-state-warn-primary)' } }, (t.warnings || []).join('；')) : null)
             }))
@@ -779,6 +784,11 @@ window.__ModuleLoader__.load({
           (gate.blocked_by || []).length ? h('div', { className: 'ad-note', style: { marginTop: '8px' } }, '阻塞项：' + (gate.blocked_by || []).join('；')) : null),
         h('div', { className: 'ad-card' },
           h('div', { className: 'ad-row-title', style: { marginBottom: '8px' } }, '勾稽明细（' + lines.length + '）'),
+          h('div', { className: 'ad-row ad-th' },
+            h('span', { style: { flex: 1, minWidth: 0 } }, '科目'),
+            h('span', { style: { minWidth: '112px', textAlign: 'right' } }, '计算数'),
+            h('span', { style: { minWidth: '112px', textAlign: 'right' } }, '报表数'),
+            h('span', { style: { minWidth: '88px', textAlign: 'center' } }, '差异')),
           lines.map(function (l, i) {
             const diff = l.diff
             const noRow = diff === null || diff === undefined
@@ -788,16 +798,19 @@ window.__ModuleLoader__.load({
               h('span', { style: { flex: 1, minWidth: 0 } }, l.line),
               h('span', { className: 'ad-row-meta', style: { minWidth: '112px', textAlign: 'right' } }, fmt(l.calc)),
               h('span', { className: 'ad-row-meta', style: { minWidth: '112px', textAlign: 'right' } }, fmt(l.fs)),
-              h(AStatus, { tone: tone }, label),
+              h('span', { style: { minWidth: '88px', display: 'flex', justifyContent: 'center' } }, h(AStatus, { tone: tone }, label)),
               l.hint ? h('span', { className: 'ad-row-meta', style: { minWidth: '72px' } }, l.hint) : null)
           })),
         h('div', { className: 'ad-card' },
           h('div', { className: 'ad-row-title', style: { marginBottom: '8px' } }, '填表明细（' + workbooks.length + ' 本）'),
+          h('div', { className: 'ad-row ad-th' },
+            h('span', { style: { flex: 1, minWidth: 0 } }, '工作簿'),
+            h('span', { style: { minWidth: '56px', textAlign: 'right' } }, '填写格数')),
           workbooks.map(function (w) {
             return h('div', { key: w.file, style: { marginBottom: '10px' } },
               h('div', { className: 'ad-row' },
                 h('span', { style: { flex: 1, minWidth: 0 } }, w.file),
-                h('span', { className: 'ad-row-meta' }, (w.writes || 0) + ' 格')),
+                h('span', { className: 'ad-row-meta', style: { minWidth: '56px', textAlign: 'right' } }, (w.writes || 0) + ' 格')),
               (w.plans || []).map(function (p, pi) {
                 return (p.sections || []).map(function (s, si) {
                   return h('div', { key: 'ws-' + pi + '-' + si, className: 'ad-row-meta', style: { paddingLeft: '14px', lineHeight: 1.7 } },
@@ -1451,7 +1464,11 @@ window.__ModuleLoader__.load({
             }),
             generated.length ? h('span', { title: '点击预览最新底稿', onClick: function () { if (props.onPreviewWorkpaper) props.onPreviewWorkpaper(generated[0]) },
               style: { color: COLORS.accent, cursor: 'pointer', textDecoration: 'underline' } }, '最新：' + generated[0].created_at) : null),
-          h('div', { style: { padding: '6px 14px' } }, rows),
+          h('div', { style: { padding: '6px 14px' } },
+            h('div', { className: 'ad-row ad-th', style: { display: 'flex', justifyContent: 'space-between' } },
+              h('span', null, '索引号 · 底稿名称 · 文件'),
+              h('span', null, '执行状态')),
+            rows),
           h('details', { className: 'ad-more' },
             h('summary', null, '按类生成、打包与校验'),
             h('div', { className: 'ad-actions', style: { marginBottom: '8px' } },
