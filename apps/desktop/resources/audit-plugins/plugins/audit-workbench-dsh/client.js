@@ -238,6 +238,12 @@ window.__ModuleLoader__.load({
       '.ad-modal-wide{width:min(720px,92vw) !important}',
       '.ad-modal-wide .ad-form{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 16px}',
       '.ad-cats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px 12px;margin-top:2px}',
+      '.ad-modal-scroll{max-height:56vh;overflow:auto}',
+      '.ad-cat-tree{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 24px;margin-top:6px}',
+      '.ad-cat-block{min-width:0}',
+      '.ad-cat-name{font-weight:600;font-size:12px;color:var(--dsw-alias-label-primary)}',
+      '.ad-cat-items{margin:2px 0 0 22px;font-size:11px;color:var(--dsw-alias-label-secondary);line-height:1.6}',
+      '.ad-cat-item{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
       '.ad-cat-check{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--dsw-alias-label-secondary);cursor:pointer;line-height:1.4}',
       '.ad-staff-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:12px}',
       '.ad-staff-label{width:64px;flex:none;color:var(--dsw-alias-label-secondary)}',
@@ -4725,6 +4731,7 @@ window.__ModuleLoader__.load({
         partner: { count: 1, hours: 4 }
       })
       const [fee, setFee] = React.useState('')
+      const [catalog, setCatalog] = React.useState([])
       const role = (props.auth && props.auth.user && props.auth.user.role) || ''
       const canApprove = ['manager', 'partner', 'kb-admin', 'admin'].indexOf(role) >= 0
       function loadClients() { api('/audit/clients').then(function (d) { setClients(d.items || []) }).catch(function () {}) }
@@ -4733,6 +4740,7 @@ window.__ModuleLoader__.load({
       React.useEffect(function () { api('/audit/approvers').then(function (d) { setApprovers(d.items || []) }).catch(function () {}) }, [])
       React.useEffect(function () { api('/audit/dashboard').then(function (d) { setDashRows((d && d.items) || []) }).catch(function () {}) }, [])
       React.useEffect(function () { api('/audit/programs/summary').then(function (d) { setProgSummary((d && d.items) || {}) }).catch(function () {}) }, [])
+      React.useEffect(function () { api('/audit/program-catalog', { business_type: '年报审计' }).then(function (d) { setCatalog((d && d.items) || []) }).catch(function () {}) }, [])
       React.useEffect(function () {
         if (!selectedClient) { setSelPrograms(null); return }
         api('/audit/clients/programs', { client: selectedClient })
@@ -4851,6 +4859,7 @@ window.__ModuleLoader__.load({
           title: '新建客户',
           closeLabel: '关闭',
           className: 'ad-modal-wide',
+          contentClassName: 'ad-modal-scroll',
           description: '建档时一并评估业务范围与人力投入，便于判断收费是否合理。',
           footer: h('div', { className: 'ad-actions' },
             h(ui.Button, { variant: 'outline', onClick: function () { setShowCreateClient(false) } }, '取消'),
@@ -4864,15 +4873,19 @@ window.__ModuleLoader__.load({
             h('label', { className: 'ad-field' }, '业务责任人', h(ui.Input, { className: 'ad-iw', value: ownerName, placeholder: '姓名', onChange: function (e) { setOwnerName(e.target.value) } })),
             h('label', { className: 'ad-field' }, '风险等级', h('select', { className: 'ad-input', value: riskLevel, onChange: function (e) { setRiskLevel(e.target.value) } }, ['低', '中', '高'].map(function (x) { return h('option', { key: 'rl-' + x, value: x }, x) })))),
           h('div', { className: 'ad-field', style: { marginTop: '14px' } },
-            h('span', null, '适用科目循环（不选 = 全部 13 类）'),
-            h('div', { className: 'ad-cats' },
+            h('span', null, '适用科目循环（不选 = 全部 13 类，勾选后按该范围生成程序清单）'),
+            h('div', { className: 'ad-cat-tree' },
               PROGRAM_CATEGORIES.map(function (cat) {
                 const on = selCats.indexOf(cat) >= 0
-                return h('label', { key: cat, className: 'ad-cat-check' },
-                  h('input', { type: 'checkbox', checked: on, onChange: function () {
-                    setSelCats(function (prev) { return prev.indexOf(cat) >= 0 ? prev.filter(function (x) { return x !== cat }) : prev.concat([cat]) })
-                  } }),
-                  h('span', null, cat))
+                const names = (catalog || []).filter(function (it) { return (it.category || '') === cat }).map(function (it) { return it.name })
+                return h('div', { key: cat, className: 'ad-cat-block' },
+                  h('label', { className: 'ad-cat-check' },
+                    h('input', { type: 'checkbox', checked: on, onChange: function () {
+                      setSelCats(function (prev) { return prev.indexOf(cat) >= 0 ? prev.filter(function (x) { return x !== cat }) : prev.concat([cat]) })
+                    } }),
+                    h('span', { className: 'ad-cat-name' }, cat + (names.length ? '（' + names.length + '）' : ''))),
+                  names.length ? h('div', { className: 'ad-cat-items' },
+                    names.map(function (n) { return h('div', { key: n, className: 'ad-cat-item' }, n) })) : null)
               }))),
           h('div', { style: { marginTop: '16px' } },
             h('div', { className: 'ad-row-title', style: { marginBottom: '6px' } }, '人力投入'),
