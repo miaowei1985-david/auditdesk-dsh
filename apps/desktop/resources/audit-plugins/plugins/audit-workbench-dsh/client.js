@@ -4597,13 +4597,6 @@ window.__ModuleLoader__.load({
           h('div', { className: 'ad-kpi-value' }, value),
           hint ? h('div', { className: 'ad-kpi-hint' }, hint) : null)
       }
-      const formatBytesLocal = function (value) {
-        const number = Number(value || 0)
-        if (number >= 1024 * 1024 * 1024) return (number / (1024 * 1024 * 1024)).toFixed(2) + ' GB'
-        if (number >= 1024 * 1024) return (number / (1024 * 1024)).toFixed(1) + ' MB'
-        if (number >= 1024) return (number / 1024).toFixed(1) + ' KB'
-        return number + ' B'
-      }
       const search = keyword.trim().toLowerCase()
       const rows = (dashboard.items || [])
         .filter(function (item) {
@@ -4648,8 +4641,7 @@ window.__ModuleLoader__.load({
           card('项目数', dashboard.count),
           card('进行中', dashboard.active),
           card('已归档', dashboard.archived),
-          card('待审批', dashboard.approval_pending),
-          card('已生成文件', formatBytesLocal(dashboard.generated_bytes))),
+          card('待审批', dashboard.approval_pending)),
         h('div', { className: 'ad-toolbar', style: { marginBottom: '12px' } },
           h(ui.Input, { className: 'ad-iw', style: { width: '220px' }, value: keyword, onChange: function (e) { setKeyword(e.target.value) }, placeholder: '搜索客户或项目' }),
           h('select', { className: 'ad-input', style: { width: 'auto' }, value: statusFilter, onChange: function (e) { setStatusFilter(e.target.value) } },
