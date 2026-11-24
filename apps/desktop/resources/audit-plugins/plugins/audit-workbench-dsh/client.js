@@ -235,6 +235,8 @@ window.__ModuleLoader__.load({
       '.ad-prog-item{display:flex;align-items:center;gap:6px;padding:3px 0;font-size:12px;border-bottom:0.5px solid var(--dsw-alias-border-l3)}',
       '.ad-prog-item-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
       '.ad-prog-item-status{font-size:11px;color:var(--dsw-alias-label-secondary);white-space:nowrap}',
+      '.ad-cats{display:flex;flex-wrap:wrap;gap:8px 14px;margin-top:2px}',
+      '.ad-cat-check{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--dsw-alias-label-secondary);cursor:pointer}',
       '.ad-tile.wide{flex:2 1 420px;min-width:420px}',
       'body:not([data-ds-dark-theme]) .ad-tile{box-shadow:var(--dsw-shadow-lv1),var(--dsw-shadow-lv1-blur)}',
       '.ad-card summary{list-style:none;cursor:pointer}',
@@ -311,6 +313,12 @@ window.__ModuleLoader__.load({
     const PROG_STATE = function (status) {
       return status === '已完成' ? 'done' : status === '进行中' ? 'warning' : status === '不适用' ? 'idle' : 'idle'
     }
+    // 年报审计的 13 个科目循环（与后端 program_catalog 一致）
+    const PROGRAM_CATEGORIES = [
+      '计划与风险评估', '货币资金', '应收账款', '存货', '固定资产与无形资产', '收入与成本',
+      '借款与利息', '应付及其他应付款', '应付职工薪酬', '应交税费', '所有者权益',
+      '特殊项目', '完成阶段'
+    ]
 
     // 环形进度（SVG，不依赖图表库）
     function Ring(props) {
@@ -4702,6 +4710,7 @@ window.__ModuleLoader__.load({
       const [progSummary, setProgSummary] = React.useState({})
       const [selectedClient, setSelectedClient] = React.useState(null)
       const [selPrograms, setSelPrograms] = React.useState(null)
+      const [selCats, setSelCats] = React.useState([])
       const role = (props.auth && props.auth.user && props.auth.user.role) || ''
       const canApprove = ['manager', 'partner', 'kb-admin', 'admin'].indexOf(role) >= 0
       function loadClients() { api('/audit/clients').then(function (d) { setClients(d.items || []) }).catch(function () {}) }
@@ -4791,8 +4800,8 @@ window.__ModuleLoader__.load({
       }
       function createClient() {
         if (!name.trim()) { setMsg('客户名称必填'); return }
-        api('/audit/clients/create', null, { method: 'POST', body: { name: name, credit_code: creditCode, client_type: clientType, contact: contact, owner_name: ownerName, risk_level: riskLevel } })
-          .then(function () { setMsg('客户已建档（待提交）。下一步：指定审批人提交准入'); setName(''); setCreditCode(''); setContact(''); setOwnerName(''); setShowCreateClient(false); loadClients() })
+        api('/audit/clients/create', null, { method: 'POST', body: { name: name, credit_code: creditCode, client_type: clientType, contact: contact, owner_name: ownerName, risk_level: riskLevel, program_categories: selCats.join(',') } })
+          .then(function () { setMsg('客户已建档（待提交）。下一步：指定审批人提交准入'); setName(''); setCreditCode(''); setContact(''); setOwnerName(''); setSelCats([]); setShowCreateClient(false); loadClients() })
           .catch(function (e) { setMsg('建档失败：' + e) })
       }
       function submitClient(id) {
@@ -4849,6 +4858,19 @@ window.__ModuleLoader__.load({
             h('label', { className: 'ad-field' }, '联系信息', h(ui.Input, { className: 'ad-iw', value: contact, onChange: function (e) { setContact(e.target.value) } })),
             h('label', { className: 'ad-field' }, '业务责任人', h(ui.Input, { className: 'ad-iw', value: ownerName, placeholder: '姓名', onChange: function (e) { setOwnerName(e.target.value) } })),
             h('label', { className: 'ad-field' }, '风险等级', h('select', { className: 'ad-input', value: riskLevel, onChange: function (e) { setRiskLevel(e.target.value) } }, ['低', '中', '高'].map(function (x) { return h('option', { key: 'rl-' + x, value: x }, x) }))),
+            h('div', { className: 'ad-field', style: { gridColumn: '1 / -1' } },
+              h('span', null, '适用科目循环（不选 = 全部 13 类）'),
+              h('div', { className: 'ad-cats' },
+                PROGRAM_CATEGORIES.map(function (cat) {
+                  const on = selCats.indexOf(cat) >= 0
+                  return h('label', { key: cat, className: 'ad-cat-check' },
+                    h('input', { type: 'checkbox', checked: on, onChange: function () {
+                      setSelCats(function (prev) {
+                        return prev.indexOf(cat) >= 0 ? prev.filter(function (x) { return x !== cat }) : prev.concat([cat])
+                      })
+                    } }),
+                    h('span', null, cat))
+                }))),
             h('div', { className: 'ad-form-actions' }, h(ui.Button, { variant: 'primary', size: 'sm', onClick: createClient }, '建档'))) : null,
           clients === null ? h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '加载客户…') :
             (clients.length ? h('div', null, clients.map(function (c) {
