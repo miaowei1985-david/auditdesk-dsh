@@ -531,6 +531,111 @@ window.__ModuleLoader__.load({
       }).catch(function () { return basicProjectPrompt(company, project) })
     }
 
+    // 「审计程序」主界面：读 /api/audit-fill/program-tables（86 张程序表）+ dict 附表连线
+    function ProgramTablesZone(props) {
+      const [list, setList] = React.useState(null)
+      const [q, setQ] = React.useState('')
+      const [subject, setSubject] = React.useState('')
+      const [detail, setDetail] = React.useState(null)
+      const [dict, setDict] = React.useState(null)
+      const [err, setErr] = React.useState('')
+      const [loadingDetail, setLoadingDetail] = React.useState(false)
+
+      React.useEffect(function () {
+        fetch('/api/audit-fill/program-tables')
+          .then(function (r) { return r.json() })
+          .then(function (d) { setList(d.subjects || []) })
+          .catch(function (e) { setErr('加载程序表失败：' + String(e)); setList([]) })
+      }, [])
+
+      React.useEffect(function () {
+        if (!subject) { setDetail(null); setDict(null); return }
+        setLoadingDetail(true)
+        const found = (list || []).filter(function (x) { return x.subject === subject })[0]
+        const prefix = found && found.idx ? String(found.idx).split('-')[0] : ''
+        fetch('/api/audit-fill/program-tables?subject=' + encodeURIComponent(subject))
+          .then(function (r) { return r.json() })
+          .then(function (d) { setDetail(d.program || null) })
+          .catch(function () { setDetail(null) })
+          .then(function () { setLoadingDetail(false) })
+        if (prefix) {
+          fetch('/api/audit-fill/dict?prefix=' + encodeURIComponent(prefix))
+            .then(function (r) { return r.json() })
+            .then(function (d) { setDict(d.dict || {}) })
+            .catch(function () { setDict({}) })
+        } else {
+          setDict(null)
+        }
+      }, [subject])
+
+      const visible = (list || []).filter(function (x) {
+        const s = String(q || '').trim().toLowerCase()
+        if (!s) return true
+        return (String(x.subject || '') + ' ' + String(x.idx || '') + ' ' + String(x.proj || '')).toLowerCase().indexOf(s) >= 0
+      })
+
+      return h('div', { className: 'ad-zone-page' },
+        h('div', { className: 'ad-head' },
+          h('div', null,
+            h('h1', { className: 'ad-title' }, '审计程序'),
+            h('div', { className: 'ad-sub' }, list === null ? '加载程序表…' : (list.length + ' 张程序表 · 选中科目查看 5 项认定与实质性程序'))),
+          null),
+        err ? h('div', { className: 'ad-note' }, err) : null,
+        h('div', { style: { display: 'flex', gap: '16px', alignItems: 'flex-start' } },
+          h('div', { style: { width: '296px', flexShrink: 0 } },
+            h('div', { className: 'ad-toolbar', style: { marginBottom: '8px' } },
+              h(ui.Input, { className: 'ad-iw', value: q, onChange: function (e) { setQ(e.target.value) }, placeholder: '搜索科目 / 索引号' })),
+            h('div', { className: 'ad-card', style: { maxHeight: '64vh', overflow: 'auto', padding: '6px 8px' } },
+              list === null ? h('div', { className: 'ad-row-meta' }, '加载中…') : null,
+              visible.map(function (x) {
+                return h('div', { key: x.subject, className: 'ad-nav' + (subject === x.subject ? ' on' : ''), style: { cursor: 'pointer' }, onClick: function () { setSubject(x.subject) } },
+                  h('div', { style: { display: 'flex', justifyContent: 'space-between', gap: '8px' } },
+                    h('span', { style: { fontSize: '12.5px' } }, x.subject),
+                    h('span', { className: 'ad-row-meta' }, x.idx || '—')),
+                  h('div', { className: 'ad-row-meta' }, (x.objective_count || 0) + ' 认定 · ' + (x.proc_count || 0) + ' 程序'))
+              }))),
+          h('div', { style: { flex: 1, minWidth: 0 } },
+            !subject ? h('div', { className: 'ad-note' }, '从左侧选择一个科目，查看该科目的审计目标（5 项认定）、实质性程序与关联底稿表。')
+              : loadingDetail && detail === null ? h('div', { className: 'ad-row-meta' }, '加载程序表…')
+              : detail === null ? h('div', { className: 'ad-note' }, '该科目暂无程序表数据')
+              : h('div', null,
+                  h('div', { className: 'ad-head', style: { marginBottom: '10px' } },
+                    h('div', null,
+                      h('h2', { className: 'ad-title', style: { fontSize: '17px' } }, detail.subject),
+                      h('div', { className: 'ad-sub' }, (detail.idx || '—') + ' · ' + (detail.proj || ''))),
+                    null),
+                  h('div', { className: 'ad-card' },
+                    h('div', { className: 'ad-row-title', style: { marginBottom: '8px' } }, '审计目标（' + ((detail.objectives || []).length) + ' 项认定）'),
+                    (detail.objectives || []).map(function (o) {
+                      return h('div', { key: o.id, className: 'ad-row', style: { alignItems: 'flex-start' } },
+                        h('span', { className: 'ad-pill', style: { minWidth: '24px', textAlign: 'center' } }, o.id),
+                        h('span', { style: { flex: 1, minWidth: 0 } }, o.text),
+                        h('span', { className: 'ad-row-meta', style: { whiteSpace: 'nowrap' } }, o.a))
+                    })),
+                  h('div', { className: 'ad-card' },
+                    h('div', { className: 'ad-row-title', style: { marginBottom: '8px' } }, '实质性程序（' + ((detail.procs || []).filter(function (p) { return p.no }).length) + ' 条）'),
+                    (detail.procs || []).map(function (p, i) {
+                      if (p.group) {
+                        return h('div', { key: 'g-' + i, style: { margin: '12px 0 4px', fontSize: '12px', fontWeight: 600, color: 'var(--dsw-alias-label-secondary)' } }, p.group)
+                      }
+                      return h('div', { key: 'p-' + (p.no || i), className: 'ad-prog-item', style: { alignItems: 'flex-start' } },
+                        h('span', { className: 'ad-row-meta', style: { minWidth: '26px', flexShrink: 0 } }, p.no + '.'),
+                        h('span', { style: { flex: 1, minWidth: 0, lineHeight: 1.65 } }, p.text),
+                        p.idx ? h('span', { className: 'ad-row-meta', style: { whiteSpace: 'nowrap' } }, p.idx) : null,
+                        h('span', { className: 'ad-row-meta', style: { minWidth: '60px', whiteSpace: 'nowrap' } }, (p.a || []).join(' / ')))
+                    })),
+                  dict ? h('div', { className: 'ad-card' },
+                    h('div', { className: 'ad-row-title', style: { marginBottom: '8px' } }, '关联底稿表（' + Object.keys(dict).length + '）'),
+                    Object.keys(dict).map(function (name) {
+                      const d = dict[name] || {}
+                      return h('div', { key: name, className: 'ad-row' },
+                        h('div', null,
+                          h('div', { className: 'ad-row-title', style: { fontSize: '12.5px' } }, name),
+                          h('div', { className: 'ad-row-meta' }, [d['表类'], d['索引号'], d['簿']].filter(Boolean).join(' · '))),
+                        h('span', { className: 'ad-row-meta' }, d['索引号'] || ''))
+                    })) : null))))
+    }
+
     function Zone(props) {
       const readOnly = Boolean(props.readOnly)
       const tmpElementsState = React.useState({}); const tmpElements = tmpElementsState[0]; const setTmpElements = tmpElementsState[1]
@@ -558,6 +663,18 @@ window.__ModuleLoader__.load({
         setMatTrivial(String(mat.trivial))
         setMatNote(String(mat.note || ''))
       }, [props.analysis])
+      const progTablesState = React.useState(null)
+      const progTables = progTablesState[0]
+      const setProgTables = progTablesState[1]
+      const progSubjectState = React.useState('货币资金')
+      const progSubject = progSubjectState[0]
+      const setProgSubject = progSubjectState[1]
+      React.useEffect(function () {
+        if (progTables) return
+        fetch('/api/audit-fill/program-tables').then(function (r) { return r.json() })
+          .then(function (d) { if (d && d.ok && d.programs) setProgTables(d.programs) })
+          .catch(function () {})
+      }, [])
       const approversState = React.useState({})
       const approvers = approversState[0]
       const setApprovers = approversState[1]
@@ -1213,106 +1330,8 @@ window.__ModuleLoader__.load({
           eventsBlock('workpaper'))
       }
       if (props.zone === '审计程序') {
-        const rows = props.programs || []
-        const cycle = ['待执行', '进行中', '已完成', '不适用']
-        const sourceStyle = {
-          账载: { label: '账载', color: '#2f7cf6', hint: '导科目余额表/序时账' },
-          外部: { label: '外部', color: '#b45309', hint: '收资料/发函' },
-          现场: { label: '现场', color: '#7c3aed', hint: '监盘/盘点' },
-          程序: { label: '程序', color: '#6b7280', hint: '执行/判断' },
-        }
-        const GROUP_ORDER = ['计划与风险评估', '货币资金', '应收账款', '存货', '固定资产与无形资产',
-          '应付及其他应付款', '应付职工薪酬', '应交税费', '借款与利息', '收入与成本',
-          '所有者权益', '特殊项目', '完成阶段', '数据核对', '控制测试', '评价与报告', '计划与范围']
-        function groupRank(category) {
-          const index = GROUP_ORDER.indexOf(category)
-          return index >= 0 ? index : 999  // 其他/未分类排最后
-        }
-        function sourceBadge(source) {
-          const meta = sourceStyle[source]
-          if (!meta) return null
-          return h('span', { title: meta.hint, style: { display: 'inline-block', marginLeft: '6px', padding: '0 6px', borderRadius: '6px', border: '1px solid ' + meta.color, color: meta.color, fontSize: '10px', lineHeight: '16px', whiteSpace: 'nowrap' } }, meta.label)
-        }
-        // 负责人下拉：项目成员 + 保留已有自定义值
-        const memberNames = []
-        ;(props.members || []).forEach(function (m) {
-          const name = m && (m.name || m.username)
-          if (name && memberNames.indexOf(name) < 0) memberNames.push(name)
-        })
-        function ownerSelect(row) {
-          if (readOnly) return h('span', { style: { fontSize: '12px', color: row.owner ? 'inherit' : COLORS.muted } }, row.owner || '—')
-          const current = row.owner || ''
-          const options = [''].concat(memberNames)
-          if (current && options.indexOf(current) < 0) options.push(current)
-          return h('select', {
-            value: current,
-            onChange: function (e) { if (props.onUpdateProgramRow) props.onUpdateProgramRow(row.id, 'owner', e.target.value) },
-            style: { width: '100%', padding: '4px 6px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px' },
-          }, options.map(function (name) { return h('option', { key: 'owner-' + row.id + '-' + (name || 'none'), value: name }, name || '未指派') }))
-        }
-        const btnStyle = { padding: '6px 10px', borderRadius: '7px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '11.5px', cursor: 'pointer', whiteSpace: 'nowrap' }
-        return h('div', { className: 'ad-zone-page' },
-          h('div', { className: 'ad-head' },
-            h('div', null,
-              h('h1', { className: 'ad-title' }, '审计程序'),
-              h('div', { className: 'ad-sub' }, (((props.project || {}).business_type) || '年报审计') + ' · ' + rows.length + ' 项。改完点保存。')),
-            readOnly ? null : h(ui.Button, { variant: 'primary', size: 'sm', onClick: function () { if (props.onSavePrograms) props.onSavePrograms() } }, '保存')),
-          h('details', { className: 'ad-more' },
-            h('summary', null, '导出与补全'),
-            h('div', { className: 'ad-actions' },
-              h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onExportPrograms) props.onExportPrograms() } }, '导出 Word'),
-              h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onExportProgramsXlsx) props.onExportProgramsXlsx() } }, '导出 Excel'),
-              readOnly ? null : h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onCompletePrograms) props.onCompletePrograms() } }, '补全程序清单'))),
-          h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', margin: '8px 0 2px', fontSize: '11px', color: COLORS.muted } },
-            h('span', null, '数据来源：'),
-            ['账载', '外部', '现场', '程序'].map(function (src) {
-              return h('span', { key: 'legend-' + src, style: { display: 'inline-flex', alignItems: 'center', gap: '4px' } },
-                h('span', { style: { padding: '0 6px', borderRadius: '6px', border: '1px solid ' + sourceStyle[src].color, color: sourceStyle[src].color, fontSize: '10px', lineHeight: '16px' } }, sourceStyle[src].label),
-                sourceStyle[src].hint)
-            })),
-          h('div', { style: { fontSize: '11px', color: COLORS.muted, marginTop: '2px' } }, '提示：点状态可切换（待执行→进行中→已完成→不适用）；负责人从项目成员中选择；改完点「保存」。'),
-          props.importMessage ? h('div', { style: { fontSize: '12px', color: '#16a34a', margin: '6px 0' } }, props.importMessage) : null,
-          rows.length ? (function () {
-            const groups = []
-            const seen = {}
-            rows.forEach(function (row) {
-              const category = row.category || '其他'
-              if (!seen[category]) { seen[category] = true; groups.push(category) }
-            })
-            groups.sort(function (a, b) { return groupRank(a) - groupRank(b) || a.localeCompare(b, 'zh') })
-            return groups.map(function (category) {
-              const items = rows.filter(function (row) { return (row.category || '其他') === category })
-              const done = items.filter(function (row) { return row.status === '已完成' }).length
-              return h('div', { key: 'cat-' + category, style: { marginBottom: '14px' } },
-                h('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', margin: '12px 0 4px', padding: '6px 10px', borderRadius: '8px', background: 'rgba(47,124,246,0.06)', fontSize: '13px', fontWeight: 600 } },
-                  h('span', null, category),
-                  h('span', { style: { fontSize: '11px', color: COLORS.muted, fontWeight: 400 } }, items.length + ' 项 · 已完成 ' + done)),
-                h('div', { style: { display: 'grid', gridTemplateColumns: '34px minmax(0,1fr) 88px 128px minmax(0,1fr)', gap: '8px', alignItems: 'center', padding: '2px 0 4px', fontSize: '11px', color: COLORS.muted, borderBottom: '1px solid ' + COLORS.line } },
-                  h('span', null, '#'),
-                  h('span', null, '审计程序'),
-                  h('span', null, '状态'),
-                  h('span', null, '负责人'),
-                  h('span', null, '备注 / 证据')),
-                items.map(function (row) {
-                  return h('div', { key: 'prog-' + row.id, style: { display: 'grid', gridTemplateColumns: '34px minmax(0,1fr) 88px 128px minmax(0,1fr)', gap: '8px', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid ' + COLORS.line, fontSize: '12px' } },
-                    h('span', { style: { color: COLORS.muted } }, row.seq + '.'),
-                    h('span', { style: { minWidth: 0 } }, row.name, sourceBadge(row.source)),
-                    h('span', { onClick: function () { if (!readOnly && props.onUpdateProgramRow) props.onUpdateProgramRow(row.id, 'status', cycle[(cycle.indexOf(row.status || '待执行') + 1) % cycle.length]) }, title: '点击切换状态', style: { cursor: readOnly ? 'default' : 'pointer' } },
-                      h(Badge, { tone: row.status === '已完成' ? 'ok' : row.status === '进行中' ? 'warn' : row.status === '不适用' ? 'muted' : 'bad' }, row.status || '待执行')),
-                    ownerSelect(row),
-                    h(ui.Input, { className: 'ad-plain', value: row.note || '', onChange: function (e) { if (props.onUpdateProgramRow) props.onUpdateProgramRow(row.id, 'note', e.target.value) }, placeholder: '备注/证据', style: { padding: '4px 7px', borderRadius: '6px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', minWidth: 0 } }))
-                }))
-            })
-          })() : h('div', { style: { padding: '14px', fontSize: '12px', color: COLORS.muted } }, '暂无审计程序，点「补全程序清单」生成全量清单'),
-          (props.programEvents || []).filter(function (event) { return event.old_status }).length ? h('div', { style: { marginTop: '16px', padding: '14px', borderRadius: '12px', border: '1px solid ' + COLORS.line } },
-            h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' } },
-              h('div', { style: { fontSize: '13px', fontWeight: 600 } }, '最近变更（' + (props.programEvents || []).filter(function (event) { return event.old_status }).length + '）'),
-              h(ui.Button, { variant: 'outline', size: 'sm', onClick: function () { if (props.onExportProgramHistory) props.onExportProgramHistory() }, style: { border: 0, background: 'transparent', color: COLORS.accent, fontSize: '12px', cursor: 'pointer' } }, '导出变更历史 Excel')),
-            (props.programEvents || []).filter(function (event) { return event.old_status }).slice(0, 10).map(function (event, index) {
-              return h('div', { key: 'pe-' + index, style: { display: 'flex', justifyContent: 'space-between', gap: '10px', fontSize: '12px', padding: '3px 0', borderBottom: '1px solid ' + COLORS.line } },
-                h('span', null, (event.item_name || '') + '：' + (event.old_status || '') + ' → ' + (event.new_status || '') + '（' + (event.actor || '') + '）'),
-                h('span', { style: { color: COLORS.muted } }, event.created_at))
-            })) : null)
+        // 程序表主界面：86 张程序表 + 逐科目 5 认定 / 实质性程序 / 关联底稿表
+        return h(ProgramTablesZone, { project: props.project })
       }
       if (props.zone === '项目对话') {
         const linked = props.linked === null ? null : props.linked
