@@ -1409,8 +1409,8 @@ window.__ModuleLoader__.load({
                     })
                   : h('div', { style: { fontSize: '12px', color: COLORS.muted } }, '尚未同步，点击「同步台账」生成')))
           })(),
-          (props.matHistory || []).length ? h('div', { style: { marginTop: '12px', padding: '14px', borderRadius: '12px', border: '1px solid ' + COLORS.line } },
-            h('div', { style: { fontSize: '13px', fontWeight: 600, marginBottom: '8px' } }, '重要性调整历史（' + props.matHistory.length + '）'),
+          (props.matHistory || []).length ? h('details', { className: 'ad-more', style: { marginTop: '12px', padding: '14px', borderRadius: '12px', border: '1px solid ' + COLORS.line } },
+            h('summary', null, '重要性调整历史（' + props.matHistory.length + '）'),
             (props.matHistory || []).map(function (history) {
               return h('div', { key: 'mh-' + history.id, style: { display: 'flex', justifyContent: 'space-between', gap: '10px', padding: '4px 0', borderBottom: '1px solid ' + COLORS.line, fontSize: '12px' } },
                 h('span', null, history.actor + '：整体 ' + Number(history.overall).toLocaleString() + ' / 执行 ' + Number(history.performance).toLocaleString() + ' / 微小 ' + Number(history.trivial).toLocaleString() + (history.note ? ' · ' + history.note : '')),
