@@ -1802,7 +1802,10 @@ window.__ModuleLoader__.load({
                 h('option', { value: 'inventory' }, '存货 ZJ'),
                 h('option', { value: 'revenue' }, '营业收入成本 SA')),
               h(ui.Button, { variant: 'outline', size: 'sm', disabled: props.generating || readOnly, onClick: function () { if (props.onGenerateWorkpaper) props.onGenerateWorkpaper(wpKind) } }, '生成所选'),
-              props.generateMessage ? h('span', { className: 'ad-row-meta' }, props.generateMessage) : null),
+              props.generateMessage
+                ? h('span', { className: 'ad-row-meta' }, props.generateMessage)
+                : h('span', { style: { fontSize: '10.5px', color: COLORS.muted }, title: '底稿里的数字来自客户财务报表；没有报表就只能生成空表' },
+                    '生成前需先导入财务报表')),
             generated.length ? h('div', null,
               h('div', { style: { display: 'flex', alignItems: 'center', gap: '10px', margin: '6px 0' } },
                 h('div', { style: { fontSize: '12px', fontWeight: 600 } }, '已生成底稿（' + filteredGenerated.length + (props.generatedKind && props.generatedKind !== 'all' ? ' / ' + generated.length : '') + '）'),
