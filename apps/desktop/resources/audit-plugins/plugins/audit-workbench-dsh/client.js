@@ -102,7 +102,10 @@ window.__ModuleLoader__.load({
           setGatewayInfo({ url: hit, via: hit === GATEWAY_CANDIDATES[0] ? '直链' : hit === GATEWAY_CANDIDATES[3] ? 'Tailscale' : hit === GATEWAY_CANDIDATES[4] ? '公网' : '备用地址', ok: true, probing: false })
           try { localStorage.setItem(GATEWAY_KEY, hit) } catch (e) {}
         } else {
-          setGatewayInfo({ url: BASE, via: '未连接', ok: false, probing: false })
+          // 全部不通：旧覆盖值如果也不通，清掉它，否则下次打开还卡在同一个旧地址
+          const stale = readGatewayOverride()
+          if (stale) { try { localStorage.removeItem(GATEWAY_KEY) } catch (e) {} }
+          setGatewayInfo({ url: stale || BASE, via: stale ? '旧地址已失效，已清除' : '未连接', ok: false, probing: false })
         }
         return BASE
       })
