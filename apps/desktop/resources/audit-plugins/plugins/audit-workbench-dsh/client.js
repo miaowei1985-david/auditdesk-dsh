@@ -91,7 +91,8 @@ window.__ModuleLoader__.load({
         : GATEWAY_CANDIDATES.slice()
       gatewayProbe = Promise.all(candidates.map(function (url) {
         const controller = new AbortController()
-        const timer = setTimeout(function () { controller.abort() }, timeoutMs || 1800)
+        // 公网 Funnel 的 TLS 握手实测 1.5~3.4s，1.8s 会把它判死；给 5s 余量
+        const timer = setTimeout(function () { controller.abort() }, timeoutMs || 5000)
         return fetch(url + '/health', { signal: controller.signal })
           .then(function (resp) { clearTimeout(timer); return resp.ok ? url : null })
           .catch(function () { clearTimeout(timer); return null })
@@ -212,7 +213,7 @@ window.__ModuleLoader__.load({
       }, [gateway.probing, gateway.ok])
       const gwDot = gateway.probing ? '#9ca3af' : (gateway.ok ? '#16a34a' : '#dc2626')
       const gwText = gateway.probing
-        ? '正在检测服务器…'
+        ? '正在检测服务器…（公网通道需几秒）'
         : (gateway.ok ? '已连接 ' + gateway.url.replace(/^https?:\/\//, '') + '（' + gateway.via + '）'
           : '未连接 · 试过的地址都不通（' + gateway.via + '）')
       return h('div', { style: { height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: COLORS.text } },
