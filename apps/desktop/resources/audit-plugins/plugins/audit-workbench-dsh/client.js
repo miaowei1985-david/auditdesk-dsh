@@ -56,7 +56,9 @@ window.__ModuleLoader__.load({
       'http://169.254.163.107:8030',              // Thunderbolt/USB 直链（链路本地，最快）
       'http://192.168.2.2:8030',                  // 直链（如已配静态 IP）
       'http://macmini4prodemac-mini.local:8030',  // Bonjour 自动发现
-      'http://100.101.170.7:8030',                // Tailscale（兜底）
+      'http://100.101.170.7:8030',                // Tailscale（内网 VPN）
+      // 公网入口（Tailscale Funnel，客户端零安装）：任何网络可达，放最后兜底
+      'https://macmini4prodemac-mini.tailae6447.ts.net:10000',
     ]
     function readGatewayOverride() {
       try { return localStorage.getItem(GATEWAY_KEY) || '' } catch (e) { return '' }
@@ -97,7 +99,7 @@ window.__ModuleLoader__.load({
         const hit = results.filter(Boolean)[0]
         if (hit) {
           BASE = hit
-          setGatewayInfo({ url: hit, via: hit === GATEWAY_CANDIDATES[0] ? '直链' : hit === GATEWAY_CANDIDATES[3] ? 'Tailscale' : '备用地址', ok: true, probing: false })
+          setGatewayInfo({ url: hit, via: hit === GATEWAY_CANDIDATES[0] ? '直链' : hit === GATEWAY_CANDIDATES[3] ? 'Tailscale' : hit === GATEWAY_CANDIDATES[4] ? '公网' : '备用地址', ok: true, probing: false })
           try { localStorage.setItem(GATEWAY_KEY, hit) } catch (e) {}
         } else {
           setGatewayInfo({ url: BASE, via: '未连接', ok: false, probing: false })
@@ -201,6 +203,10 @@ window.__ModuleLoader__.load({
         probeGateway(2500)
       }
       const inputStyle = { width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: '8px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '13px', marginBottom: '10px' }
+      // 探测失败时自动展开地址设置，省得用户去找「改地址」
+      React.useEffect(function () {
+        if (!gateway.probing && !gateway.ok) setShowGw(true)
+      }, [gateway.probing, gateway.ok])
       const gwDot = gateway.probing ? '#9ca3af' : (gateway.ok ? '#16a34a' : '#dc2626')
       const gwText = gateway.probing
         ? '正在检测服务器…'
