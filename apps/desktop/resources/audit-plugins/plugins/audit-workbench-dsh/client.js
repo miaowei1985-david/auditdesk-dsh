@@ -63,7 +63,24 @@ window.__ModuleLoader__.load({
     }
     let BASE = readGatewayOverride() || GATEWAY_CANDIDATES[0]
     let gatewayProbe = null
-    let gatewayInfo = { url: BASE, via: '未探测' }
+    let gatewayInfo = { url: BASE, via: '未探测', ok: false, probing: true }
+    const gatewayListeners = new Set()
+    function useGatewayInfo() {
+      const state = React.useState(gatewayInfo)
+      React.useEffect(function () {
+        const listener = function (info) { state[1](info) }
+        gatewayListeners.add(listener)
+        return function () { gatewayListeners.delete(listener) }
+      }, [])
+      return state[0]
+    }
+    function setGatewayInfo(info) {
+      gatewayInfo = info
+      gatewayListeners.forEach(function (listener) { try { listener(info) } catch (e) {} })
+    }
+    function probeGatewayAsync(timeoutMs) {
+      return probeGateway(timeoutMs)
+    }
     function probeGateway(timeoutMs) {
       if (gatewayProbe) return gatewayProbe
       const override = readGatewayOverride()
@@ -80,8 +97,10 @@ window.__ModuleLoader__.load({
         const hit = results.filter(Boolean)[0]
         if (hit) {
           BASE = hit
-          gatewayInfo = { url: hit, via: hit === GATEWAY_CANDIDATES[0] ? '直链' : hit === GATEWAY_CANDIDATES[3] ? 'Tailscale' : '备用地址' }
+          setGatewayInfo({ url: hit, via: hit === GATEWAY_CANDIDATES[0] ? '直链' : hit === GATEWAY_CANDIDATES[3] ? 'Tailscale' : '备用地址', ok: true, probing: false })
           try { localStorage.setItem(GATEWAY_KEY, hit) } catch (e) {}
+        } else {
+          setGatewayInfo({ url: BASE, via: '未连接', ok: false, probing: false })
         }
         return BASE
       })
@@ -127,6 +146,12 @@ window.__ModuleLoader__.load({
               setAuth(data.token, data.user)
               return data.user
             })
+          }).catch(function (cause) {
+            // 网络层失败（fetch 抛 TypeError）和「账号密码错」要分开说
+            if (cause && (cause.name === 'TypeError' || /Failed to fetch|NetworkError|load failed/i.test(String(cause.message || '')))) {
+              throw new Error('连不上服务器（当前 ' + gatewayInfo.url + '）。检查网络，或在下方「服务器地址」里改成可用的网关')
+            }
+            throw cause
           })
         },
         logout: function () {
@@ -139,29 +164,67 @@ window.__ModuleLoader__.load({
 
     function LoginForm() {
       const auth = useAuth()
+      const gateway = useGatewayInfo()
       const usernameState = React.useState('')
       const passwordState = React.useState('')
       const errorState = React.useState('')
       const loadingState = React.useState(false)
+      const showGwState = React.useState(false)
+      const gwDraftState = React.useState('')
       const username = usernameState[0]; const setUsername = usernameState[1]
       const password = passwordState[0]; const setPassword = passwordState[1]
       const error = errorState[0]; const setError = errorState[1]
       const loading = loadingState[0]; const setLoading = loadingState[1]
+      const showGw = showGwState[0]; const setShowGw = showGwState[1]
+      const gwDraft = gwDraftState[0]; const setGwDraft = gwDraftState[1]
       function submit(event) {
         if (event) event.preventDefault()
         if (loading) return
         setLoading(true); setError('')
         auth.login(username.trim(), password).catch(function (cause) { setError(String(cause.message || cause)) }).then(function () { setLoading(false) })
       }
+      function applyGateway() {
+        const value = String(gwDraft || '').trim().replace(/\/+$/, '')
+        if (!value) { setError('请填服务器地址，例如 http://100.101.170.7:8030'); return }
+        if (!/^https?:\/\//.test(value)) { setError('地址要以 http:// 或 https:// 开头'); return }
+        try { localStorage.setItem(GATEWAY_KEY, value) } catch (e) {}
+        BASE = value
+        gatewayProbe = null
+        setError('')
+        setGatewayInfo({ url: value, via: '手动设置', ok: false, probing: true })
+        probeGateway(2500)
+        setShowGw(false)
+      }
+      function retryProbe() {
+        gatewayProbe = null
+        setGatewayInfo({ url: gateway.url, via: '未探测', ok: false, probing: true })
+        probeGateway(2500)
+      }
       const inputStyle = { width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: '8px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '13px', marginBottom: '10px' }
+      const gwDot = gateway.probing ? '#9ca3af' : (gateway.ok ? '#16a34a' : '#dc2626')
+      const gwText = gateway.probing
+        ? '正在检测服务器…'
+        : (gateway.ok ? '已连接 ' + gateway.url.replace(/^https?:\/\//, '') + '（' + gateway.via + '）'
+          : '未连接 · 试过的地址都不通（' + gateway.via + '）')
       return h('div', { style: { height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: COLORS.text } },
-        h('form', { onSubmit: submit, style: { width: '320px', padding: '24px', borderRadius: '14px', border: '1px solid ' + COLORS.line, background: COLORS.bg } },
+        h('form', { onSubmit: submit, style: { width: '360px', padding: '24px', borderRadius: '14px', border: '1px solid ' + COLORS.line, background: COLORS.bg } },
           h('div', { style: { fontSize: '16px', fontWeight: 600, marginBottom: '6px' } }, '登录 AuditDesk'),
-          h('div', { style: { fontSize: '12px', color: COLORS.muted, marginBottom: '16px' } }, '用项目组账号登录；不同角色权限不同（演示账号见下）'),
+          h('div', { style: { fontSize: '12px', color: COLORS.muted, marginBottom: '12px' } }, '用项目组账号登录；不同角色权限不同（演示账号见下）'),
+          h('div', { style: { display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11.5px', padding: '7px 10px', borderRadius: '8px', background: gateway.ok ? 'rgba(22,163,74,0.08)' : 'rgba(220,38,38,0.08)', border: '1px solid ' + (gateway.ok ? 'rgba(22,163,74,0.35)' : 'rgba(220,38,38,0.35)'), marginBottom: '12px' } },
+            h('span', { style: { width: '7px', height: '7px', borderRadius: '50%', background: gwDot, flexShrink: 0 } }),
+            h('span', { style: { flex: 1, lineHeight: 1.5 } }, gwText),
+            h('span', { onClick: retryProbe, style: { color: COLORS.accent, cursor: 'pointer', whiteSpace: 'nowrap' } }, '重试'),
+            h('span', { onClick: function () { setShowGw(!showGw); setGwDraft(gateway.url) }, style: { color: COLORS.accent, cursor: 'pointer', whiteSpace: 'nowrap' } }, '改地址')),
+          showGw ? h('div', { style: { marginBottom: '12px' } },
+            h('div', { style: { fontSize: '11px', color: COLORS.muted, marginBottom: '6px', lineHeight: 1.6 } }, '填审计服务器网关地址（要能访问 8030 端口）。常见写法：http://100.101.170.7:8030（Tailscale）、http://macmini4prodemac-mini.local:8030（同一局域网）'),
+            h(ui.Input, { className: 'ad-plain', value: gwDraft, onChange: function (e) { setGwDraft(e.target.value) }, placeholder: 'http://100.101.170.7:8030', style: inputStyle }),
+            h('div', { style: { display: 'flex', gap: '8px' } },
+              h('button', { type: 'button', onClick: applyGateway, style: { padding: '7px 14px', borderRadius: '8px', border: 0, background: COLORS.accent, color: 'var(--dsw-alias-label-primary-foreground)', fontSize: '12px', cursor: 'pointer' } }, '保存并检测'),
+              h('button', { type: 'button', onClick: function () { setShowGw(false) }, style: { padding: '7px 14px', borderRadius: '8px', border: '1px solid ' + COLORS.line, background: 'transparent', color: 'inherit', fontSize: '12px', cursor: 'pointer' } }, '取消'))) : null,
           h(ui.Input, { className: 'ad-plain', value: username, onChange: function (e) { setUsername(e.target.value) }, placeholder: '用户名', autoFocus: true, style: inputStyle }),
           h(ui.Input, { className: 'ad-plain', value: password, onChange: function (e) { setPassword(e.target.value) }, placeholder: '密码', type: 'password', style: inputStyle }),
-          error ? h('div', { style: { fontSize: '12px', color: '#b91c1c', marginBottom: '10px' } }, error) : null,
-          h('button', { type: 'submit', disabled: loading, style: { width: '100%', padding: '10px 12px', borderRadius: '8px', border: 0, background: COLORS.accent, color: 'var(--dsw-alias-label-primary-foreground)', fontSize: '13px', cursor: 'pointer' } }, loading ? '登录中…' : '登录'),
+          error ? h('div', { style: { fontSize: '12px', color: '#b91c1c', marginBottom: '10px', lineHeight: 1.6 } }, error) : null,
+          h('button', { type: 'submit', disabled: loading, style: { width: '100%', padding: '10px 12px', borderRadius: '8px', border: 0, background: COLORS.accent, color: 'var(--dsw-alias-label-primary-foreground)', fontSize: '13px', cursor: loading ? 'not-allowed' : 'pointer' } }, loading ? '登录中…' : '登录'),
           h('div', { style: { fontSize: '11px', color: COLORS.muted, marginTop: '12px', lineHeight: 1.7 } },
             '演示账号：auditor/auditor123（审计员）、manager/manager123（项目经理）、partner/partner123（合伙人）、admin/admin123（管理员）')))
     }
